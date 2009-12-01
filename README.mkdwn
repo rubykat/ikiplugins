@@ -1,0 +1,6 @@
+# IkiPlugins
+
+This contains a collection of plugins for the IkiWiki wiki engine
+(see <http://ikiwiki.info>).
+
+* xslt - directive to process XML data file with XSLT and include result in page
