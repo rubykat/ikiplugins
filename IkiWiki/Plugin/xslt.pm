@@ -9,11 +9,11 @@ IkiWiki::Plugin::xslt - ikiwiki directive to process an XML file with XSLT
 
 =head VERSION
 
-This describes version B<0.01> of IkiWiki::Plugin::xslt
+This describes version B<0.02> of IkiWiki::Plugin::xslt
 
 =cut
 
-our $VERSION = '0.01';
+our $VERSION = '0.02';
 
 =head1 SYNOPSIS
 
@@ -38,10 +38,12 @@ There are two arguments to this directive.
 The file which contains XML data to be processed.  This file is searched
 for using the usual IkiWiki mechanism, thus finding the file first
 in the same directory as the page, then in the directory above, and so on.
+This MUST have an extension of B<.xml>
 
 =item stylesheet
 
 The file which contains XSLT stylesheet to apply to the XML data.
+This MUST have an extension of B<.xsl>
 
 This file is searched for using the usual IkiWiki mechanism, thus
 finding the file first in the same directory as the page, then in the
@@ -105,6 +107,14 @@ sub preprocess (@) {
 	if (! exists $params{$param})
 	{
 	    error sprintf(gettext('%s parameter is required'), $param);
+	}
+	if ($param eq 'stylesheet' and $params{$param} !~ /.xsl$/)
+	{
+	    error sprintf(gettext('%s must have .xsl extension'), $param);
+	}
+	if ($param eq 'file' and $params{$param} !~ /.xml$/)
+	{
+	    error sprintf(gettext('%s must have .xml extension'), $param);
 	}
 	$near{$param} = bestlink($params{page}, $params{$param});
 	if (! $near{$param})
