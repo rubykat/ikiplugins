@@ -3,11 +3,11 @@
 package IkiWiki::Plugin::xslt;
 use warnings;
 use strict;
-=head NAME
+=head1 NAME
 
 IkiWiki::Plugin::xslt - ikiwiki directive to process an XML file with XSLT
 
-=head VERSION
+=head1 VERSION
 
 This describes version B<0.02> of IkiWiki::Plugin::xslt
 
