@@ -1,7 +1,8 @@
 # IkiPlugins
 
 This contains a collection of plugins for the IkiWiki wiki engine
-(see <http://ikiwiki.info>).
+(see <http://ikiwiki.info/>).
 
-* xslt - directive to process XML data file with XSLT and include result in page
-* pod - process files in POD format as ikiwiki pages
+* xslt - directive to process XML data file with XSLT and include result in page.
+* pod - process files in POD format as ikiwiki pages.
+* field - - front-end for per-page record fields.
