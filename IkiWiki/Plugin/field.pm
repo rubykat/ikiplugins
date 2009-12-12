@@ -3,6 +3,7 @@
 package IkiWiki::Plugin::field;
 use warnings;
 use strict;
+use YAML::Any;
 =head1 NAME
 
 IkiWiki::Plugin::field - front-end for per-page record fields.
@@ -150,9 +151,7 @@ modify it under the same terms as Perl itself.
 use IkiWiki 3.00;
 
 my %Fields = ();
-my @FieldsFirst = ();
-my @FieldsMiddle = ();
-my @FieldsLast = ();
+my %FieldsOrder = ();
 
 sub import {
 	hook(type => "getsetup", id => "field",  call => \&getsetup);
@@ -246,32 +245,33 @@ sub field_register (%) {
 	$Fields{$param{id}}->{call} = sub {
 	    my $field_name = shift;
 	    my $page = shift;
+	    my $destpage = (@_? shift : $page);
 	    if (exists $pagestate{$page}{$param{id}}{$field_name})
 	    {
 		return $pagestate{$page}{$param{id}}{$field_name};
+	    }
+	    elsif (exists $pagestate{$page}{$param{id}}{lc($field_name)})
+	    {
+		return $pagestate{$page}{$param{id}}{lc($field_name)};
 	    }
 	    return undef;
 	};
     }
     # add this to the first/middle/last list now, to save time
-    if ($param{first})
-    {
-	push @FieldsFirst, $param{id};
-    }
-    elsif ($param{'last'})
-    {
-	push @FieldsLast, $param{id};
-    }
-    else
-    {
-	push @FieldsMiddle, $param{id};
-    }
+    my $order = ($param{first}
+		 ? 'first'
+		 : ($param{last}
+		    ? 'last'
+		    : 'middle'
+		   ));
+    $FieldsOrder{$order}{$param{id}} = 1;
     return 1;
 } # field_register
 
-sub field_get_value ($$) {
+sub field_get_value ($$;$) {
     my $field_name = shift;
     my $page = shift;
+    my $destpage = (@_? shift : $page);
 
     # This will return the first value it finds
     # where the value returned is not undefined.
@@ -284,8 +284,12 @@ sub field_get_value ($$) {
     # could be anything!
  
     my $value = undef;
-    foreach my $id (@FieldsFirst, @FieldsMiddle, @FieldsLast) {
-	$value = $Fields{$id}{call}->($field_name, $page);
+    my @first = sort keys %{$FieldsOrder{first}};
+    my @middle = sort keys %{$FieldsOrder{middle}};
+    my @last = sort keys %{$FieldsOrder{'last'}};
+    foreach my $id (@first, @middle, @last)
+    {
+	$value = $Fields{$id}{call}->($field_name, $page, $destpage);
 	if (defined $value)
 	{
 	    return $value;
@@ -297,6 +301,12 @@ sub field_get_value ($$) {
     if ($field_name eq 'title')
     {
 	return pagetitle(IkiWiki::basename($page));
+    }
+
+    # and set "page" if desired
+    if ($field_name eq 'page')
+    {
+	return $page;
     }
 
     return undef;
