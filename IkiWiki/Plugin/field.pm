@@ -10,11 +10,11 @@ IkiWiki::Plugin::field - front-end for per-page record fields.
 
 =head1 VERSION
 
-This describes version B<0.01> of IkiWiki::Plugin::field
+This describes version B<0.02> of IkiWiki::Plugin::field
 
 =cut
 
-our $VERSION = '0.01';
+our $VERSION = '0.02';
 
 =head1 SYNOPSIS
 
@@ -152,6 +152,9 @@ use IkiWiki 3.00;
 
 my %Fields = ();
 my %FieldsOrder = ();
+my @FieldsFirst = ();
+my @FieldsMiddle = ();
+my @FieldsLast = ();
 
 sub import {
 	hook(type => "getsetup", id => "field",  call => \&getsetup);
@@ -284,10 +287,19 @@ sub field_get_value ($$;$) {
     # could be anything!
  
     my $value = undef;
-    my @first = sort keys %{$FieldsOrder{first}};
-    my @middle = sort keys %{$FieldsOrder{middle}};
-    my @last = sort keys %{$FieldsOrder{'last'}};
-    foreach my $id (@first, @middle, @last)
+    if (!@FieldsFirst)
+    {
+	@FieldsFirst = sort keys %{$FieldsOrder{first}};
+    }
+    if (!@FieldsMiddle)
+    {
+	@FieldsMiddle = sort keys %{$FieldsOrder{middle}};
+    }
+    if (!@FieldsLast)
+    {
+	@FieldsLast = sort keys %{$FieldsOrder{'last'}};
+    }
+    foreach my $id (@FieldsFirst, @FieldsMiddle, @FieldsLast)
     {
 	$value = $Fields{$id}{call}->($field_name, $page, $destpage);
 	if (defined $value)
