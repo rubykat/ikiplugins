@@ -80,8 +80,9 @@ my $XSLT_xslt;
 
 sub import {
 	hook(type => "getsetup", id => "xslt",  call => \&getsetup);
-	hook(type => "checkconfig", id => "xslt", call => \&checkconfig);
 	hook(type => "preprocess", id => "xslt", call => \&preprocess);
+	$XSLT_parser = XML::LibXML->new();
+	$XSLT_xslt = XML::LibXSLT->new();
 }
 
 sub getsetup () {
@@ -90,12 +91,6 @@ sub getsetup () {
 			safe => 1,
 			rebuild => undef,
 		},
-}
-
-sub checkconfig () {
-    debug("xslt plugin checkconfig");
-    $XSLT_parser = XML::LibXML->new();
-    $XSLT_xslt = XML::LibXSLT->new();
 }
 
 sub preprocess (@) {
