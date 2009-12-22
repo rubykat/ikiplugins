@@ -114,7 +114,6 @@ sub checkconfig () {
 
 sub htmlize (@) {
     my %params=@_;
-    my $content = $params{content};
     my $page = $params{page};
 
     my $toplink = $config{pod_toplink} ?
@@ -127,7 +126,7 @@ sub htmlize (@) {
 				MakeIndex  => $config{pod_index},
 				TopLinks   => $toplink,
 			       );
-    my $io = IO::String->new($content);
+    my $io = IO::String->new($params{content});
     $parser->parse_from_filehandle($io);
 
     return $parser->asString;

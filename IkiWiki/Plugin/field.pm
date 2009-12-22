@@ -156,6 +156,8 @@ my @FieldsFirst = ();
 my @FieldsMiddle = ();
 my @FieldsLast = ();
 
+my %Cache = ();
+
 sub import {
 	hook(type => "getsetup", id => "field",  call => \&getsetup);
 	hook(type => "checkconfig", id => "field", call => \&checkconfig);
@@ -287,6 +289,14 @@ sub field_get_value ($$;$) {
     # could be anything!
  
     my $value = undef;
+
+    # check the cache first
+    if (exists $Cache{$page}{$field_name}
+	and defined $Cache{$page}{$field_name})
+    {
+	return $Cache{$page}{$field_name};
+    }
+
     if (!@FieldsFirst)
     {
 	@FieldsFirst = sort keys %{$FieldsOrder{first}};
@@ -304,24 +314,32 @@ sub field_get_value ($$;$) {
 	$value = $Fields{$id}{call}->($field_name, $page, $destpage);
 	if (defined $value)
 	{
-	    return $value;
+	    last;
 	}
     }
 
-    # Exception for titles
-    # If the title hasn't been found, construct it
-    if ($field_name eq 'title')
+    if (defined $value)
     {
-	return pagetitle(IkiWiki::basename($page));
+	# cache the value
+	$Cache{$page}{$field_name} = $value;
+    }
+    else
+    {
+	# Exception for titles
+	# If the title hasn't been found, construct it
+	if ($field_name eq 'title')
+	{
+	    return pagetitle(IkiWiki::basename($page));
+	}
+
+	# and set "page" if desired
+	if ($field_name eq 'page')
+	{
+	    return $page;
+	}
     }
 
-    # and set "page" if desired
-    if ($field_name eq 'page')
-    {
-	return $page;
-    }
-
-    return undef;
+    return $value;
 } # field_get_value
 
 # ===============================================
