@@ -80,7 +80,12 @@ field(I<name> I<glob>)
 
 For example:
 
-field(bar Foo*) will match if the "bar" field starts with "Foo".
+field(bar Foo*) will match if the "bar" field in the source page starts with "Foo".
+
+destfield(I<name> I<glob>)
+
+is the same, except that it tests the destination page (that is, in cases
+when the source page is being included in another page).
 
 =head1 FUNCTIONS
 
@@ -250,7 +255,6 @@ sub field_register (%) {
 	$Fields{$param{id}}->{call} = sub {
 	    my $field_name = shift;
 	    my $page = shift;
-	    my $destpage = (@_? shift : $page);
 	    if (exists $pagestate{$page}{$param{id}}{$field_name})
 	    {
 		return $pagestate{$page}{$param{id}}{$field_name};
@@ -273,10 +277,9 @@ sub field_register (%) {
     return 1;
 } # field_register
 
-sub field_get_value ($$;$) {
+sub field_get_value ($$) {
     my $field_name = shift;
     my $page = shift;
-    my $destpage = (@_? shift : $page);
 
     # This will return the first value it finds
     # where the value returned is not undefined.
@@ -311,7 +314,7 @@ sub field_get_value ($$;$) {
     }
     foreach my $id (@FieldsFirst, @FieldsMiddle, @FieldsLast)
     {
-	$value = $Fields{$id}{call}->($field_name, $page, $destpage);
+	$value = $Fields{$id}{call}->($field_name, $page);
 	if (defined $value)
 	{
 	    last;
@@ -353,7 +356,7 @@ sub match_field ($$;@) {
     my $wanted=shift;
     my %params=@_;
 
-    # the field name is first, the rest is the match
+    # The field name is first; the rest is the match
     my $field_name;
     my $glob;
     if ($wanted =~ /^(\w+)\s+(.*)$/)
@@ -383,5 +386,44 @@ sub match_field ($$;@) {
 	return IkiWiki::FailReason->new("$page does not have a $field_name", "" => 1);
     }
 } # match_field
+
+sub match_destfield ($$;@) {
+    my $page=shift;
+    my $wanted=shift;
+    my %params=@_;
+
+    return IkiWiki::FailReason->new("cannot match destpage") unless exists $params{destpage};
+
+    # Match the field on the destination page, not the source page
+    # The field name is first; the rest is the match
+    my $field_name;
+    my $glob;
+    if ($wanted =~ /^(\w+)\s+(.*)$/)
+    {
+	$field_name = $1;
+	$glob = $2;
+    }
+    else
+    {
+	return IkiWiki::FailReason->new("cannot match field");
+    }
+
+    # turn glob into a safe regexp
+    my $re=IkiWiki::glob2re($glob);
+
+    my $val = IkiWiki::Plugin::field::field_get_value($field_name, $params{destpage});
+
+    if (defined $val) {
+	if ($val=~/^$re$/i) {
+	    return IkiWiki::SuccessReason->new("$re matches $field_name of $params{destpage}", $params{destpage} => $IkiWiki::DEPEND_CONTENT, "" => 1);
+	}
+	else {
+	    return IkiWiki::FailReason->new("$re does not match $field_name of $params{destpage}", "" => 1);
+	}
+    }
+    else {
+	return IkiWiki::FailReason->new("$params{destpage} does not have a $field_name", "" => 1);
+    }
+} # match_destfield
 
 1;
