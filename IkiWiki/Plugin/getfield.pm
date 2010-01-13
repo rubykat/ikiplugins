@@ -30,7 +30,7 @@ that page, such as the page title.
 
 This plugin is meant to be used in conjunction with the B<field> plugin.
 
-=head2 USEAGE
+=head2 USAGE
 
 One can get the value of a field by using special markup in the page.
 This does not use directive markup, in order to make it easier to
