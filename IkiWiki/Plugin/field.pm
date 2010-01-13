@@ -10,11 +10,11 @@ IkiWiki::Plugin::field - front-end for per-page record fields.
 
 =head1 VERSION
 
-This describes version B<0.02> of IkiWiki::Plugin::field
+This describes version B<0.03> of IkiWiki::Plugin::field
 
 =cut
 
-our $VERSION = '0.02';
+our $VERSION = '0.03';
 
 =head1 SYNOPSIS
 
@@ -23,6 +23,9 @@ our $VERSION = '0.02';
 
     # simple registration
     field_register => [qw{meta}],
+
+    # allow the config to be queried as a field
+    field_allow_config => 1,
 
 =head1 DESCRIPTION
 
@@ -60,7 +63,16 @@ The following options can be set in the ikiwiki setup file.
 
 =over
 
+=item field_allow_config
+
+    field_allow_config => 1,
+
+Allow the $config hash to be queried like any other field; the 
+keys of the config hash are the field names.
+
 =item field_register
+
+    field_register => [qw{meta}],
 
 A list of plugin-IDs to register.  This assumes that the plugins in
 question store data in the %pagestatus hash using the ID of that plugin,
@@ -95,8 +107,8 @@ when the source page is being included in another page).
 
 field_register(id=>$id);
 
-Register a plugin as having field data.  The above form is the simplest, where the field value
-is looked up in the %pagestatus hash under the plugin-id.
+Register a plugin as having field data.  The above form is the simplest, where
+the field value is looked up in the %pagestatus hash under the plugin-id.
 
 Additional Options:
 
@@ -104,9 +116,10 @@ Additional Options:
 
 =item call=>&myfunc
 
-A reference to a function to call rather than just looking up the value in the %pagestatus hash.
-It takes two arguments: the name of the field, and the name of the page.  It is expected to return
-the value of that field, or undef if there is no field by that name.
+A reference to a function to call rather than just looking up the value in the
+%pagestatus hash.  It takes two arguments: the name of the field, and the name
+of the page.  It is expected to return the value of that field, or undef if
+there is no field by that name.
 
     sub myfunc ($$) {
 	my $field = shift;
@@ -119,13 +132,13 @@ the value of that field, or undef if there is no field by that name.
 
 =item first=>1
 
-Set this to be called first in the sequence of calls looking for values.  Since the first found
-value is the one which is returned, ordering is significant.
+Set this to be called first in the sequence of calls looking for values.  Since
+the first found value is the one which is returned, ordering is significant.
 
 =item last=>1
 
-Set this to be called last in the sequence of calls looking for values.  Since the first found
-value is the one which is returned, ordering is significant.
+Set this to be called last in the sequence of calls looking for values.  Since
+the first found value is the one which is returned, ordering is significant.
 
 =back
 
@@ -185,6 +198,13 @@ sub getsetup () {
 			safe => 0,
 			rebuild => undef,
 		},
+		field_allow_config => {
+			type => "boolean",
+			example => "field_allow_config => 1",
+			description => "allow config settings to be queried",
+			safe => 0,
+			rebuild => undef,
+		},
 }
 
 sub checkconfig () {
@@ -203,6 +223,10 @@ sub checkconfig () {
 	{
 	    field_register(id=>$config{field_register});
 	}
+    }
+    if (!defined $config{field_allow_config})
+    {
+	$config{field_allow_config} = 0;
     }
 } # checkconfig
 
@@ -321,27 +345,34 @@ sub field_get_value ($$) {
 	}
     }
 
-    if (defined $value)
-    {
-	# cache the value
-	$Cache{$page}{$field_name} = $value;
-    }
-    else
+    # extra definitions
+    if (!defined $value)
     {
 	# Exception for titles
 	# If the title hasn't been found, construct it
 	if ($field_name eq 'title')
 	{
-	    return pagetitle(IkiWiki::basename($page));
+	    $value = pagetitle(IkiWiki::basename($page));
 	}
-
 	# and set "page" if desired
-	if ($field_name eq 'page')
+	elsif ($field_name eq 'page')
 	{
-	    return $page;
+	    $value = $page;
+	}
+	elsif ($field_name =~ /^config-(.*)$/i)
+	{
+	    my $cfield = $1;
+	    if (exists $config{$cfield})
+	    {
+		$value = $config{$cfield};
+	    }
 	}
     }
-
+    if (defined $value)
+    {
+	# cache the value
+	$Cache{$page}{$field_name} = $value;
+    }
     return $value;
 } # field_get_value
 
