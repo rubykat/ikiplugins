@@ -9,3 +9,4 @@ This contains a collection of plugins for the IkiWiki wiki engine
 * ymlfront - back-end for per-page record fields; using YAML format.
 * getfield - query field values inside a page.
 * ftemplate - template using fields.
+* report - report using per-page record fields.
