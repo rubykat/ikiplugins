@@ -29,7 +29,7 @@ because ftemplate can query structured data ("fields") using
 the B<field> plugin.
 
 Templates are files that can be filled out and inserted into pages in
-the wiki, by using the template directive. The directive has an id
+the wiki, by using the ftemplate directive. The directive has an id
 parameter that identifies the template to use.
 
 Additional parameters can be used to fill out the template, in
