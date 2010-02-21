@@ -316,15 +316,30 @@ sub preprocess (@) {
 	foreach my $tp (@trailpages)
 	{
 	    add_depends($this_page, $tp, deptype("links"));
-	    push @matching_pages,
-		 map { bestlink($tp, $_) } @{$links{$tp}};
+	    foreach my $ln (@{$links{$tp}})
+	    {
+		my $bl = bestlink($tp, $ln);
+		if ($bl)
+		{
+		    push @matching_pages, $bl;
+		}
+	    }
 	}
 	if ($params{pages})
 	{
-	    @matching_pages = pagespec_match_list($params{destpage}, $pages,
-						  %params,
-						  deptype => $deptype,
-						  list=>\@matching_pages);
+	    # filter out the pages that don't match
+	    my @filtered = ();
+	    my $result=0;
+	    foreach my $mp (@matching_pages)
+	    {
+		$result=pagespec_match($mp, $pages);
+		if ($result)
+		{
+		    push @filtered, $mp;
+		    add_depends($this_page, $mp, $deptype);
+		}
+	    }
+	    @matching_pages = @filtered;
 	}
     }
     else
@@ -546,5 +561,4 @@ sub do_one_template (@) {
 					       $output), $scan);
 
 } # do_one_template
-
 1;
