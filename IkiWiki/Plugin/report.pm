@@ -122,7 +122,7 @@ The "mood_summary" template might be like this:
     ## <TMPL_VAR NAME="HEADER1">
     </TMPL_IF>
     ### <TMPL_VAR NAME="TITLE">
-    (<TMPL_VAR NAME="DATE">) [[<TMPL_VAR NAME="PAGE"]]
+    (<TMPL_VAR NAME="DATE">) [[<TMPL_VAR NAME="PAGE">]]
     <TMPL_VAR NAME="DESCRIPTION">
     
 =head2 Advanced Options
