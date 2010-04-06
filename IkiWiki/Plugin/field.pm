@@ -3,7 +3,6 @@
 package IkiWiki::Plugin::field;
 use warnings;
 use strict;
-use YAML::Any;
 =head1 NAME
 
 IkiWiki::Plugin::field - front-end for per-page record fields.
