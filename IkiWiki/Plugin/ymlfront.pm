@@ -173,25 +173,15 @@ sub scan (@) {
     {
 	delete $pagestate{$page}{ymlfront};
     }
-    if ($params{content} =~ /^---[\n\r](.*?)[\n\r]---[\n\r]/s)
+    my $parsed_yml = parse_yml(%params);
+    if (defined $parsed_yml
+	and defined $parsed_yml->{yml})
     {
-	my $yml_str = $1;
-	# if {{$page}} is there, do an immediate substitution
-	$yml_str =~ s/\{\{\$page\}\}/$page/sg;
-	my $ydata;
-	eval q{$ydata = Load($yml_str);};
-	if ($@)
+	# save the data to pagestate
+	foreach my $fn (keys %{$parsed_yml->{yml}})
 	{
-	    debug("ymlfront: Load of $page failed: $@");
-	}
-	if ($ydata)
-	{
-	    # make lower-cased versions of the data
-	    foreach my $fn (keys %{$ydata})
-	    {
-		my $fval = $ydata->{$fn};
-		$pagestate{$page}{ymlfront}{lc($fn)} = $fval;
-	    }
+	    my $fval = $parsed_yml->{yml}->{$fn};
+	    $pagestate{$page}{ymlfront}{$fn} = $fval;
 	}
     }
     if (exists $pagestate{$page}{ymlfront}{title}
@@ -217,11 +207,16 @@ sub filter (@) {
 
     my $page_file=$pagesources{$page} || return $params{content};
     my $page_type=pagetype($page_file);
-    if (defined $page_type
-	and $params{content} =~ /^---[\n\r].*?[\n\r]---[\n\r](.*)$/s)
+    if (!defined $page_type)
     {
-	my $rest_of_content = $1;
-	$params{content} = $rest_of_content;
+	return $params{content};
+    }
+    my $parsed_yml = parse_yml(%params);
+    if (defined $parsed_yml
+	and defined $parsed_yml->{yml}
+	and defined $parsed_yml->{content})
+    {
+	$params{content} = $parsed_yml->{content};
 	# also check for a content value
 	if (exists $pagestate{$page}{ymlfront}{content}
 	    and defined $pagestate{$page}{ymlfront}{content}
@@ -248,23 +243,11 @@ sub checkcontent {
 	    return undef;
 	}
     }
-    if ($params{content} =~ /^---[\n\r](.*?)[\n\r]---[\n\r]/s)
+    my $parsed_yml = parse_yml(%params);
+    if (!defined $parsed_yml)
     {
-	my $yml_str = $1;
-	# if {{$page}} is there, do an immediate substitution
-	$yml_str =~ s/\{\{\$page\}\}/$page/sg;
-
-	my $ydata;
-	eval q{$ydata = Load($yml_str);};
-	if ($@)
-	{
-	    debug("ymlfront: Save of $page failed: $@");
-	    return gettext("YAML data incorrect: $@");
-	}
-	if (!$ydata)
-	{
-	    return gettext("expected YAML data");
-	}
+	debug("ymlfront: Save of $page failed: $@");
+	return gettext("YAML data incorrect: $@");
     }
     return undef;
 } # checkcontent
@@ -273,4 +256,54 @@ sub checkcontent {
 # Helper functions
 # --------------------------------
 
+# parse the YAML data from the given content
+# Expects page, content
+# Returns { yml=>%yml_data, content=>$content } or undef
+sub parse_yml {
+    my %params=@_;
+    my $page = $params{page};
+    my $content = $params{content};
+
+    my $page_file=$pagesources{$page};
+    if ($page_file)
+    {
+	my $page_type=pagetype($page_file);
+	if (!defined $page_type)
+	{
+	    return undef;
+	}
+    }
+    if ($content =~ /^---[\n\r](.*?)[\n\r]---[\n\r](.*)$/s)
+    {
+	my $yml_str = $1;
+	my $rest_of_content = $2;
+	# if {{$page}} is there, do an immediate substitution
+	$yml_str =~ s/\{\{\$page\}\}/$page/sg;
+
+	my $ydata;
+	eval q{$ydata = Load($yml_str);};
+	if ($@)
+	{
+	    debug("ymlfront: Load of $page failed: $@");
+	    return undef;
+	}
+	if (!$ydata)
+	{
+	    debug("ymlfront: no YAML for $page");
+	    return undef;
+	}
+	my %lc_data = ();
+	if ($ydata)
+	{
+	    # make lower-cased versions of the data
+	    foreach my $fn (keys %{$ydata})
+	    {
+		my $fval = $ydata->{$fn};
+		$lc_data{lc($fn)} = $fval;
+	    }
+	}
+	return { yml=>\%lc_data, content=>$rest_of_content };
+    }
+    return { yml=>undef, content=>$content };
+} # parse_yml
 1;
