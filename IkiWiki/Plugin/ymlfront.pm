@@ -122,9 +122,6 @@ modify it under the same terms as Perl itself.
 
 =cut
 use IkiWiki 3.00;
-use YAML::Any;
-
-$YAML::UseBlock = 1;
 
 sub import {
 	hook(type => "getsetup", id => "ymlfront", call => \&getsetup);
@@ -150,10 +147,14 @@ sub getsetup () {
 
 sub checkconfig () {
 	eval q{use YAML::Any};
+	eval q{use YAML} if $@;
 	if ($@)
 	{
-	    return error ("ymlfront: failed to use YAML::Any");
+	    return error ("ymlfront: failed to use YAML::Any or YAML");
 	}
+
+	$YAML::UseBlock = 1;
+	$YAML::Syck::ImplicitUnicode = 1;
 
 } # checkconfig
 
@@ -273,7 +274,7 @@ sub parse_yml {
 	    return undef;
 	}
     }
-    if ($content =~ /^---[\n\r](.*?)[\n\r]---[\n\r](.*)$/s)
+    if ($content =~ /^---[\n\r](.*?[\n\r])---[\n\r](.*)$/s)
     {
 	my $yml_str = $1;
 	my $rest_of_content = $2;
