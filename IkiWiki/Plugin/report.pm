@@ -404,7 +404,43 @@ sub preprocess (@) {
 	    @matching_pages=reverse(@matching_pages) if $reverse;
 	}
     }
+    
+    # ------------------------------------------------------------------
+    # If we want this report to be in "prevnexthere", that is,
+    # the current page ($this_page) and the previous page
+    # and the next page only, we need to find the current page
+    # in the list of matching pages, and set the matching
+    # pages to those three pages.
+    my @prev_next_here = ();
+    my $this_page_ind;
+    if ($params{prevnexthere})
+    {
+	for (my $i=0; $i < @matching_pages; $i++)
+	{
+	    if ($matching_pages[$i] eq $this_page)
+	    {
+		if ($i > 0)
+		{
+		    push @prev_next_here, $matching_pages[$i-1];
+		    push @prev_next_here, $matching_pages[$i];
+		    $this_page_ind = 1;
+		}
+		else
+		{
+		    push @prev_next_here, $matching_pages[$i];
+		    $this_page_ind = 0;
+		}
+		if ($i < $#matching_pages)
+		{
+		    push @prev_next_here, $matching_pages[$i+1];
+		}
+		last;
+	    }
+	} # for all matching pages
+	@matching_pages = @prev_next_here;
+    }
 
+    # ------------------------------------------------------------------
     # If we are scanning, we only care about the list of pages we found.
     # If "doscan" is true, then add the found pages to the list of links
     # from this page.
@@ -416,8 +452,7 @@ sub preprocess (@) {
     {
 	if ($params{doscan} and !$params{trail})
 	{
-	    debug("report scanning($this_page)");
-	    debug("report NO MATCHING PAGES") if !@matching_pages;
+	    debug("report ($this_page) NO MATCHING PAGES") if !@matching_pages;
 	    foreach my $page (@matching_pages)
 	    {
 		add_link($this_page, $page);
@@ -430,12 +465,16 @@ sub preprocess (@) {
     #
     my @report = ();
 
-    my $count = ($params{count}
-		 ? ($params{count} < @matching_pages
-		    ? $params{count}
-		    : scalar @matching_pages
-		   )
-		 : scalar @matching_pages);
+    my $start = ($params{prevnexthere} ? $this_page_ind : 0);
+    my $stop = ($params{prevnexthere}
+		? $this_page_ind + 1
+		: ($params{count}
+		   ? ($params{count} < @matching_pages
+		      ? $params{count}
+		      : scalar @matching_pages
+		     )
+		   : scalar @matching_pages)
+	       );
     my @header_fields = ($params{headers} ? split(' ', $params{headers}) : ());
     delete $params{headers};
     my @prev_headers = ();
@@ -443,9 +482,11 @@ sub preprocess (@) {
     {
 	$prev_headers[$j] = '';
     }
-    for (my $i=0; $i < $count; $i++)
+    for (my $i=$start; $i < $stop and $i < @matching_pages; $i++)
     {
 	my $page = $matching_pages[$i];
+	my $prev_page = ($i > 0 ? $matching_pages[$i-1] : '');
+	my $next_page = ($i < $#matching_pages ? $matching_pages[$i+1] : '');
 	my $first = ($page eq $matching_pages[0]);
 	my $last = ($page eq $matching_pages[$#matching_pages]);
 	my @header_values = ();
@@ -460,6 +501,8 @@ sub preprocess (@) {
 	    %params,
 	    template=>$template,
 	    page=>$page,
+	    prev_page=>$prev_page,
+	    next_page=>$next_page,
 	    destpage=>$params{destpage},
 	    first=>$first,
 	    last=>$last,
@@ -504,6 +547,7 @@ sub do_one_template (@) {
     my @parameter_names = $template->param();
     foreach my $field (@parameter_names)
     {
+	my $use_page = $params{page};
 	my $real_fn = $field;
 	my $is_raw = 0;
 	if ($field =~ /^raw_(.*)/)
@@ -515,11 +559,28 @@ sub do_one_template (@) {
 	{
 	    $is_raw = 1;
 	}
-	my $value = ((exists $params{$real_fn} and defined $params{$real_fn})
+	if ($real_fn =~ /^(prev|next)_page$/i)
+	{
+	    $use_page = $params{$real_fn};
+	}
+	elsif ($real_fn =~ /^prev_(.*)/)
+	{
+	    $real_fn = $1;
+	    $use_page = $params{prev_page};
+	}
+	elsif ($real_fn =~ /^next_(.*)/)
+	{
+	    $real_fn = $1;
+	    $use_page = $params{next_page};
+	}
+	my $value = ((exists $params{$real_fn}
+		      and defined $params{$real_fn})
 		     ? $params{$real_fn}
-		     : IkiWiki::Plugin::field::field_get_value($real_fn,
-							       $params{page}));
-	if (defined $value)
+		     : ($use_page
+			? IkiWiki::Plugin::field::field_get_value($real_fn,
+								  $use_page)
+			: ''));
+	if (defined $value and $value)
 	{
 	    $value = IkiWiki::htmlize($params{page}, $params{destpage},
 				      $page_type,
