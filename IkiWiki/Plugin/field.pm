@@ -3,6 +3,7 @@
 package IkiWiki::Plugin::field;
 use warnings;
 use strict;
+use YAML::Any;
 =head1 NAME
 
 IkiWiki::Plugin::field - front-end for per-page record fields.
@@ -71,11 +72,18 @@ keys of the config hash are the field names.
 
 =item field_register
 
-    field_register => [qw{meta}],
+    field_register => {
+	meta => 'last'
+	foo => 'DD'
+    },
 
-A list of plugin-IDs to register.  This assumes that the plugins in
-question store data in the %pagestatus hash using the ID of that plugin,
-and thus the field values are looked for there.
+A hash of plugin-IDs to register.  The keys of the hash are the names of the
+plugins, and the values of the hash give the order of lookup of the field
+values.  The order can be 'first', 'last', 'middle', or an explicit order
+sequence between 'AA' and 'ZZ'.
+
+This assumes that the plugins in question store data in the %pagestatus hash
+using the ID of that plugin, and thus the field values are looked for there.
 
 This is the simplest form of registration, but the advantage is that it
 doesn't require the plugin to be modified in order for it to be
@@ -97,6 +105,16 @@ destfield(I<name> I<glob>)
 
 is the same, except that it tests the destination page (that is, in cases
 when the source page is being included in another page).
+
+=head1 SortSpec
+
+The "field" SortSpec function can be used to sort a page depending on the value of a field for that page.  This is used for directives that take sort parameters, such as B<inline> or B<report>.
+
+field(I<name>)
+
+For example:
+
+sort="field(bar)" will sort by the value og the "bar" field.
 
 =head1 FUNCTIONS
 
@@ -133,11 +151,21 @@ there is no field by that name.
 
 Set this to be called first in the sequence of calls looking for values.  Since
 the first found value is the one which is returned, ordering is significant.
+This is equivalent to "order=>'first'".
 
 =item last=>1
 
 Set this to be called last in the sequence of calls looking for values.  Since
 the first found value is the one which is returned, ordering is significant.
+This is equivalent to "order=>'last'".
+
+=item order=>$order
+
+Set the explicit ordering in the sequence of calls looking for values.  Since
+the first found value is the one which is returned, ordering is significant.
+
+The values allowed for this are "first", "last", "middle", or a two-character
+ordering-sequence between 'AA' and 'ZZ'.
 
 =back
 
@@ -167,11 +195,21 @@ modify it under the same terms as Perl itself.
 
 use IkiWiki 3.00;
 
-my %Fields = ();
-my %FieldsOrder = ();
-my @FieldsFirst = ();
-my @FieldsMiddle = ();
-my @FieldsLast = ();
+my %Fields = (
+    _first => {
+	id => '_first',
+	seq => 'BB',
+    },
+    _last => {
+	id => '_last',
+	seq => 'YY',
+    },
+    _middle => {
+	id => '_middle',
+	seq => 'MM',
+    },
+);
+my @FieldsLookupOrder = ();
 
 my %Cache = ();
 
@@ -191,8 +229,8 @@ sub getsetup () {
 			rebuild => undef,
 		},
 		field_register => {
-			type => "array",
-			example => "[qw{meta}]",
+			type => "hash",
+			example => "field_register => {meta => 'last'}",
 			description => "simple registration of fields by plugin",
 			safe => 0,
 			rebuild => undef,
@@ -216,6 +254,13 @@ sub checkconfig () {
 	    foreach my $id (@{$config{field_register}})
 	    {
 		field_register(id=>$id);
+	    }
+	}
+	elsif (ref $config{field_register} eq 'HASH')
+	{
+	    foreach my $id (keys %{$config{field_register}})
+	    {
+		field_register(id=>$id, order=>$config{field_register}->{$id});
 	    }
 	}
 	else
@@ -289,14 +334,27 @@ sub field_register (%) {
 	    return undef;
 	};
     }
-    # add this to the first/middle/last list now, to save time
-    my $order = ($param{first}
-		 ? 'first'
-		 : ($param{last}
-		    ? 'last'
-		    : 'middle'
-		   ));
-    $FieldsOrder{$order}{$param{id}} = 1;
+    # add this to the ordering hash
+    # first, last, order; by default, middle
+    my $when = ($param{first}
+		? '_first'
+		: ($param{last}
+		   ? '_last'
+		   : ($param{order}
+		      ? ($param{order} eq 'first'
+			 ? '_first'
+			 : ($param{order} eq 'last'
+			    ? '_last'
+			    : ($param{order} eq 'middle'
+			       ? '_middle'
+			       : $param{order}
+			      )
+			   )
+			)
+		      : '_middle'
+		     )
+		  ));
+    add_lookup_order($param{id}, $when);
     return 1;
 } # field_register
 
@@ -323,19 +381,11 @@ sub field_get_value ($$) {
 	return $Cache{$page}{$field_name};
     }
 
-    if (!@FieldsFirst)
+    if (!@FieldsLookupOrder)
     {
-	@FieldsFirst = sort keys %{$FieldsOrder{first}};
+	build_fields_lookup_order();
     }
-    if (!@FieldsMiddle)
-    {
-	@FieldsMiddle = sort keys %{$FieldsOrder{middle}};
-    }
-    if (!@FieldsLast)
-    {
-	@FieldsLast = sort keys %{$FieldsOrder{'last'}};
-    }
-    foreach my $id (@FieldsFirst, @FieldsMiddle, @FieldsLast)
+    foreach my $id (@FieldsLookupOrder)
     {
 	$value = $Fields{$id}{call}->($field_name, $page);
 	if (defined $value)
@@ -358,6 +408,10 @@ sub field_get_value ($$) {
 	{
 	    $value = $page;
 	}
+	elsif ($field_name eq 'basename')
+	{
+	    $value = IkiWiki::basename($page);
+	}
 	elsif ($field_name =~ /^config-(.*)$/i)
 	{
 	    my $cfield = $1;
@@ -374,6 +428,79 @@ sub field_get_value ($$) {
     }
     return $value;
 } # field_get_value
+
+# ===============================================
+# Private Functions
+# ---------------------------
+
+# Calculate the lookup order
+# <module, >module, AZ
+# This is crabbed from the PmWiki Markup function
+sub add_lookup_order  {
+    my $id = shift;
+    my $when = shift;
+
+    # may have given an explicit ordering
+    if ($when =~ /^[A-Z][A-Z]$/)
+    {
+	$Fields{$id}{seq} = $when;
+    }
+    else
+    {
+	my $cmp = '=';
+	my $seq_field = $when;
+	if ($when =~ /^([<>])(.+)$/)
+	{
+	    $cmp = $1;
+	    $seq_field = $2;
+	}
+	$Fields{$seq_field}{dep}{$id} = $cmp;
+	if (exists $Fields{$seq_field}{seq}
+	    and defined $Fields{$seq_field}{seq})
+	{
+	    $Fields{$id}{seq} = $Fields{$seq_field}{seq} . $cmp;
+	}
+    }
+    if ($Fields{$id}{seq})
+    {
+	foreach my $i (keys %{$Fields{$id}{dep}})
+	{
+	    my $m = $Fields{$id}{dep}{$i};
+	    add_lookup_order($i, "$m$id");
+	}
+	delete $Fields{$id}{dep};
+    }
+}
+
+sub build_fields_lookup_order {
+
+    # remove the _first, _last and _middle dummy fields
+    # because we don't need them anymore
+    delete $Fields{_first};
+    delete $Fields{_last};
+    delete $Fields{_middle};
+    my %lookup_spec = ();
+    # Make a hash of the lookup sequences
+    foreach my $id (sort keys %Fields)
+    {
+	my $seq = ($Fields{$id}{seq}
+		   ? $Fields{$id}{seq}
+		   : 'MM');
+	if (!exists $lookup_spec{$seq})
+	{
+	    $lookup_spec{$seq} = {};
+	}
+	$lookup_spec{$seq}{$id} = 1;
+    }
+
+    # get the field-lookup order by (a) sorting by lookup_spec
+    # and (b) sorting by field-name for the fields that registered
+    # the same field-lookup order
+    foreach my $ord (sort keys %lookup_spec)
+    {
+	push @FieldsLookupOrder, sort keys %{$lookup_spec{$ord}};
+    }
+} # build_fields_lookup_order
 
 # ===============================================
 # PageSpec functions
@@ -455,5 +582,19 @@ sub match_destfield ($$;@) {
 	return IkiWiki::FailReason->new("$params{destpage} does not have a $field_name", "" => 1);
     }
 } # match_destfield
+
+package IkiWiki::SortSpec;
+
+sub cmp_field {
+    my $field = shift;
+    error(gettext("sort=field requires a parameter")) unless defined $field;
+
+    my $left = IkiWiki::Plugin::field::field_get_value($field, $a);
+    my $right = IkiWiki::Plugin::field::field_get_value($field, $b);
+
+    $left = "" unless defined $left;
+    $right = "" unless defined $right;
+    return $left cmp $right;
+}
 
 1;
