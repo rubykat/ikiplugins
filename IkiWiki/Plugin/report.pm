@@ -54,41 +54,35 @@ The template to use for the report.
 
 =item pages
 
-A PageSpec to determine the pages to report on.
+A PageSpec to determine the pages to report on.  See also "trail".
+
+=item trail
+
+A page or pages to use as a "trail" page.  When a trail page is used,
+the matching pages are limited to (a subset of) the pages which that
+page links to; the "pages" pagespec in this case, rather than selecting
+pages from the entire wiki, will select pages from within the set of pages
+given by the trail page.
+
+Additional space-separated trail pages can be given in this option.
+For example:
+
+    trail="animals/cats animals/dogs"
+
+This will take the links from both the "animals/cats" page and the
+"animals/dogs" page as the set of pages to apply the PageSpec to.
 
 =item sort
 
-How the matching pages should be sorted.  Sorting criteria are separated by spaces.
+A SortSpec to determine how the matching pages should be sorted.
 
-The possible values for sorting are:
+=item here_only
 
-=over
+Report on the current page only.  This is useful in combination with
+"prev_" and "next_" variables to make a navigation trail.
 
-=item page
-
-Sort by the full page ID.
-
-=item pagename
-
-Sort by the base page name.
-
-=item pagename_natural
-
-Sort by the base page name, using Sort::Naturally if it is installed.
-
-=item mtime
-
-Sort by the page modification time.
-
-=item age
-
-Sort by the page creation time, newest first.
-
-=back
-
-Any other value is taken to be a field name to sort by.
-
-If a sort value begins with a minus (-) then the order for that field is reversed.
+If the current page doesn't match the pagespec, then no pages will
+be reported on.
 
 =back
 
@@ -131,14 +125,6 @@ The following options are used to improve efficiency when dealing
 with large numbers of pages; most people probably won't need them.
 
 =over
-
-=item trail
-
-A page or pages to use as a "trail" page.  When a trail page is used,
-the matching pages are limited to (a subset of) the pages which that
-page links to; the "pages" pagespec in this case, rather than selecting
-pages from the entire wiki, will select pages from within the set of pages
-given by the trail page.
 
 =item doscan
 
@@ -183,6 +169,13 @@ values are passed in the report directive call.
 For example, one could have a "hide_mood" parameter which would hide
 the "Mood" section of your template when it is true, which one could
 use when the Mood is one of the headers.
+
+=item prev_ and next_ items
+
+Any of the above variables can be prefixed with "prev_" or "next_"
+and that will give the previous or next value of that variable; that is,
+the value from the previous or next page that this report is reporting on.
+This is mainly useful for a "here_only" report.
 
 =item headers
 
@@ -259,48 +252,30 @@ sub preprocess (@) {
     delete $params{page};
     my $pages = (defined $params{pages} ? $params{pages} : '*');
     $pages =~ s/{{\$page}}/$this_page/g;
-    my $sort = $params{sort};
-    delete $params{sort};
 
-    my $template_page="templates/$params{template}";
-    my $template_file=$pagesources{$template_page};
     my $template;
-    if ($template_file)
-    {
-	add_depends($this_page, $template_page);
+    eval {
+	$template=template_depends($params{template}, $params{page},
+				   blind_cache => 1);
+    };
+    if ($@) {
+	error gettext("failed to process template:")." $@";
+    }
+    if (! $template) {
+	# look for .tmpl template
 	eval {
-	    $template=HTML::Template->new(
-					  filter => sub {
-					  my $text_ref = shift;
-					  $$text_ref=&Encode::decode_utf8($$text_ref);
-					  chomp $$text_ref;
-					  },
-					  filename => srcfile($template_file),
-					  die_on_bad_params => 0,
-					  no_includes => 1,
-					  blind_cache => 1,
-					 );
+	    $template=template_depends("$params{template}.tmpl", $params{page},
+				       blind_cache => 1);
 	};
 	if ($@) {
-	    error gettext("failed to process:")." $@"
+	    error gettext("failed to process template:")." $@";
 	}
-    }
-    else
-    {
-	# get this from the default template directory outside the
-	# ikiwiki tree
-	my @params=IkiWiki::template_params($params{template}.".tmpl",
-					    filter => sub {
-					    my $text_ref = shift;
-					    $$text_ref=&Encode::decode_utf8($$text_ref);
-					    chomp $$text_ref;
-					    },
-					    die_on_bad_params => 0,
-					    blind_cache => 1);
-	if (! @params) {
-	    error sprintf(gettext("nonexistant template %s"), $params{template});
+	if (! $template) {
+
+	    error sprintf(gettext("%s not found"),
+			  htmllink($params{page}, $params{destpage},
+				   "/templates/$params{template}"))
 	}
-	$template=HTML::Template->new(@params);
     }
     delete $params{template};
 
@@ -341,6 +316,15 @@ sub preprocess (@) {
 	    }
 	    @matching_pages = @filtered;
 	}
+	# Because we used a trail, we have to sort the pages ourselves.
+	# This code is cribbed from pagespec_match_list
+	if ($params{sort})
+	{
+	    my $sort=IkiWiki::sortspec_translate($params{sort},
+						 $params{reverse});
+	    @matching_pages=IkiWiki::SortSpec::sort_pages($sort,
+							  @matching_pages);
+	}
     }
     else
     {
@@ -349,71 +333,15 @@ sub preprocess (@) {
 					      deptype => $deptype);
     }
 
-    debug("report($this_page) found " . scalar @matching_pages . " pages");
-
-    # sort the pages
-    # multiple sort-fields are separated by spaces
-    if ($sort)
-    {
-	my @sortfields = split(' ', $sort);
-	# need to reverse the sortfields, going from the specific
-	# to the general.
-	@sortfields = reverse @sortfields;
-	foreach my $sortfield (@sortfields)
-	{
-	    my $f;
-	    my $reverse = 0;
-	    if ($sortfield =~ /^-(.*)/)
-	    {
-		$sortfield = $1;
-		$reverse = 1;
-	    }
-	    if ($sortfield eq 'page') {
-		$f=sub { $a cmp $b };
-	    }
-	    elsif ($sortfield eq 'pagename') {
-		$f=sub { IkiWiki::pagetitle(IkiWiki::basename($a)) cmp IkiWiki::pagetitle(IkiWiki::basename($b)) };
-	    }
-	    elsif ($sortfield eq 'pagename_natural') {
-		eval q{use Sort::Naturally};
-		if ($@) {
-		    error(gettext("Sort::Naturally needed for title_natural sort"));
-		}
-		$f=sub {
-		    Sort::Naturally::ncmp(IkiWiki::pagetitle(IkiWiki::basename($a)),
-					  IkiWiki::pagetitle(IkiWiki::basename($b)))
-		};
-	    }
-	    elsif ($sortfield eq 'mtime') {
-		$f=sub { $IkiWiki::pagemtime{$b} <=> $IkiWiki::pagemtime{$a} };
-	    }
-	    elsif ($sortfield eq 'age') {
-		$f=sub { $IkiWiki::pagectime{$b} <=> $IkiWiki::pagectime{$a} };
-	    }
-	    else # some other field
-	    {
-		$f=sub {
-		    my $val_a = IkiWiki::Plugin::field::field_get_value($sortfield, $a);
-		    $val_a = '' if !defined $val_a;
-		    my $val_b = IkiWiki::Plugin::field::field_get_value($sortfield, $b);
-		    $val_b = '' if !defined $val_b;
-		    $val_a cmp $val_b;
-		};
-	    }
-	    @matching_pages = sort { &$f } @matching_pages;
-	    @matching_pages=reverse(@matching_pages) if $reverse;
-	}
-    }
-    
     # ------------------------------------------------------------------
-    # If we want this report to be in "prevnexthere", that is,
+    # If we want this report to be in "here_only", that is,
     # the current page ($this_page) and the previous page
     # and the next page only, we need to find the current page
     # in the list of matching pages, and set the matching
     # pages to those three pages.
-    my @prev_next_here = ();
+    my @here_only = ();
     my $this_page_ind;
-    if ($params{prevnexthere})
+    if ($params{here_only})
     {
 	for (my $i=0; $i < @matching_pages; $i++)
 	{
@@ -421,24 +349,26 @@ sub preprocess (@) {
 	    {
 		if ($i > 0)
 		{
-		    push @prev_next_here, $matching_pages[$i-1];
-		    push @prev_next_here, $matching_pages[$i];
+		    push @here_only, $matching_pages[$i-1];
+		    push @here_only, $matching_pages[$i];
 		    $this_page_ind = 1;
 		}
 		else
 		{
-		    push @prev_next_here, $matching_pages[$i];
+		    push @here_only, $matching_pages[$i];
 		    $this_page_ind = 0;
 		}
 		if ($i < $#matching_pages)
 		{
-		    push @prev_next_here, $matching_pages[$i+1];
+		    push @here_only, $matching_pages[$i+1];
 		}
 		last;
 	    }
 	} # for all matching pages
-	@matching_pages = @prev_next_here;
+	@matching_pages = @here_only;
     }
+
+    debug("report($this_page) found " . scalar @matching_pages . " pages");
 
     # ------------------------------------------------------------------
     # If we are scanning, we only care about the list of pages we found.
@@ -465,8 +395,8 @@ sub preprocess (@) {
     #
     my @report = ();
 
-    my $start = ($params{prevnexthere} ? $this_page_ind : 0);
-    my $stop = ($params{prevnexthere}
+    my $start = ($params{here_only} ? $this_page_ind : 0);
+    my $stop = ($params{here_only}
 		? $this_page_ind + 1
 		: ($params{count}
 		   ? ($params{count} < @matching_pages
