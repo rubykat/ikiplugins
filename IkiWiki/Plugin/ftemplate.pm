@@ -138,46 +138,31 @@ sub preprocess (@) {
 	error gettext("missing id parameter")
     }
 
-    my $template_page="templates/$params{id}";
-    my $template_file=$pagesources{$template_page};
     my $template;
-    if ($template_file)
-    {
-	add_depends($params{page}, $template_page);
+    eval {
+	$template=template_depends($params{id}, $params{page},
+				   blind_cache => 1);
+    };
+    if ($@) {
+	error gettext("failed to process template:")." $@";
+    }
+    if (! $template) {
+	# look for .tmpl template
 	eval {
-	    $template=HTML::Template->new(
-					  filter => sub {
-					  my $text_ref = shift;
-					  $$text_ref=&Encode::decode_utf8($$text_ref);
-					  chomp $$text_ref;
-					  },
-					  filename => srcfile($template_file),
-					  die_on_bad_params => 0,
-					  no_includes => 1,
-					  blind_cache => 1,
-					 );
+	    $template=template_depends("$params{id}.tmpl", $params{page},
+				       blind_cache => 1);
 	};
 	if ($@) {
-	    error gettext("failed to process:")." $@"
+	    error gettext("failed to process template:")." $@";
+	}
+	if (! $template) {
+
+	    error sprintf(gettext("%s not found"),
+			  htmllink($params{page}, $params{destpage},
+				   "/templates/$params{id}"))
 	}
     }
-    else
-    {
-	# get this from the default template directory outside the
-	# ikiwiki tree
-	my @params=IkiWiki::template_params($params{id}.".tmpl",
-					    filter => sub {
-					    my $text_ref = shift;
-					    $$text_ref=&Encode::decode_utf8($$text_ref);
-					    chomp $$text_ref;
-					    },
-					    die_on_bad_params => 0,
-					    blind_cache => 1);
-	if (! @params) {
-	    error sprintf(gettext("nonexistant template %s"), $params{id});
-	}
-	$template=HTML::Template->new(@params);
-    }
+    delete $params{template};
 
     $params{basename}=IkiWiki::basename($params{page});
     $params{included}=($params{page} ne $params{destpage});
