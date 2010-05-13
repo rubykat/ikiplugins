@@ -10,11 +10,11 @@ IkiWiki::Plugin::field - front-end for per-page record fields.
 
 =head1 VERSION
 
-This describes version B<0.03> of IkiWiki::Plugin::field
+This describes version B<0.04> of IkiWiki::Plugin::field
 
 =cut
 
-our $VERSION = '0.03';
+our $VERSION = '0.04';
 
 =head1 SYNOPSIS
 
@@ -23,6 +23,12 @@ our $VERSION = '0.03';
 
     # simple registration
     field_register => [qw{meta}],
+
+    # simple registration with priority
+    field_register => {
+	meta => 'last'
+	foo => 'DD'
+    },
 
     # allow the config to be queried as a field
     field_allow_config => 1,
@@ -186,7 +192,7 @@ Returns the value of the field for that page, or undef if none is found.
 
 =head1 COPYRIGHT
 
-Copyright (c) 2009 Kathryn Andersen
+Copyright (c) 2009-2010 Kathryn Andersen
 
 This program is free software; you can redistribute it and/or
 modify it under the same terms as Perl itself.
@@ -213,9 +219,12 @@ my @FieldsLookupOrder = ();
 
 my %Cache = ();
 
+sub field_get_value ($$);
+
 sub import {
 	hook(type => "getsetup", id => "field",  call => \&getsetup);
 	hook(type => "checkconfig", id => "field", call => \&checkconfig);
+	hook(type => "scan", id => "field", call => \&scan, last=>1);
 	hook(type => "pagetemplate", id => "field", call => \&pagetemplate);
 }
 
@@ -274,29 +283,39 @@ sub checkconfig () {
     }
 } # checkconfig
 
+sub scan (@) {
+    my %params=@_;
+    my $page=$params{page};
+    my $content=$params{content};
+
+    # scan for tag fields
+    if ($config{field_tags})
+    {
+	foreach my $field (sort keys %{$config{field_tags}})
+	{
+	    my @values = field_get_value($field, $page);
+	    if (@values)
+	    {
+		foreach my $tag (@values)
+		{
+		    if ($tag)
+		    {
+			my $link = $config{field_tags}{$field} . '/'
+			. titlepage($tag);
+			add_link($page, $link, lc($field));
+		    }
+		}
+	    }
+	}
+    }
+} # scan
+
 sub pagetemplate (@) {
     my %params=@_;
     my $page=$params{page};
     my $template=$params{template};
 
-    # Find the parameter names in this template
-    # and see if you can find their values.
-
-    # The reason we check the template for field names is because we
-    # don't know what fields the registered plugins provide; and this is
-    # reasonable because for some plugins (e.g. a YAML data plugin) they
-    # have no way of knowing, ahead of time, what fields they might be
-    # able to provide.
-
-    my @parameter_names = $template->param();
-    foreach my $field (@parameter_names)
-    {
-	my $value = field_get_value($field, $page);
-	if (defined $value)
-	{
-	    $template->param($field => $value);
-	}
-    }
+    field_set_template_values($template, $page);
 } # pagetemplate
 
 # ===============================================
@@ -325,11 +344,15 @@ sub field_register (%) {
 	    my $page = shift;
 	    if (exists $pagestate{$page}{$param{id}}{$field_name})
 	    {
-		return $pagestate{$page}{$param{id}}{$field_name};
+		return (wantarray
+			? ($pagestate{$page}{$param{id}}{$field_name})
+			: $pagestate{$page}{$param{id}}{$field_name});
 	    }
 	    elsif (exists $pagestate{$page}{$param{id}}{lc($field_name)})
 	    {
-		return $pagestate{$page}{$param{id}}{lc($field_name)};
+		return (wantarray
+			? ($pagestate{$page}{$param{id}}{lc($field_name)})
+			: $pagestate{$page}{$param{id}}{lc($field_name)});
 	    }
 	    return undef;
 	};
@@ -364,6 +387,7 @@ sub field_get_value ($$) {
 
     # This will return the first value it finds
     # where the value returned is not undefined.
+    # This will return an array of values if wantarray is true.
 
     # The reason why it checks every registered plugin rather than have
     # plugins declare which fields they know about, is that it is quite
@@ -373,12 +397,15 @@ sub field_get_value ($$) {
     # could be anything!
  
     my $value = undef;
+    my @array_value = undef;
 
     # check the cache first
     if (exists $Cache{$page}{$field_name}
 	and defined $Cache{$page}{$field_name})
     {
-	return $Cache{$page}{$field_name};
+	return (wantarray
+	    ? @{$Cache{$page}{$field_name}{array}}
+	    : $Cache{$page}{$field_name}{scalar});
     }
 
     if (!@FieldsLookupOrder)
@@ -388,6 +415,7 @@ sub field_get_value ($$) {
     foreach my $id (@FieldsLookupOrder)
     {
 	$value = $Fields{$id}{call}->($field_name, $page);
+	@array_value = $Fields{$id}{call}->($field_name, $page);
 	if (defined $value)
 	{
 	    last;
@@ -412,7 +440,8 @@ sub field_get_value ($$) {
 	{
 	    $value = IkiWiki::basename($page);
 	}
-	elsif ($field_name =~ /^config-(.*)$/i)
+	elsif ($config{field_allow_config}
+	       and $field_name =~ /^config-(.*)$/i)
 	{
 	    my $cfield = $1;
 	    if (exists $config{$cfield})
@@ -420,14 +449,109 @@ sub field_get_value ($$) {
 		$value = $config{$cfield};
 	    }
 	}
+	elsif ($field_name =~ /^(.*)-tagpage$/)
+	{
+	    my $real_fn = $1;
+	    if (exists $config{field_tags}{$real_fn}
+		and defined $config{field_tags}{$real_fn})
+	    {
+		my @values = field_get_value($real_fn, $page);
+		if (@values)
+		{
+		    foreach my $tag (@values)
+		    {
+			if ($tag)
+			{
+			    my $link = $config{field_tags}{$real_fn} . '/' . $tag;
+			    push @array_value, $link;
+			}
+		    }
+		    $value = join(",", @array_value);
+		}
+	    }
+	}
     }
     if (defined $value)
     {
+	if (!@array_value)
+	{
+	    @array_value = ($value);
+	}
 	# cache the value
-	$Cache{$page}{$field_name} = $value;
+	$Cache{$page}{$field_name}{scalar} = $value;
+	$Cache{$page}{$field_name}{array} = \@array_value;
     }
-    return $value;
+    return (wantarray ? @array_value : $value);
 } # field_get_value
+
+# set the values for the given HTML::Template template
+sub field_set_template_values ($$;@) {
+    my $template = shift;
+    my $page = shift;
+    my %params = @_;
+
+    my $get_value_fn = (exists $params{value_fn}
+			? $params{value_fn}
+			: \&field_get_value);
+
+    # Find the parameter names in this template
+    # and see if you can find their values.
+
+    # The reason we check the template for field names is because we
+    # don't know what fields the registered plugins provide; and this is
+    # reasonable because for some plugins (e.g. a YAML data plugin) they
+    # have no way of knowing, ahead of time, what fields they might be
+    # able to provide.
+
+    my @parameter_names = $template->param();
+    foreach my $field (@parameter_names)
+    {
+	my $type = $template->query(name => $field);
+	if ($type eq 'LOOP' and $field =~ /_LOOP$/i)
+	{
+	    # Loop fields want arrays.
+	    # Figure out what field names to look for:
+	    # * names are from the enclosed loop fields
+	    my @loop_fields = $template->query(loop => $field);
+
+	    my @loop_vals = ();
+	    my %loop_field_arrays = ();
+	    foreach my $fn (@loop_fields)
+	    {
+		if ($fn !~ /^__/) # not a special loop variable
+		{
+		    my @ival_array = $get_value_fn->($fn, $page);
+		    if (@ival_array)
+		    {
+			$loop_field_arrays{$fn} = \@ival_array;
+		    }
+		}
+	    }
+	    foreach my $fn (sort keys %loop_field_arrays)
+	    {
+		my $i = 0;
+		foreach my $v (@{$loop_field_arrays{$fn}})
+		{
+		    if (!defined $loop_vals[$i])
+		    {
+			$loop_vals[$i] = {};
+		    }
+		    $loop_vals[$i]{$fn} = $v;
+		    $i++;
+		}
+	    }
+	    $template->param($field => \@loop_vals);
+	}
+	else # not a loop field
+	{
+	    my $value = $get_value_fn->($field, $page);
+	    if (defined $value)
+	    {
+		$template->param($field => $value);
+	    }
+	}
+    }
+} # field_set_template_values
 
 # ===============================================
 # Private Functions
@@ -502,16 +626,11 @@ sub build_fields_lookup_order {
     }
 } # build_fields_lookup_order
 
-# ===============================================
-# PageSpec functions
-# ---------------------------
-
-package IkiWiki::PageSpec;
-
-sub match_field ($$;@) {
+# match field funcs
+# page-to-check, wanted
+sub match_a_field ($$) {
     my $page=shift;
     my $wanted=shift;
-    my %params=@_;
 
     # The field name is first; the rest is the match
     my $field_name;
@@ -542,16 +661,15 @@ sub match_field ($$;@) {
     else {
 	return IkiWiki::FailReason->new("$page does not have a $field_name", "" => 1);
     }
-} # match_field
+} # match_a_field
 
-sub match_destfield ($$;@) {
+# check against individual items of a field
+# (treat the field as an array)
+# page-to-check, wanted
+sub match_a_field_item ($$) {
     my $page=shift;
     my $wanted=shift;
-    my %params=@_;
 
-    return IkiWiki::FailReason->new("cannot match destpage") unless exists $params{destpage};
-
-    # Match the field on the destination page, not the source page
     # The field name is first; the rest is the match
     my $field_name;
     my $glob;
@@ -568,20 +686,84 @@ sub match_destfield ($$;@) {
     # turn glob into a safe regexp
     my $re=IkiWiki::glob2re($glob);
 
-    my $val = IkiWiki::Plugin::field::field_get_value($field_name, $params{destpage});
+    my @val_array = IkiWiki::Plugin::field::field_get_value($field_name, $page);
 
-    if (defined $val) {
-	if ($val=~/^$re$/i) {
-	    return IkiWiki::SuccessReason->new("$re matches $field_name of $params{destpage}", $params{destpage} => $IkiWiki::DEPEND_CONTENT, "" => 1);
+    if (@val_array)
+    {
+	foreach my $val (@val_array)
+	{
+	    if (defined $val) {
+		if ($val=~/^$re$/i) {
+		    return IkiWiki::SuccessReason->new("$re matches $field_name of $page", $page => $IkiWiki::DEPEND_CONTENT, "" => 1);
+		}
+	    }
 	}
-	else {
-	    return IkiWiki::FailReason->new("$re does not match $field_name of $params{destpage}", "" => 1);
-	}
+	# not found
+	return IkiWiki::FailReason->new("$re does not match $field_name of $page", "" => 1);
     }
     else {
-	return IkiWiki::FailReason->new("$params{destpage} does not have a $field_name", "" => 1);
+	return IkiWiki::FailReason->new("$page does not have a $field_name", "" => 1);
     }
+} # match_a_field_item
+
+# ===============================================
+# PageSpec functions
+# ---------------------------
+
+package IkiWiki::PageSpec;
+
+sub match_field ($$;@) {
+    my $page=shift;
+    my $wanted=shift;
+    return IkiWiki::Plugin::field::match_a_field($page, $wanted);
+} # match_field
+
+sub match_destfield ($$;@) {
+    my $page=shift;
+    my $wanted=shift;
+    my %params=@_;
+
+    return IkiWiki::FailReason->new("cannot match destpage") unless exists $params{destpage};
+
+    # Match the field on the destination page, not the source page
+    return IkiWiki::Plugin::field::match_a_field($params{destpage}, $wanted);
 } # match_destfield
+
+sub match_field_item ($$;@) {
+    my $page=shift;
+    my $wanted=shift;
+    return IkiWiki::Plugin::field::match_a_field_item($page, $wanted);
+} # match_field
+
+sub match_destfield_item ($$;@) {
+    my $page=shift;
+    my $wanted=shift;
+    my %params=@_;
+
+    return IkiWiki::FailReason->new("cannot match destpage") unless exists $params{destpage};
+
+    # Match the field on the destination page, not the source page
+    return IkiWiki::Plugin::field::match_a_field_item($params{destpage}, $wanted);
+} # match_destfield
+
+sub match_field_tagged ($$;@) {
+    my $page=shift;
+    my $wanted=shift;
+
+    # The field name is first; the rest is the match
+    my $field_name;
+    my $glob;
+    if ($wanted =~ /^(\w+)\s+(.*)$/)
+    {
+	$field_name = $1;
+	$glob = $2;
+    }
+    else
+    {
+	return IkiWiki::FailReason->new("cannot match field");
+    }
+    return match_link($page, $glob, linktype => lc($field_name), @_);
+}
 
 package IkiWiki::SortSpec;
 

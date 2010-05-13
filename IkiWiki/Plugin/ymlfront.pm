@@ -32,9 +32,8 @@ This plugin is meant to be used in conjunction with the B<field> plugin.
 
 =head1 DETAILS
 
-The YAML-format data in a page must be placed at the start of the page
-and delimited by lines containing precisely three dashes.  The "normal"
-content of the page then follows.
+The YAML-format data in a page must be delimited by lines containing precisely
+three dashes.  The "normal" content of the page then follows.
 
 For example:
 
@@ -131,7 +130,9 @@ sub import {
 	hook(type => "checkcontent", id => "ymlfront", call => \&checkcontent);
 
 	IkiWiki::loadplugin('field');
-	IkiWiki::Plugin::field::field_register(id=>'ymlfront', first=>1);
+	IkiWiki::Plugin::field::field_register(id=>'ymlfront',
+					       call=>\&yml_get_value,
+					       first=>1);
 }
 
 # ------------------------------------------------------------
@@ -185,6 +186,7 @@ sub scan (@) {
 	    $pagestate{$page}{ymlfront}{$fn} = $fval;
 	}
     }
+    # update meta hash
     if (exists $pagestate{$page}{ymlfront}{title}
 	and $pagestate{$page}{ymlfront}{title})
     {
@@ -254,6 +256,39 @@ sub checkcontent {
 } # checkcontent
 
 # ------------------------------------------------------------
+# Field functions
+# --------------------------------
+sub yml_get_value ($$) {
+    my $field_name = shift;
+    my $page = shift;
+
+    my $value = undef;
+    if (exists $pagestate{$page}{ymlfront}{$field_name})
+    {
+	$value = $pagestate{$page}{ymlfront}{$field_name};
+    }
+    elsif (exists $pagestate{$page}{ymlfront}{lc($field_name)})
+    {
+	$value = $pagestate{$page}{ymlfront}{lc($field_name)};
+    }
+    if (defined $value)
+    {
+	if (ref $value)
+	{
+	    my @value_array = @{$value};
+	    return (wantarray
+		    ? @value_array
+		    : join(",", @value_array));
+	}
+	else
+	{
+	    return (wantarray ? ($value) : $value);
+	}
+    }
+    return undef;
+} # yml_get_value
+
+# ------------------------------------------------------------
 # Helper functions
 # --------------------------------
 
@@ -274,10 +309,22 @@ sub parse_yml {
 	    return undef;
 	}
     }
+    my $start_of_content = '';
+    my $yml_str = '';
+    my $rest_of_content = '';
     if ($content =~ /^---[\n\r](.*?[\n\r])---[\n\r](.*)$/s)
     {
-	my $yml_str = $1;
-	my $rest_of_content = $2;
+	$yml_str = $1;
+	$rest_of_content = $2;
+    } 
+    elsif ($content =~ /^(.*?[\n\r])---[\n\r](.*?[\n\r])---[\n\r](.*)$/s)
+    {
+	$start_of_content = $1;
+	$yml_str = $2;
+	$rest_of_content = $3;
+    } 
+    if ($yml_str)
+    {
 	# if {{$page}} is there, do an immediate substitution
 	$yml_str =~ s/\{\{\$page\}\}/$page/sg;
 
@@ -303,7 +350,8 @@ sub parse_yml {
 		$lc_data{lc($fn)} = $fval;
 	    }
 	}
-	return { yml=>\%lc_data, content=>$rest_of_content };
+	return { yml=>\%lc_data,
+	    content=>$start_of_content . $rest_of_content};
     }
     return { yml=>undef, content=>$content };
 } # parse_yml

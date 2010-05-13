@@ -144,16 +144,16 @@ sub preprocess (@) {
 				   blind_cache => 1);
     };
     if ($@) {
-	error gettext("failed to process template:")." $@";
+	error gettext("failed to process template $params{id}:")." $@";
     }
     if (! $template) {
-	# look for .tmpl template
+	# look for .tmpl template (in global templates dir)
 	eval {
-	    $template=template_depends("$params{id}.tmpl", $params{page},
+	    $template=template("$params{id}.tmpl",
 				       blind_cache => 1);
 	};
 	if ($@) {
-	    error gettext("failed to process template:")." $@";
+	    error gettext("failed to process template $params{id}.tmpl:")." $@";
 	}
 	if (! $template) {
 
@@ -164,7 +164,6 @@ sub preprocess (@) {
     }
     delete $params{template};
 
-    $params{basename}=IkiWiki::basename($params{page});
     $params{included}=($params{page} ne $params{destpage});
 
     # The reason we check the template for field names is because we
@@ -173,31 +172,12 @@ sub preprocess (@) {
     # have no way of knowing, ahead of time, what fields they might be
     # able to provide.
 
-    my @parameter_names = $template->param();
-    foreach my $field (@parameter_names)
-    {
-	my $real_fn = $field;
-	my $is_raw = 0;
-	if ($field =~ /^raw_(.*)/)
-	{
-	    $real_fn = $1;
-	    $is_raw = 1;
-	}
-	my $value = ((exists $params{$real_fn} and defined $params{$real_fn})
-		     ? $params{$real_fn}
-		     : IkiWiki::Plugin::field::field_get_value($real_fn,
-							       $params{page}));
-	if (defined $value)
-	{
-	    $value = IkiWiki::htmlize($params{page}, $params{destpage},
-				      pagetype($pagesources{$params{page}}),
-				      $value) unless $is_raw;
-	    # tweak
-	    $value =~ s/^\s*<p>// unless $is_raw;
-	    $value =~ s/<\/p>\s*$// unless $is_raw;
-	    $template->param($field => $value);
-	}
-    }
+    IkiWiki::Plugin::field::field_set_template_values($template, $params{page},
+	 value_fn => sub {
+	    my $field = shift;
+	    my $page = shift;
+	    return ftemplate_get_value($field, $page, %params);
+	 },);
 
     # This needs to run even in scan mode, in order to process
     # links and other metadata includes via the template.
@@ -209,5 +189,82 @@ sub preprocess (@) {
 			       IkiWiki::filter($params{page}, $params{destpage},
 					       $output), $scan);
 }
+
+sub ftemplate_get_value ($$;%) {
+    my $field = shift;
+    my $page = shift;
+    my %params = @_;
+
+    my $use_page = $page;
+    my $real_fn = $field;
+    my $is_raw = 0;
+    my $page_type = pagetype($pagesources{$page});
+
+    if ($field =~ /^raw_(.*)/)
+    {
+	$real_fn = $1;
+	$is_raw = 1;
+    }
+
+    if (wantarray)
+    {
+	my @val_array = ();
+	if (exists $params{$real_fn}
+	    and defined $params{$real_fn})
+	{
+	    if (ref $params{$real_fn})
+	    {
+		@val_array = @{$params{$real_fn}};
+	    }
+	    else
+	    {
+		@val_array = ($params{$real_fn});
+	    }
+	}
+	else
+	{
+	    @val_array = IkiWiki::Plugin::field::field_get_value($real_fn, $page);
+	}
+	if (!$is_raw && $page_type)
+	{
+	    # HTMLize the values
+	    my @h_vals = ();
+	    foreach my $v (@val_array)
+	    {
+		if (defined $v and $v)
+		{
+		    my $hv = IkiWiki::htmlize($params{page}, $params{destpage},
+					      $page_type,
+					      $v);
+		    push @h_vals, $hv;
+		}
+	    }
+	    @val_array = @h_vals;
+	}
+	return @val_array;
+    }
+    else # simple value
+    {
+	my $value = ((exists $params{$real_fn}
+		      and defined $params{$real_fn})
+		     ? (ref $params{$real_fn}
+			? join(",", @{$params{$real_fn}})
+			: $params{$real_fn}
+		       )
+		     : ($use_page
+			? IkiWiki::Plugin::field::field_get_value($real_fn,
+								  $use_page)
+			: ''));
+	if (defined $value and $value)
+	{
+	    $value = IkiWiki::htmlize($params{page}, $params{destpage},
+				      $page_type,
+				      $value) unless ($is_raw ||
+						      !$page_type);
+	}
+	return $value;
+    }
+    return undef;
+} # ftemplate_get_value
 
 1;

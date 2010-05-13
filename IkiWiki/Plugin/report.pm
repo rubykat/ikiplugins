@@ -259,16 +259,16 @@ sub preprocess (@) {
 				   blind_cache => 1);
     };
     if ($@) {
-	error gettext("failed to process template:")." $@";
+	error gettext("failed to process template $params{id}:")." $@";
     }
     if (! $template) {
-	# look for .tmpl template
+	# look for .tmpl template (in global templates dir)
 	eval {
-	    $template=template_depends("$params{template}.tmpl", $params{page},
+	    $template=template("$params{template}.tmpl",
 				       blind_cache => 1);
 	};
 	if ($@) {
-	    error gettext("failed to process template:")." $@";
+	    error gettext("failed to process template $params{id}.tmpl:")." $@";
 	}
 	if (! $template) {
 
@@ -285,12 +285,12 @@ sub preprocess (@) {
     # "trail" means "all the pages linked to from a given page"
     # which is a bit looser than the PmWiki definition
     # but it will do
+    my @trailpages = ();
     if ($params{trail})
     {
-	my @trailpages = split(' ', $params{trail});
+	@trailpages = split(' ', $params{trail});
 	foreach my $tp (@trailpages)
 	{
-	    add_depends($this_page, $tp, deptype("links"));
 	    foreach my $ln (@{$links{$tp}})
 	    {
 		my $bl = bestlink($tp, $ln);
@@ -307,7 +307,7 @@ sub preprocess (@) {
 	    my $result=0;
 	    foreach my $mp (@matching_pages)
 	    {
-		$result=pagespec_match($mp, $pages);
+		$result=pagespec_match($mp, $params{pages});
 		if ($result)
 		{
 		    push @filtered, $mp;
@@ -315,6 +315,10 @@ sub preprocess (@) {
 		}
 	    }
 	    @matching_pages = @filtered;
+	}
+	if (!$params{here_only})
+	{
+	    debug("report found " . scalar @matching_pages . " pages");
 	}
 	# Because we used a trail, we have to sort the pages ourselves.
 	# This code is cribbed from pagespec_match_list
@@ -367,8 +371,16 @@ sub preprocess (@) {
 	} # for all matching pages
 	@matching_pages = @here_only;
     }
-
-    debug("report($this_page) found " . scalar @matching_pages . " pages");
+    # only add the dependency on the trail pages
+    # if we found matches
+    if ($params{trail} and $#matching_pages > 0)
+    {
+	foreach my $tp (@trailpages)
+	{
+	    add_depends($this_page, $tp, deptype("links"));
+	}
+    }
+    ##debug("report($this_page) found " . scalar @matching_pages . " pages");
 
     # ------------------------------------------------------------------
     # If we are scanning, we only care about the list of pages we found.
@@ -463,66 +475,17 @@ sub do_one_template (@) {
 
     my $scan = $params{scan};
     my $template = $params{template};
+    delete $params{template};
 
-    $params{basename}=IkiWiki::basename($params{page});
     $params{included}=($params{page} ne $params{destpage});
 
-    # The reason we check the template for field names is because we
-    # don't know what fields the registered plugins provide; and this is
-    # reasonable because for some plugins (e.g. a YAML data plugin) they
-    # have no way of knowing, ahead of time, what fields they might be
-    # able to provide.
-
-    my $page_type = pagetype($pagesources{$params{page}});
-    my @parameter_names = $template->param();
-    foreach my $field (@parameter_names)
-    {
-	my $use_page = $params{page};
-	my $real_fn = $field;
-	my $is_raw = 0;
-	if ($field =~ /^raw_(.*)/)
-	{
-	    $real_fn = $1;
-	    $is_raw = 1;
-	}
-	elsif ($field =~ /^(first|last|header)$/i)
-	{
-	    $is_raw = 1;
-	}
-	if ($real_fn =~ /^(prev|next)_page$/i)
-	{
-	    $use_page = $params{$real_fn};
-	}
-	elsif ($real_fn =~ /^prev_(.*)/)
-	{
-	    $real_fn = $1;
-	    $use_page = $params{prev_page};
-	}
-	elsif ($real_fn =~ /^next_(.*)/)
-	{
-	    $real_fn = $1;
-	    $use_page = $params{next_page};
-	}
-	my $value = ((exists $params{$real_fn}
-		      and defined $params{$real_fn})
-		     ? $params{$real_fn}
-		     : ($use_page
-			? IkiWiki::Plugin::field::field_get_value($real_fn,
-								  $use_page)
-			: ''));
-	if (defined $value and $value)
-	{
-	    $value = IkiWiki::htmlize($params{page}, $params{destpage},
-				      $page_type,
-				      $value) unless ($is_raw ||
-						      !$page_type);
-	    $template->param($field => $value);
-	}
-	else
-	{
-	    $template->param($field => '');
-	}
-    }
+    $template->clear_params(); # don't accidentally repeat values
+    IkiWiki::Plugin::field::field_set_template_values($template, $params{page},
+	 value_fn => sub {
+	    my $field = shift;
+	    my $page = shift;
+	    return report_get_value($field, $page, %params);
+	 },);
     # -------------------------------------------------
     # headers
     for (my $i=0; $i < @{$params{headers}}; $i++) # clear the headers
@@ -552,4 +515,100 @@ sub do_one_template (@) {
 					       $output), $scan);
 
 } # do_one_template
+
+sub report_get_value ($$;%) {
+    my $field = shift;
+    my $page = shift;
+    my %params = @_;
+
+    my $use_page = $page;
+    my $real_fn = $field;
+    my $is_raw = 0;
+    my $page_type = pagetype($pagesources{$page});
+
+    if ($field =~ /^raw_(.*)/)
+    {
+	$real_fn = $1;
+	$is_raw = 1;
+    }
+    elsif ($field =~ /^(first|last|header)$/i)
+    {
+	$is_raw = 1;
+    }
+    if ($real_fn =~ /^(prev|next)_page$/i)
+    {
+	$use_page = $params{$real_fn};
+    }
+    elsif ($real_fn =~ /^prev_(.*)/)
+    {
+	$real_fn = $1;
+	$use_page = $params{prev_page};
+    }
+    elsif ($real_fn =~ /^next_(.*)/)
+    {
+	$real_fn = $1;
+	$use_page = $params{next_page};
+    }
+
+    if (wantarray)
+    {
+	my @val_array = ();
+	if (exists $params{$real_fn}
+	    and defined $params{$real_fn})
+	{
+	    if (ref $params{$real_fn})
+	    {
+		@val_array = @{$params{$real_fn}};
+	    }
+	    else
+	    {
+		@val_array = ($params{$real_fn});
+	    }
+	}
+	else
+	{
+	    @val_array = IkiWiki::Plugin::field::field_get_value($real_fn, $page);
+	}
+	if (!$is_raw && $page_type)
+	{
+	    # HTMLize the values
+	    my @h_vals = ();
+	    foreach my $v (@val_array)
+	    {
+		if (defined $v and $v)
+		{
+		    my $hv = IkiWiki::htmlize($params{page}, $params{destpage},
+					      $page_type,
+					      $v);
+		    push @h_vals, $hv;
+		}
+	    }
+	    @val_array = @h_vals;
+	}
+	return @val_array;
+    }
+    else # simple value
+    {
+	my $value = ((exists $params{$real_fn}
+		      and defined $params{$real_fn})
+		     ? (ref $params{$real_fn}
+			? join(",", @{$params{$real_fn}})
+			: $params{$real_fn}
+		       )
+		     : ($use_page
+			? IkiWiki::Plugin::field::field_get_value($real_fn,
+								  $use_page)
+			: ''));
+	if (defined $value and $value)
+	{
+	    $value = IkiWiki::htmlize($params{page}, $params{destpage},
+				      $page_type,
+				      $value) unless ($is_raw ||
+						      !$page_type);
+	}
+	return $value;
+    }
+    return undef;
+} # report_get_value
+
 1;
