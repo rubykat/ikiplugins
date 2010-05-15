@@ -1,0 +1,39 @@
+[[!template id=plugin name=xslt author="[[rubykat]]"]]
+[[!tag type/chrome]]
+## NAME
+
+IkiWiki::Plugin::xslt - ikiwiki directive to process an XML file with XSLT
+
+## SYNOPSIS
+
+\[[!xslt file="data1.xml" stylesheet="style1.xsl"]]
+
+## DESCRIPTION
+
+IkiWiki::Plugin::xslt is an IkiWiki plugin implementing a directive
+to process an input XML data file with XSLT, and output the result in
+the page where the directive was called.
+
+It is expected that the XSLT stylesheet will output valid HTML markup.
+
+## OPTIONS
+
+There are two arguments to this directive.
+
+* **file:**
+  The file which contains XML data to be processed. This file *must* have a `.xml` extension (`filename.xml`). This file is searched for using the usual IkiWiki mechanism, thus finding the file first in the same directory as the page, then in the directory above, and so on.
+
+* **stylesheet:**
+  The file which contains XSLT stylesheet to apply to the XML data.  This file *must* have a `.xsl` extension (`filename.xsl`). This file is searched for using the usual IkiWiki mechanism, thus finding the file first in the same directory as the page, then in the directory above, and so on.
+
+## PREREQUISITES
+
+    IkiWiki
+    XML::LibXML
+    XML::LibXSLT
+
+## DOWNLOAD
+
+* browse at GitHub: <http://github.com/rubykat/ikiplugins/blob/master/IkiWiki/Plugin/xslt.pm>
+* git repo at git://github.com/rubykat/ikiplugins.git
+

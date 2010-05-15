@@ -1,0 +1,131 @@
+[[!template id=plugin name=getfield author="[[rubykat]]"]]
+[[!tag type/meta type/format]]
+[[!toc]]
+## NAME
+
+IkiWiki::Plugin::getfield - query the values of fields
+
+## SYNOPSIS
+
+    # activate the plugin
+    add_plugins => [qw{goodstuff getfield ....}],
+
+## DESCRIPTION
+
+This plugin provides a way of querying the meta-data (data fields) of a page
+inside the page content (rather than inside a template) This provides a way to
+use per-page structured data, where each page is treated like a record, and the
+structured data are fields in that record.  This can include the meta-data for
+that page, such as the page title.
+
+This plugin is meant to be used in conjunction with the [[field]] plugin.
+
+### USAGE
+
+One can get the value of a field by using special markup in the page.
+This does not use directive markup, in order to make it easier to
+use the markup inside other directives.  There are four forms:
+
+* {{$*fieldname*}}
+
+  This queries the value of *fieldname* for the source page.
+
+  For example:
+
+    	\[[!meta title="My Long and Complicated Title With Potential For Spelling Mistakes"]]
+    	# {{$title}}
+
+  When the page is processed, this will give you:
+
+    	<h1>My Long and Complicated Title With Potential For Spelling Mistakes</h1>
+
+* {{$*pagename*#*fieldname*}}
+
+  This queries the value of *fieldname* for the page *pagename*.
+
+  For example:
+
+  On PageFoo:
+
+    \[[!meta title="I Am Page Foo"]]
+
+    Stuff about Foo.
+
+  On PageBar:
+
+    For more info, see \[[{{$PageFoo#title}}|PageFoo]].
+
+  When PageBar is displayed:
+
+    &lt;p&gt;For more info, see &lt;a href="PageFoo"&gt;I Am Page Foo&lt;/a&gt;.&lt;/p&gt;
+
+* {{+$*fieldname*+}}
+
+  This queries the value of *fieldname* for the destination page; that is,
+  the value when this page is included inside another page.
+
+  For example:
+
+  On PageA:
+
+    	\[[!meta title="I Am Page A"]]
+    	# {{+$title+}}
+
+    	Stuff about A.
+
+  On PageB:
+
+    	\[[!meta title="I Am Page B"]]
+    	\[[!inline pagespec="PageA"]]
+
+  When PageA is displayed:
+
+    	<h1>I Am Page A</h1>
+    	<p>Stuff about A.</p>
+
+  When PageB is displayed:
+
+    	<h1>I Am Page B</h1>
+    	<p>Stuff about A.</p>
+
+* {{+$*pagename*#*fieldname*+}}
+
+  This queries the value of *fieldname* for the page *pagename*; the
+  only difference between this and {{$*pagename*#*fieldname*}} is
+  that the full name of *pagename* is calculated relative to the
+  destination page rather than the source page.
+
+  I can't really think of a reason why this should be needed, but
+  this format has been added for completeness.
+
+### No Value Found
+
+If no value is found for the given field, then the field name is returned.
+
+For example:
+
+On PageFoo:
+
+    \[[!meta title="Foo"]]
+    My title is {{$title}}.
+    
+    My description is {{$description}}.
+
+When PageFoo is displayed:
+
+    <p>My title is Foo.</p>
+    
+    <p>My description is description.</p>
+
+This is because "description" hasn't been defined for that page.
+
+### More Examples
+
+Listing all the sub-pages of the current page:
+
+    \[[!map pages="{{$page}}/*"]]
+
+## DOWNLOAD
+
+* browse at GitHub: <http://github.com/rubykat/ikiplugins/blob/master/IkiWiki/Plugin/getfield.pm>
+* git repo at git://github.com/rubykat/ikiplugins.git

@@ -1,0 +1,4 @@
+These plugins are provided by third parties and are not currently
+included in ikiwiki.
+
+[[!map pages="plugins/contrib/* and !*/Discussion"]]

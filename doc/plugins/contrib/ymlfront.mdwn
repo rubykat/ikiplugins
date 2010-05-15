@@ -1,0 +1,99 @@
+[[!template id=plugin name=ymlfront author="[[rubykat]]"]]
+[[!tag type/meta]]
+[[!toc]]
+## NAME
+
+IkiWiki::Plugin::ymlfront - add YAML-format data to a page
+
+## SYNOPSIS
+
+    # activate the plugin
+    add_plugins => [qw{goodstuff ymlfront ....}],
+
+## DESCRIPTION
+
+This plugin provides a way of adding arbitrary meta-data (data fields) to any
+page by prefixing the page with a YAML-format document.  This provides a way to
+create per-page structured data, where each page is treated like a record, and
+the structured data are fields in that record.  This can include the meta-data
+for that page, such as the page title.
+
+This plugin is meant to be used in conjunction with the [[field]] plugin.
+
+## DETAILS
+
+The YAML-format data in a page must be placed at the start of the page
+and delimited by lines containing precisely three dashes.  The "normal"
+content of the page then follows.
+
+For example:
+
+    ---
+    title: Foo does not work
+    Urgency: High
+    Status: Assigned
+    AssignedTo: Fred Nurk
+    Version: 1.2.3
+    ---
+    When running on the Sprongle system, the Foo function returns incorrect data.
+
+What will normally be displayed is everything following the second line of dashes.
+That will be htmlized using the page-type of the page-file.
+
+### Accessing the Data
+
+There are three ways to access the data given in the YAML section.
+
+* [[getfield]] plugin
+
+  The **getfield** plugin can display the data as individual variable values.
+
+  For example:
+
+    	---
+    	title: Foo does not work
+    	Urgency: High
+    	Status: Assigned
+    	AssignedTo: Fred Nurk
+    	Version: 1.2.3
+    	---
+    	# {{$title}}
+
+    	**Urgency:** {{$Urgency}}\\
+    	**Status:** {{$Status}}\\
+    	**Assigned To:** {{$AssignedTo}}\\
+    	**Version:** {{$Version}}
+
+    When running on the Sprongle system, the Foo function returns incorrect data.
+
+* [[ftemplate]] plugin
+
+  The **ftemplate** plugin is like the [[plugins/template]] plugin, but it is also aware of [[field]] values.
+
+  For example:
+
+    	---
+    	title: Foo does not work
+    	Urgency: High
+    	Status: Assigned
+    	AssignedTo: Fred Nurk
+    	Version: 1.2.3
+    	---
+    	\[[!ftemplate id="bug_display_template"]]
+
+    	When running on the Sprongle system, the Foo function returns incorrect data.
+
+* write your own plugin
+
+  In conjunction with the [[field]] plugin, you can write your own plugin to access the data.
+
+## PREREQUISITES
+
+    IkiWiki
+    IkiWiki::Plugin::field
+    YAML::Any
+
+## DOWNLOAD
+
+* browse at GitHub: <http://github.com/rubykat/ikiplugins/blob/master/IkiWiki/Plugin/ymlfront.pm>
+* git repo at git://github.com/rubykat/ikiplugins.git
