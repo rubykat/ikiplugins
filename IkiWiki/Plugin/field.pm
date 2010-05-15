@@ -10,11 +10,11 @@ IkiWiki::Plugin::field - front-end for per-page record fields.
 
 =head1 VERSION
 
-This describes version B<0.04> of IkiWiki::Plugin::field
+This describes version B<0.05> of IkiWiki::Plugin::field
 
 =cut
 
-our $VERSION = '0.04';
+our $VERSION = '0.05';
 
 =head1 SYNOPSIS
 
@@ -33,6 +33,13 @@ our $VERSION = '0.04';
     # allow the config to be queried as a field
     field_allow_config => 1,
 
+    # flag certain fields as "tags"
+    field_tags => {
+	BookAuthor => '/books/authors',
+	BookGenre => '/books/genres',
+	MovieGenre => '/movies/genres',
+    }
+
 =head1 DESCRIPTION
 
 This plugin is meant to be used in conjunction with other plugins
@@ -41,8 +48,8 @@ data, where each page is treated like a record, and the structured data
 are fields in that record.  This can include the meta-data for that page,
 such as the page title.
 
-Plugins can register a function which will return the value of a "field" for
-a given page.  This can be used in three ways:
+Plugins can register a function which will return the value(s) of a "field" for
+a given page.  This can be used in a few ways:
 
 =over
 
@@ -55,6 +62,11 @@ in the "pagetemplate" processing.
 
 In PageSpecs; the "field" function can be used to match the value of a field
 in a page.
+
+=item *
+
+In SortSpecs; the "field" function can be used for sorting pages by the value
+of a field in a page.
 
 =item *
 
@@ -94,6 +106,17 @@ using the ID of that plugin, and thus the field values are looked for there.
 This is the simplest form of registration, but the advantage is that it
 doesn't require the plugin to be modified in order for it to be
 registered with the "field" plugin.
+
+=item field_tags
+
+    field_tags => {
+	BookAuthor => '/books/authors',
+	BookGenre => '/books/genres',
+	MovieGenre => '/movies/genres',
+    }
+
+A hash of fields and their associated pages.  This provides a faceted
+tagging system.
 
 =back
 
@@ -141,8 +164,9 @@ Additional Options:
 
 A reference to a function to call rather than just looking up the value in the
 %pagestatus hash.  It takes two arguments: the name of the field, and the name
-of the page.  It is expected to return the value of that field, or undef if
-there is no field by that name.
+of the page.  It is expected to return (a) an array of the values of that field
+if "wantarray" is true, or (b) a concatenation of the values of that field
+if "wantarray" is not true, or (c) undef if there is no field by that name.
 
     sub myfunc ($$) {
 	my $field = shift;
@@ -150,7 +174,7 @@ there is no field by that name.
 
 	...
 
-	return $value;
+	return (wantarray ? @values : $value);
     }
 
 =item first=>1
@@ -177,7 +201,13 @@ ordering-sequence between 'AA' and 'ZZ'.
 
 =item field_get_value($field, $page)
 
-Returns the value of the field for that page, or undef if none is found.
+    my @values = field_get_value($field, $page);
+
+    my $value = field_get_value($field, $page);
+
+Returns the values of the field for that page, or undef if none is found.
+Note that it will return an array of values if you ask for an array,
+and a scalar value if you ask for a scalar.
 
 =back
 
