@@ -1,5 +1,6 @@
 #!/usr/bin/perl
 # POD as a wiki page type.
+# See plugins/contrib/pod for documentation.
 package IkiWiki::Plugin::pod;
 use warnings;
 use strict;
@@ -14,37 +15,6 @@ This describes version B<0.01> of IkiWiki::Plugin::pod
 =cut
 
 our $VERSION = '0.01';
-
-=head1 SYNOPSIS
-
-In the ikiwiki setup file, enable this plugin by adding it to the
-list of active plugins.
-
-    add_plugins => [qw{goodstuff pod ....}],
-
-=head1 DESCRIPTION
-
-IkiWiki::Plugin::pod is an IkiWiki plugin enabling ikiwiki to
-process pages written in POD (Plain Old Documentation) format.
-This will treat files with a B<.pod> or B<.pm> extension as files
-which contain POD markup.
-
-=head1 OPTIONS
-
-The following options can be set in the ikiwiki setup file.
-
-=over
-
-=item pod_index
-
-If true, this will generate an index (table of contents) for the page.
-
-=item pod_toplink
-
-The label to be used for links back to the top of the page.
-If this is empty, then no top-links will be generated.
-
-=back
 
 =head1 PREREQUISITES
 

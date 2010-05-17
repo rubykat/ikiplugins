@@ -1,5 +1,6 @@
 #!/usr/bin/perl
 # Ikiwiki xslt plugin.
+# See plugins/contrib/xslt and ikiwiki/directive/xslt for documentation.
 package IkiWiki::Plugin::xslt;
 use warnings;
 use strict;
@@ -14,42 +15,6 @@ This describes version B<0.02> of IkiWiki::Plugin::xslt
 =cut
 
 our $VERSION = '0.02';
-
-=head1 SYNOPSIS
-
-[[!xslt file="data1.xml" stylesheet="style1.xsl"]
-
-=head1 DESCRIPTION
-
-IkiWiki::Plugin::xslt is an IkiWiki plugin implementing a directive
-to process an input XML data file with XSLT, and output the result in
-the page where the directive was called.
-
-It is expected that the XSLT stylesheet will output valid HTML markup.
-
-=head1 OPTIONS
-
-There are two arguments to this directive.
-
-=over
-
-=item file
-
-The file which contains XML data to be processed.  This file is searched
-for using the usual IkiWiki mechanism, thus finding the file first
-in the same directory as the page, then in the directory above, and so on.
-This MUST have an extension of B<.xml>
-
-=item stylesheet
-
-The file which contains XSLT stylesheet to apply to the XML data.
-This MUST have an extension of B<.xsl>
-
-This file is searched for using the usual IkiWiki mechanism, thus
-finding the file first in the same directory as the page, then in the
-directory above, and so on.
-
-=back
 
 =head1 PREREQUISITES
 

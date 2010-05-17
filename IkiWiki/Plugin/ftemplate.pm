@@ -1,6 +1,7 @@
 #!/usr/bin/perl
 # Structured template plugin.
 # This uses the "fields" plugin to look for values.
+# See plugins/contrib/ftemplate and ikiwiki/directive/ftemplate for docs.
 package IkiWiki::Plugin::ftemplate;
 use strict;
 =head1 NAME
@@ -9,87 +10,11 @@ IkiWiki::Plugin::ftemplate - field-aware structured template plugin
 
 =head1 VERSION
 
-This describes version B<0.01> of IkiWiki::Plugin::ftemplate
+This describes version B<0.02> of IkiWiki::Plugin::ftemplate
 
 =cut
 
-our $VERSION = '0.01';
-
-=head1 SYNOPSIS
-
-    # activate the plugin
-    add_plugins => [qw{goodstuff ftemplate ....}],
-
-=head1 DESCRIPTION
-
-This plugin provides the B<ftemplate> directive.  This is like
-the B<template> directive, with the addition that one does not
-have to provide all the values in the call to the template,
-because ftemplate can query structured data ("fields") using
-the B<field> plugin.
-
-Templates are files that can be filled out and inserted into pages in
-the wiki, by using the ftemplate directive. The directive has an id
-parameter that identifies the template to use.
-
-Additional parameters can be used to fill out the template, in
-addition to the "field" values.  Passed-in values override the
-"field" values.
-
-There are two places where template files can live.  One is, as with the
-B<template> plugin, in the /templates directory on the wiki.  These
-templates are wiki pages, and can be edited from the web like other wiki
-pages.
-
-The second place where template files can live is in the global
-templates directory (the same place where the page.tmpl template lives).
-This is a useful place to put template files if you want to prevent
-them being edited from the web, and you don't want to have to make
-them work as wiki pages.
-
-=head2 EXAMPLES
-
-=head3 Example 1
-
-PageA:
-
-    [[!meta title="I Am Page A"]]
-    [[!meta description="A is for Apple."]]
-    [[!meta author="Fred Nurk"]]
-    [[!ftemplate id="mytemplate"]]
-
-Template "mytemplate":
-
-    # <TMPL_VAR NAME="TITLE">
-    by <TMPL_VAR NAME="AUTHOR">
-
-    **Summary:** <TMPL_VAR NAME="DESCRIPTION">
-
-This will give:
-
-    <h1>I Am Page A</h1>
-    <p>by Fred Nurk</p>
-    <p><strong>Summary:</strong> A is for Apple.
-
-=head3 Example 2: Overriding values
-
-PageB:
-
-    [[!meta title="I Am Page B"]]
-    [[!meta description="B is for Banana."]]
-    [[!meta author="Fred Nurk"]]
-    [[!ftemplate id="mytemplate" title="Bananananananas"]]
-
-This will give:
-
-    <h1>Bananananananas</h1>
-    <p>by Fred Nurk</p>
-    <p><strong>Summary:</strong> B is for Banana.
-
-=head2 LIMITATIONS
-
-One cannot query the values of fields on pages other than the current
-page.
+our $VERSION = '0.02';
 
 =head1 PREREQUISITES
 

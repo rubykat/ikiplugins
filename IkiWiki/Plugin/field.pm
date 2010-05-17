@@ -1,5 +1,6 @@
 #!/usr/bin/perl
 # Ikiwiki field plugin.
+# See doc/plugin/contrib/field.mdwn for documentation.
 package IkiWiki::Plugin::field;
 use warnings;
 use strict;
@@ -15,201 +16,6 @@ This describes version B<0.05> of IkiWiki::Plugin::field
 =cut
 
 our $VERSION = '0.05';
-
-=head1 SYNOPSIS
-
-    # activate the plugin
-    add_plugins => [qw{goodstuff field ....}],
-
-    # simple registration
-    field_register => [qw{meta}],
-
-    # simple registration with priority
-    field_register => {
-	meta => 'last'
-	foo => 'DD'
-    },
-
-    # allow the config to be queried as a field
-    field_allow_config => 1,
-
-    # flag certain fields as "tags"
-    field_tags => {
-	BookAuthor => '/books/authors',
-	BookGenre => '/books/genres',
-	MovieGenre => '/movies/genres',
-    }
-
-=head1 DESCRIPTION
-
-This plugin is meant to be used in conjunction with other plugins
-in order to provide a uniform interface to access per-page structured
-data, where each page is treated like a record, and the structured data
-are fields in that record.  This can include the meta-data for that page,
-such as the page title.
-
-Plugins can register a function which will return the value(s) of a "field" for
-a given page.  This can be used in a few ways:
-
-=over
-
-=item *
-
-In page templates; all registered fields will be passed to the page template
-in the "pagetemplate" processing.
-
-=item *
-
-In PageSpecs; the "field" function can be used to match the value of a field
-in a page.
-
-=item *
-
-In SortSpecs; the "field" function can be used for sorting pages by the value
-of a field in a page.
-
-=item *
-
-By other plugins, using the field_get_value function, to get the value of a field
-for a page, and do with it what they will.
-
-=back
-
-=head1 OPTIONS
-
-The following options can be set in the ikiwiki setup file.
-
-=over
-
-=item field_allow_config
-
-    field_allow_config => 1,
-
-Allow the $config hash to be queried like any other field; the 
-keys of the config hash are the field names.
-
-=item field_register
-
-    field_register => {
-	meta => 'last'
-	foo => 'DD'
-    },
-
-A hash of plugin-IDs to register.  The keys of the hash are the names of the
-plugins, and the values of the hash give the order of lookup of the field
-values.  The order can be 'first', 'last', 'middle', or an explicit order
-sequence between 'AA' and 'ZZ'.
-
-This assumes that the plugins in question store data in the %pagestatus hash
-using the ID of that plugin, and thus the field values are looked for there.
-
-This is the simplest form of registration, but the advantage is that it
-doesn't require the plugin to be modified in order for it to be
-registered with the "field" plugin.
-
-=item field_tags
-
-    field_tags => {
-	BookAuthor => '/books/authors',
-	BookGenre => '/books/genres',
-	MovieGenre => '/movies/genres',
-    }
-
-A hash of fields and their associated pages.  This provides a faceted
-tagging system.
-
-=back
-
-=head1 PageSpec
-
-The "field" PageSpec function can be used to match the value of a field for a page.
-
-field(I<name> I<glob>)
-
-For example:
-
-field(bar Foo*) will match if the "bar" field in the source page starts with "Foo".
-
-destfield(I<name> I<glob>)
-
-is the same, except that it tests the destination page (that is, in cases
-when the source page is being included in another page).
-
-=head1 SortSpec
-
-The "field" SortSpec function can be used to sort a page depending on the value of a field for that page.  This is used for directives that take sort parameters, such as B<inline> or B<report>.
-
-field(I<name>)
-
-For example:
-
-sort="field(bar)" will sort by the value og the "bar" field.
-
-=head1 FUNCTIONS
-
-=over
-
-=item field_register
-
-field_register(id=>$id);
-
-Register a plugin as having field data.  The above form is the simplest, where
-the field value is looked up in the %pagestatus hash under the plugin-id.
-
-Additional Options:
-
-=over
-
-=item call=>&myfunc
-
-A reference to a function to call rather than just looking up the value in the
-%pagestatus hash.  It takes two arguments: the name of the field, and the name
-of the page.  It is expected to return (a) an array of the values of that field
-if "wantarray" is true, or (b) a concatenation of the values of that field
-if "wantarray" is not true, or (c) undef if there is no field by that name.
-
-    sub myfunc ($$) {
-	my $field = shift;
-	my $page = shift;
-
-	...
-
-	return (wantarray ? @values : $value);
-    }
-
-=item first=>1
-
-Set this to be called first in the sequence of calls looking for values.  Since
-the first found value is the one which is returned, ordering is significant.
-This is equivalent to "order=>'first'".
-
-=item last=>1
-
-Set this to be called last in the sequence of calls looking for values.  Since
-the first found value is the one which is returned, ordering is significant.
-This is equivalent to "order=>'last'".
-
-=item order=>$order
-
-Set the explicit ordering in the sequence of calls looking for values.  Since
-the first found value is the one which is returned, ordering is significant.
-
-The values allowed for this are "first", "last", "middle", or a two-character
-ordering-sequence between 'AA' and 'ZZ'.
-
-=back
-
-=item field_get_value($field, $page)
-
-    my @values = field_get_value($field, $page);
-
-    my $value = field_get_value($field, $page);
-
-Returns the values of the field for that page, or undef if none is found.
-Note that it will return an array of values if you ask for an array,
-and a scalar value if you ask for a scalar.
-
-=back
 
 =head1 PREREQUISITES
 
@@ -779,6 +585,7 @@ sub match_destfield_item ($$;@) {
 sub match_field_tagged ($$;@) {
     my $page=shift;
     my $wanted=shift;
+    my %params=@_;
 
     # The field name is first; the rest is the match
     my $field_name;
@@ -793,6 +600,17 @@ sub match_field_tagged ($$;@) {
 	return IkiWiki::FailReason->new("cannot match field");
     }
     return match_link($page, $glob, linktype => lc($field_name), @_);
+}
+
+sub match_destfield_tagged ($$;@) {
+    my $page=shift;
+    my $wanted=shift;
+    my %params=@_;
+
+    return IkiWiki::FailReason->new("cannot match destpage") unless exists $params{destpage};
+
+    # Match the field on the destination page, not the source page
+    return IkiWiki::Plugin::field::match_field_tagged($params{destpage}, $wanted);
 }
 
 package IkiWiki::SortSpec;

@@ -1,5 +1,0 @@
-Contributed plugins in this set: their documentation is here.
-
-## Plugin directory
-
-[[!map pages="plugins/* and !*/Discussion"]]

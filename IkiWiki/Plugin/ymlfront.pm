@@ -1,5 +1,6 @@
 #!/usr/bin/perl
-# HTML as a wiki page type.
+# YAML format for structured data
+# See plugins/contrib/ymlfront for documentation.
 package IkiWiki::Plugin::ymlfront;
 use warnings;
 use strict;
@@ -9,97 +10,11 @@ IkiWiki::Plugin::ymlfront - add YAML-format data to a page
 
 =head1 VERSION
 
-This describes version B<0.01> of IkiWiki::Plugin::ymlfront
+This describes version B<0.02> of IkiWiki::Plugin::ymlfront
 
 =cut
 
-our $VERSION = '0.01';
-
-=head1 SYNOPSIS
-
-    # activate the plugin
-    add_plugins => [qw{goodstuff ymlfront ....}],
-
-=head1 DESCRIPTION
-
-This plugin provides a way of adding arbitrary meta-data (data fields) to any
-page by prefixing the page with a YAML-format document.  This provides a way to
-create per-page structured data, where each page is treated like a record, and
-the structured data are fields in that record.  This can include the meta-data
-for that page, such as the page title.
-
-This plugin is meant to be used in conjunction with the B<field> plugin.
-
-=head1 DETAILS
-
-The YAML-format data in a page must be delimited by lines containing precisely
-three dashes.  The "normal" content of the page then follows.
-
-For example:
-
-    ---
-    title: Foo does not work
-    Urgency: High
-    Status: Assigned
-    AssignedTo: Fred Nurk
-    Version: 1.2.3
-    ---
-    When running on the Sprongle system, the Foo function returns incorrect data.
-
-What will normally be displayed is everything following the second line of dashes.
-That will be htmlized using the page-type of the page-file.
-
-=head2 Accessing the Data
-
-There are three ways to access the data given in the YAML section.
-
-=over
-
-=item getfield plugin
-
-The B<getfield> plugin can display the data as individual variable values.
-
-For example:
-
-    ---
-    title: Foo does not work
-    Urgency: High
-    Status: Assigned
-    AssignedTo: Fred Nurk
-    Version: 1.2.3
-    ---
-    # {{$title}}
-
-    **Urgency:** {{$Urgency}}\\
-    **Status:** {{$Status}}\\
-    **Assigned To:** {{$AssignedTo}}\\
-    **Version:** {{$Version}}
-
-    When running on the Sprongle system, the Foo function returns incorrect data.
-
-=item ftemplate plugin
-
-The B<ftemplate> plugin is like the B<template> plugin, but it is also aware of B<field>
-values.
-
-For example:
-
-    ---
-    title: Foo does not work
-    Urgency: High
-    Status: Assigned
-    AssignedTo: Fred Nurk
-    Version: 1.2.3
-    ---
-    [[!ftemplate id="bug_display_template"]]
-
-    When running on the Sprongle system, the Foo function returns incorrect data.
-
-=item write your own plugin
-
-In conjunction with the B<field> plugin, you can write your own plugin to access the data.
-
-=back
+our $VERSION = '0.02';
 
 =head1 PREREQUISITES
 

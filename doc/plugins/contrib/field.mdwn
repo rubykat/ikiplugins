@@ -13,8 +13,21 @@ IkiWiki::Plugin::field - front-end for per-page record fields.
     # simple registration
     field_register => [qw{meta}],
 
+    # simple registration with priority
+    field_register => {
+	meta => 'last'
+	foo => 'DD'
+    },
+
     # allow the config to be queried as a field
     field_allow_config => 1,
+
+    # flag certain fields as "tags"
+    field_tags => {
+	BookAuthor => '/books/authors',
+	BookGenre => '/books/genres',
+	MovieGenre => '/movies/genres',
+    }
 
 ## DESCRIPTION
 
@@ -25,13 +38,14 @@ are fields in that record.  This can include the meta-data for that page,
 such as the page title.
 
 Plugins can register a function which will return the value of a "field" for
-a given page.  This can be used in three ways:
+a given page.  This can be used in a few ways:
 
 * In page templates; all registered fields will be passed to the page template in the "pagetemplate" processing.
 * In PageSpecs; the "field" function can be used to match the value of a field in a page.
+* In SortSpecs; the "field" function can be used for sorting pages by the value of a field in a page.
 * By other plugins, using the field_get_value function, to get the value of a field for a page, and do with it what they will.
 
-## OPTIONS
+## CONFIGURATION OPTIONS
 
 The following options can be set in the ikiwiki setup file.
 
@@ -46,28 +60,77 @@ keys of the config hash are the field names.
 
     field_register => [qw{meta}],
 
-A list of plugin-IDs to register.  This assumes that the plugins in
-question store data in the %pagestatus hash using the ID of that plugin,
-and thus the field values are looked for there.
+    field_register => {
+	meta => 'last'
+	foo => 'DD'
+    },
+
+A hash of plugin-IDs to register.  The keys of the hash are the names of the
+plugins, and the values of the hash give the order of lookup of the field
+values.  The order can be 'first', 'last', 'middle', or an explicit order
+sequence between 'AA' and 'ZZ'.  If the simpler type of registration is used,
+then the order will be 'middle'.
+
+This assumes that the plugins in question store data in the %pagestatus hash
+using the ID of that plugin, and thus the field values are looked for there.
 
 This is the simplest form of registration, but the advantage is that it
 doesn't require the plugin to be modified in order for it to be
 registered with the "field" plugin.
 
-## PageSpec
+**field_tags**
 
-The "field" PageSpec function can be used to match the value of a field for a page.
+    field_tags => {
+	BookAuthor => '/books/authors',
+	BookGenre => '/books/genres',
+	MovieGenre => '/movies/genres',
+    }
 
-**field(*name* *glob*)**
+A hash of fields and their associated pages.  This provides a faceted
+tagging system.
+
+The way this works is that a given field-name will be associated with a given
+page, and the values of that field will be linked to sub-pages of that page.
 
 For example:
 
-field(bar Foo*) will match if the "bar" field starts with "Foo".
+	BookGenre: SF
 
-**destfield(*name* *glob*)**
+will link to "/books/genres/SF", with a link-type of "bookgenre".
 
-is the same, except that it tests the destination page (that is, in cases
-when the source page is being included in another page).
+## PageSpec
+
+The `field` plugin provides a few PageSpec functions to match values
+of fields for pages.
+
+* field
+  * **field(*name* *glob*)**
+  * field(bar Foo\*) will match if the "bar" field starts with "Foo".
+* destfield
+  * **destfield(*name* *glob*)**
+  * as for "field" but matches against the destination page (i.e when the source page is being included in another page).
+* field_item
+  * **field_item(*name* *glob*)**
+  * field_item(bar Foo) will match if one of the values of the "bar" field is "Foo".
+* destfield_item
+  * **destfield_item(*name* *glob*)**
+  * as for "field_item" but matches against the destination page.
+* field_tagged
+  * **field_tagged(*name* *glob*)**
+  * like `tagged`, but this uses the tag-bases and link-types defined in the `field_tags` configuration option.
+* destfield_tagged
+  * **destfield_tagged(*name* *glob*)**
+  * as for "field_tagged" but matches against the destination page.
+
+## SortSpec
+
+The "field" SortSpec function can be used to sort a page depending on the value of a field for that page.  This is used for directives that take sort parameters, such as **inline** or **report**.
+
+field(*name*)
+
+For example:
+
+sort="field(bar)" will sort by the value og the "bar" field.
 
 ## FUNCTIONS
 
@@ -75,16 +138,18 @@ when the source page is being included in another page).
 
 field_register(id=>$id);
 
-Register a plugin as having field data.  The above form is the simplest, where the field value
-is looked up in the %pagestatus hash under the plugin-id.
+Register a plugin as having field data.  The above form is the simplest, where
+the field value is looked up in the %pagestatus hash under the plugin-id.
 
 Additional Options:
 
 **call=>&myfunc**
 
-A reference to a function to call rather than just looking up the value in the %pagestatus hash.
-It takes two arguments: the name of the field, and the name of the page.  It is expected to return
-the value of that field, or undef if there is no field by that name.
+A reference to a function to call rather than just looking up the value in the
+%pagestatus hash.  It takes two arguments: the name of the field, and the name
+of the page.  It is expected to return (a) an array of the values of that field
+if "wantarray" is true, or (b) a concatenation of the values of that field
+if "wantarray" is not true, or (c) undef if there is no field by that name.
 
     sub myfunc ($$) {
 	my $field = shift;
@@ -92,22 +157,38 @@ the value of that field, or undef if there is no field by that name.
 
 	...
 
-	return $value;
+	return (wantarray ? @values : $value);
     }
 
 **first=>1**
 
-Set this to be called first in the sequence of calls looking for values.  Since the first found
-value is the one which is returned, ordering is significant.
+Set this to be called first in the sequence of calls looking for values.  Since
+the first found value is the one which is returned, ordering is significant.
+This is equivalent to "order=>'first'".
 
 **last=>1**
 
-Set this to be called last in the sequence of calls looking for values.  Since the first found
-value is the one which is returned, ordering is significant.
+Set this to be called last in the sequence of calls looking for values.  Since
+the first found value is the one which is returned, ordering is significant.
+This is equivalent to "order=>'last'".
+
+**order=>$order**
+
+Set the explicit ordering in the sequence of calls looking for values.  Since
+the first found value is the one which is returned, ordering is significant.
+
+The values allowed for this are "first", "last", "middle", or a two-character
+ordering-sequence between 'AA' and 'ZZ'.
 
 ### field_get_value($field, $page)
 
-Returns the value of the field for that page, or undef if none is found.
+    my @values = field_get_value($field, $page);
+
+    my $value = field_get_value($field, $page);
+
+Returns the values of the field for that page, or undef if none is found.
+Note that it will return an array of values if you ask for an array,
+and a scalar value if you ask for a scalar.
 
 ## DOWNLOAD
 

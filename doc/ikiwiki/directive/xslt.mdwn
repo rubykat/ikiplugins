@@ -1,0 +1,16 @@
+The `xslt` directive is supplied by the [[!iki plugins/contrib/xslt desc=xslt]] plugin.
+
+This directive processes an input XML data file with XSLT, and outputs the
+result in the page where the directive was called.
+
+    \[[!xslt file="data1.xml" stylesheet="style1.xsl"]]
+
+There are two arguments to this directive.
+
+* **file:**
+  The file which contains XML data to be processed. This file *must* have a `.xml` extension (`filename.xml`). This file is searched for using the usual IkiWiki mechanism, thus finding the file first in the same directory as the page, then in the directory above, and so on.
+
+* **stylesheet:**
+  The file which contains XSLT stylesheet to apply to the XML data.  This file *must* have a `.xsl` extension (`filename.xsl`). This file is searched for using the usual IkiWiki mechanism, thus finding the file first in the same directory as the page, then in the directory above, and so on.
+
+It is expected that the XSLT stylesheet will output valid HTML markup.

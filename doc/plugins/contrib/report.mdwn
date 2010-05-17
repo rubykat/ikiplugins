@@ -1,157 +1,17 @@
 [[!template id=plugin name=report author="[[rubykat]]"]]
 [[!tag type/meta type/format]]
-[[!toc]]
-## NAME
-
 IkiWiki::Plugin::report - Produce templated reports from page field data.
 
-## SYNOPSIS
+This plugin provides the [[ikiwiki/directive/report]] directive.  This enables
+one to report on the structured data ("field" values) of multiple pages; the
+output is formatted via a template.  This depends on the
+[[plugins/contrib/field]] plugin.
+
+
+## Activate the plugin
 
     # activate the plugin
     add_plugins => [qw{goodstuff report ....}],
-
-    \[[!report template="blog_summary"
-    pages="blog/*"
-    sort="mtime"]]
-
-## DESCRIPTION
-
-This plugin provides the **report** directive.  This enables one to report on
-the structured data ("field" values) of multiple pages; the output is formatted
-via a template.  This depends on the [[plugins/contrib/field]] plugin.
-
-The pages to report on are selected by a PageSpec given by the "pages"
-parameter.  The template is given by the "template" parameter.
-The template expects the data from a single page; it is applied
-to each matching page separately, one after the other.
-
-Additional parameters can be used to fill out the template, in
-addition to the "field" values.  Passed-in values override the
-"field" values.
-
-There are two places where template files can live.  One, as with the
-[[plugins/template]] plugin, is in the /templates directory on the wiki.  These
-templates are wiki pages, and can be edited from the web like other wiki
-pages.
-
-The second place where template files can live is in the global
-templates directory (the same place where the page.tmpl template lives).
-This is a useful place to put template files if you want to prevent
-them being edited from the web, and you don't want to have to make
-them work as wiki pages.
-
-## OPTIONS
-
-**template**: The template to use for the report.
-
-**pages**: A PageSpec to determine the pages to report on.
-
-**sort**: How the matching pages should be sorted.  Sorting criteria are separated by spaces.
-
-The possible values for sorting are:
-
-* **page**: Sort by the full page ID.
-* **pagename**: Sort by the base page name.
-* **pagename_natural**: Sort by the base page name, using Sort::Naturally if it is installed.
-* **mtime**: Sort by the page modification time.
-* **age**: Sort by the page creation time, newest first.
-
-Any other value is taken to be a field name to sort by.
-If a sort value begins with a minus (-) then the order for that field is reversed.
-
-### Headers
-
-An additional option is the "headers" option.  This is a space-separated
-list of field names which are to be used as headers in the report.  This
-is a way of getting around one of the limitations of HTML::Template, that
-is, not being able to do tests such as
-"if this-header is not equal to previous-header".
-
-Instead, that logic is performed inside the plugin.  The template is
-given parameters "HEADER1", "HEADER2" and so on, for each header.
-If the value of a header field is the same as the previous value,
-then HEADER**N** is set to be empty, but if the value of the header
-field is new, then HEADER**N** is given that value.
-
-#### Example
-
-Suppose you're writing a blog in which you record "moods", and you
-want to display your blog posts by mood.
-
-    \[[!report template="mood_summary"
-    pages="blog/*"
-    sort="Mood Date title"
-    headers="Mood"]]
-
-The "mood_summary" template might be like this:
-
-    <TMPL_IF NAME="HEADER1">
-    ## <TMPL_VAR NAME="HEADER1">
-    </TMPL_IF>
-    ### <TMPL_VAR NAME="TITLE">
-    (<TMPL_VAR NAME="DATE">) \[[<TMPL_VAR NAME="PAGE">]]
-    <TMPL_VAR NAME="DESCRIPTION">
-    
-### Advanced Options
-
-The following options are used to improve efficiency when dealing
-with large numbers of pages; most people probably won't need them.
-
-**trail**:
-
-A page or pages to use as a "trail" page.  When a trail page is used,
-the matching pages are limited to (a subset of) the pages which that
-page links to; the "pages" pagespec in this case, rather than selecting
-pages from the entire wiki, will select pages from within the set of pages
-given by the trail page.
-
-**doscan**:
-
-Whether this report should be called in "scan" mode; if it is, then
-the pages which match the pagespec are added to the list of links from
-this page.  This can be used by *another* report by setting this
-page to be a "trail" page in *that* report.
-It is not possible to use "trail" and "doscan" at the same time.
-By default, "doscan" is false.
-
-## TEMPLATE PARAMETERS
-
-The templates are in HTML::Template format, just as [[plugins/template]] and
-[[ftemplate]] are.  The parameters passed in to the template are as follows:
-
-***fields***:
-
-The structured data from the current matching page.  This includes
-"title" and "description" if they are defined.
-
-***common values***:
-
-Values known for all pages: "page", "destpage".  Also "basename" (the base name of the page).
-
-***passed-in values***:
-
-Any additional parameters to the report directive are passed to the
-template; a parameter will override the matching "field" value.
-For example, if you have a "Mood" field, and you pass Mood="bad" to
-the report, then that will be the Mood which is given for the whole
-report.
-
-Generally this is useful if one wishes to make a more generic
-template and hide or show portions of it depending on what
-values are passed in the report directive call.
-
-For example, one could have a "hide_mood" parameter which would hide
-the "Mood" section of your template when it is true, which one could
-use when the Mood is one of the headers.
-
-***headers***:
-
-See the section on Headers.
-
-***first and last***:
-
-If this is the first page-record in the report, then "first" is true.
-If this is the last page-record in the report, then "last" is true.
 
 ## PREREQUISITES
 

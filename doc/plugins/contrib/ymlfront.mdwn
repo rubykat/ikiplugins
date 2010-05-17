@@ -42,7 +42,7 @@ That will be htmlized using the page-type of the page-file.
 
 ### Accessing the Data
 
-There are three ways to access the data given in the YAML section.
+There are a few ways to access the data given in the YAML section.
 
 * [[getfield]] plugin
 
@@ -82,6 +82,10 @@ There are three ways to access the data given in the YAML section.
     	\[[!ftemplate id="bug_display_template"]]
 
     	When running on the Sprongle system, the Foo function returns incorrect data.
+
+* [[report]] plugin
+
+  The **report** plugin is like the [[ftemplate]] plugin, but it reports on multiple pages, rather than just the current page.
 
 * write your own plugin
 
