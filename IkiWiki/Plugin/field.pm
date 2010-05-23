@@ -87,6 +87,13 @@ sub getsetup () {
 			safe => 0,
 			rebuild => undef,
 		},
+		field_tags => {
+			type => "hash",
+			example => "field_tags => {BookAuthor => '/books/authors'}",
+			description => "fields flagged as tag-fields",
+			safe => 0,
+			rebuild => undef,
+		},
 }
 
 sub checkconfig () {
