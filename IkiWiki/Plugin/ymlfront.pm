@@ -232,12 +232,12 @@ sub parse_yml {
 	$yml_str = $1;
 	$rest_of_content = $2;
     } 
-    elsif ($content =~ /^(.*?[\n\r])---[\n\r](.*?[\n\r])---[\n\r](.*)$/s)
-    {
-	$start_of_content = $1;
-	$yml_str = $2;
-	$rest_of_content = $3;
-    } 
+#    elsif ($content =~ /^(.*?[\n\r])---[\n\r](.*?[\n\r])---[\n\r](.*)$/s)
+#    {
+#	$start_of_content = $1;
+#	$yml_str = $2;
+#	$rest_of_content = $3;
+#    } 
     if ($yml_str)
     {
 	# if {{$page}} is there, do an immediate substitution
