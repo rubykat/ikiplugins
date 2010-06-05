@@ -227,7 +227,7 @@ sub parse_yml {
     my $start_of_content = '';
     my $yml_str = '';
     my $rest_of_content = '';
-    if ($content =~ /^---[\n\r](.*?[\n\r])---[\n\r](.*)$/s)
+    if ($content =~ /^---\s*[\n\r](.*?[\n\r])---[\n\r](.*)$/s)
     {
 	$yml_str = $1;
 	$rest_of_content = $2;
