@@ -13,18 +13,21 @@ IkiWiki::Plugin::ymlfront - add YAML-format data to a page
 ## DESCRIPTION
 
 This plugin provides a way of adding arbitrary meta-data (data fields) to any
-page by prefixing the page with a YAML-format document.  This provides a way to
-create per-page structured data, where each page is treated like a record, and
-the structured data are fields in that record.  This can include the meta-data
-for that page, such as the page title.
+page by prefixing the page with a YAML-format document.  This also provides
+the [[ikiwiki/directive/ymlfront]] directive, which enables one to put
+YAML-formatted data inside a standard IkiWiki [[ikiwiki/directive]].
+
+This is a way to create per-page structured data, where each page is
+treated like a record, and the structured data are fields in that record.  This
+can include the meta-data for that page, such as the page title.
 
 This plugin is meant to be used in conjunction with the [[field]] plugin.
 
 ## DETAILS
 
-The YAML-format data in a page must be placed at the start of the page
-and delimited by lines containing precisely three dashes.  The "normal"
-content of the page then follows.
+If one is not using the ymlfront directive, the YAML-format data in a page
+must be placed at the start of the page and delimited by lines containing
+precisely three dashes.  The "normal" content of the page then follows.
 
 For example:
 
@@ -42,7 +45,7 @@ That will be htmlized using the page-type of the page-file.
 
 ### Accessing the Data
 
-There are a few ways to access the data given in the YAML section.
+There are a few ways to access the given YAML data.
 
 * [[getfield]] plugin
 

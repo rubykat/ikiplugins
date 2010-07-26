@@ -1,0 +1,17 @@
+The `ymlfront` directive is supplied by the [[!iki plugins/contrib/ymlfront desc=ymlfront]] plugin.
+
+This directive allows the user to define arbitrary meta-data in YAML format.
+
+    \[[!ymlfront data="""
+     foo: fooness
+     bar: The Royal Pigeon
+     baz: 2
+     """]]
+
+There is one argument to this directive.
+
+* **data:**
+  The YAML-format data.  This should be enclosed inside triple-quotes to preserve the data correctly.
+
+If more than one ymlfront directive is given per page, the result is undefined.
+Likewise, it is inadvisable to try to mix the "---" ymlfront format with the directive form of the data.
