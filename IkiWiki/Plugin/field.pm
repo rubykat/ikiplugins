@@ -620,6 +620,9 @@ sub match_destfield_tagged ($$;@) {
     return IkiWiki::Plugin::field::match_field_tagged($params{destpage}, $wanted);
 }
 
+# ===============================================
+# SortSpec functions
+# ---------------------------
 package IkiWiki::SortSpec;
 
 sub cmp_field {
@@ -632,6 +635,21 @@ sub cmp_field {
     $left = "" unless defined $left;
     $right = "" unless defined $right;
     return $left cmp $right;
+}
+
+sub cmp_field_natural {
+    my $field = shift;
+    error(gettext("sort=field requires a parameter")) unless defined $field;
+
+    eval q{use Sort::Naturally};
+    error $@ if $@;
+
+    my $left = IkiWiki::Plugin::field::field_get_value($field, $a);
+    my $right = IkiWiki::Plugin::field::field_get_value($field, $b);
+
+    $left = "" unless defined $left;
+    $right = "" unless defined $right;
+    return Sort::Naturally::ncmp($left, $right);
 }
 
 1;

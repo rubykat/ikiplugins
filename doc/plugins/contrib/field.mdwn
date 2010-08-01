@@ -132,6 +132,10 @@ For example:
 
 sort="field(bar)" will sort by the value og the "bar" field.
 
+Additionally, the "field_natural" SortSpec function will use the
+Sort::Naturally module to do its comparison (though it will fail if that
+module is not installed).
+
 ## FUNCTIONS
 
 ### field_register
