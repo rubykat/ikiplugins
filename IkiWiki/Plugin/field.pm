@@ -4,7 +4,6 @@
 package IkiWiki::Plugin::field;
 use warnings;
 use strict;
-use YAML::Any;
 =head1 NAME
 
 IkiWiki::Plugin::field - front-end for per-page record fields.
@@ -629,11 +628,26 @@ sub cmp_field {
     my $field = shift;
     error(gettext("sort=field requires a parameter")) unless defined $field;
 
+    my $natural = 0;
+    if ($field =~ /(.*)_natural$/)
+    {
+	$field = $1;
+	$natural = 1;
+    }
     my $left = IkiWiki::Plugin::field::field_get_value($field, $a);
     my $right = IkiWiki::Plugin::field::field_get_value($field, $b);
 
     $left = "" unless defined $left;
     $right = "" unless defined $right;
+    if ($natural)
+    {
+	eval q{use Sort::Naturally};
+	$natural = 0 if $@; # fail silently
+    }
+    if ($natural)
+    {
+	return Sort::Naturally::ncmp($left, $right);
+    }
     return $left cmp $right;
 }
 
