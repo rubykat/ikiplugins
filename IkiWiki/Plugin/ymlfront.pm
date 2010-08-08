@@ -60,19 +60,30 @@ sub getsetup () {
 			safe => 1,
 			rebuild => 1,
 		},
+		ymlfront_delim => {
+			type => "array",
+			example => "ymlfront_sep => [qw(--YAML-START-- --YAML-END--)]",
+			description => "delimiters of YAML data",
+			safe => 0,
+			rebuild => undef,
+		},
 }
 
 sub checkconfig () {
-	eval q{use YAML::Any};
-	eval q{use YAML} if $@;
-	if ($@)
-	{
-	    return error ("ymlfront: failed to use YAML::Any or YAML");
-	}
+    eval q{use YAML::Any};
+    eval q{use YAML} if $@;
+    if ($@)
+    {
+	return error ("ymlfront: failed to use YAML::Any or YAML");
+    }
 
-	$YAML::UseBlock = 1;
-	$YAML::Syck::ImplicitUnicode = 1;
+    $YAML::UseBlock = 1;
+    $YAML::Syck::ImplicitUnicode = 1;
 
+    if (!defined $config{ymlfront_delim})
+    {
+	$config{ymlfront_delim} = [qw(--- ---)];
+    }
 } # checkconfig
 
 # scan gets called before filter
@@ -310,10 +321,19 @@ sub parse_yml {
 				*)?		# 0 or more parameters
 		\]\]		# directive closed
 	}sx;
-	if ($content =~ /^---[\n\r](.*?[\n\r])---[\n\r](.*)$/s)
+	my $ystart = $config{ymlfront_delim}[0];
+	my $yend = $config{ymlfront_delim}[1];
+	if ($ystart eq '---'
+	    and $yend eq '---'
+	    and $content =~ /^---[\n\r](.*?[\n\r])---[\n\r](.*)$/s)
 	{
 	    $yml_str = $1;
 	    $rest_of_content = $2;
+	}
+	elsif ($content =~ /^(.*?)${ystart}[\n\r](.*?[\n\r])${yend}([\n\r].*)$/s)
+	{
+	    $yml_str = $2;
+	    $rest_of_content = $1 . $3;
 	} 
 	elsif ($content =~ /$regex/)
 	{
