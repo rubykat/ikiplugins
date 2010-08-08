@@ -278,6 +278,14 @@ sub field_get_value ($$) {
 	{
 	    $value = $page;
 	}
+	# the page above this page; aka the current directory
+	elsif ($field_name eq 'parent_page')
+	{
+	    if ($page =~ m{^(.*)/[-\.\w]+$})
+	    {
+		$value = $1;
+	    }
+	}
 	elsif ($field_name eq 'basename')
 	{
 	    $value = IkiWiki::basename($page);
