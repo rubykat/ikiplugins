@@ -10,11 +10,11 @@ IkiWiki::Plugin::field - front-end for per-page record fields.
 
 =head1 VERSION
 
-This describes version B<0.05> of IkiWiki::Plugin::field
+This describes version B<1.20101101> of IkiWiki::Plugin::field
 
 =cut
 
-our $VERSION = '0.05';
+our $VERSION = '1.20101101';
 
 =head1 PREREQUISITES
 
