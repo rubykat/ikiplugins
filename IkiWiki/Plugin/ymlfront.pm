@@ -10,11 +10,11 @@ IkiWiki::Plugin::ymlfront - add YAML-format data to a page
 
 =head1 VERSION
 
-This describes version B<0.03> of IkiWiki::Plugin::ymlfront
+This describes version B<1.20100808> of IkiWiki::Plugin::ymlfront
 
 =cut
 
-our $VERSION = '0.03';
+our $VERSION = '1.20100808';
 
 =head1 PREREQUISITES
 

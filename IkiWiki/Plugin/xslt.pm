@@ -10,11 +10,11 @@ IkiWiki::Plugin::xslt - ikiwiki directive to process an XML file with XSLT
 
 =head1 VERSION
 
-This describes version B<0.02> of IkiWiki::Plugin::xslt
+This describes version B<1.20100519> of IkiWiki::Plugin::xslt
 
 =cut
 
-our $VERSION = '0.02';
+our $VERSION = '1.20100519';
 
 =head1 PREREQUISITES
 
