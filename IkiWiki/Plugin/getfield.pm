@@ -100,6 +100,9 @@ sub get_other_page_field_value ($$$) {
     my $other_page = shift;
 
     my $use_page = bestlink($page, $other_page);
+    # add a dependency for the page from which we get the value
+    add_depends($page, $use_page);
+
     my $val = get_field_value($field, $use_page);
     if ($val eq $field)
     {

@@ -356,6 +356,9 @@ sub field_set_template_values ($$;@) {
     my @parameter_names = $template->param();
     foreach my $field (@parameter_names)
     {
+	# Don't redefine if the field already has a value set.
+	next if ($template->param($field));
+
 	my $type = $template->query(name => $field);
 	if ($type eq 'LOOP' and $field =~ /_LOOP$/i)
 	{
