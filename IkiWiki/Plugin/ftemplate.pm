@@ -10,11 +10,11 @@ IkiWiki::Plugin::ftemplate - field-aware structured template plugin
 
 =head1 VERSION
 
-This describes version B<0.02> of IkiWiki::Plugin::ftemplate
+This describes version B<1.20100519> of IkiWiki::Plugin::ftemplate
 
 =cut
 
-our $VERSION = '0.02';
+our $VERSION = '1.20100519';
 
 =head1 PREREQUISITES
 

@@ -10,6 +10,9 @@ IkiWiki::Plugin::ymlfront - add YAML-format data to a page
     # activate the plugin
     add_plugins => [qw{goodstuff ymlfront ....}],
 
+    # configure the plugin
+    ymlfront_delim => [qw(--YAML-- --YAML--)],
+
 ## DESCRIPTION
 
 This plugin provides a way of adding arbitrary meta-data (data fields) to any
@@ -25,23 +28,57 @@ This plugin is meant to be used in conjunction with the [[field]] plugin.
 
 ## DETAILS
 
-If one is not using the ymlfront directive, the YAML-format data in a page
-must be placed at the start of the page and delimited by lines containing
-precisely three dashes.  The "normal" content of the page then follows.
+There are three formats for adding YAML data to a page.  These formats
+should not be mixed - the result is undefined.
 
-For example:
+1. ymlfront directive
+   
+   See [[ikiwiki/directive/ymlfront]] for more information.
 
-    ---
-    title: Foo does not work
-    Urgency: High
-    Status: Assigned
-    AssignedTo: Fred Nurk
-    Version: 1.2.3
-    ---
-    When running on the Sprongle system, the Foo function returns incorrect data.
+2. default YAML-compatible delimiter
 
-What will normally be displayed is everything following the second line of dashes.
-That will be htmlized using the page-type of the page-file.
+   By default, the YAML-format data in a page is placed at the start of
+   the page and delimited by lines containing precisely three dashes.
+   This is what YAML itself uses to delimit multiple documents.
+   The "normal" content of the page then follows.
+
+   For example:
+
+    	---
+    	title: Foo does not work
+    	Urgency: High
+    	Status: Assigned
+    	AssignedTo: Fred Nurk
+    	Version: 1.2.3
+    	---
+    	When running on the Sprongle system, the Foo function returns incorrect data.
+
+   What will normally be displayed is everything following the second line of dashes.  That will be htmlized using the page-type of the page-file.
+
+3. user-defined delimiter
+
+   Instead of using the default "---" delimiter, the user can define,
+   in the configuration file, the **ymlfront_delim** value, which is an
+   array containing two strings. The first string defines the markup for
+   the start of the YAML data, and the second string defines the markip
+   for the end of the YAML data. These two strings can be the same, or
+   they can be different. In this case, the YAML data section is not
+   required to be at the start of the page, but as with the default, it
+   is expected that only one data section will be on the page.
+
+   For example:
+
+    	--YAML--
+    	title: Foo does not work
+    	Urgency: High
+    	Status: Assigned
+    	AssignedTo: Fred Nurk
+    	Version: 1.2.3
+    	--YAML--
+    	When running on the Sprongle system, the Foo function returns incorrect data.
+
+   What will normally be displayed is everything outside the delimiters,
+   both before and after.  That will be htmlized using the page-type of the page-file.
 
 ### Accessing the Data
 

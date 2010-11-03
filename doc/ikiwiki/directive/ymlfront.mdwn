@@ -14,4 +14,4 @@ There is one argument to this directive.
   The YAML-format data.  This should be enclosed inside triple-quotes to preserve the data correctly.
 
 If more than one ymlfront directive is given per page, the result is undefined.
-Likewise, it is inadvisable to try to mix the "---" ymlfront format with the directive form of the data.
+Likewise, it is inadvisable to try to mix the non-directive ymlfront format with the directive form of the data.

@@ -10,11 +10,11 @@ IkiWiki::Plugin::field - front-end for per-page record fields.
 
 =head1 VERSION
 
-This describes version B<0.05> of IkiWiki::Plugin::field
+This describes version B<1.20101101> of IkiWiki::Plugin::field
 
 =cut
 
-our $VERSION = '0.05';
+our $VERSION = '1.20101101';
 
 =head1 PREREQUISITES
 
@@ -356,6 +356,9 @@ sub field_set_template_values ($$;@) {
     my @parameter_names = $template->param();
     foreach my $field (@parameter_names)
     {
+	# Don't redefine if the field already has a value set.
+	next if ($template->param($field));
+
 	my $type = $template->query(name => $field);
 	if ($type eq 'LOOP' and $field =~ /_LOOP$/i)
 	{

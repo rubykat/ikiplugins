@@ -10,11 +10,11 @@ IkiWiki::Plugin::pod - process pages written in POD format.
 
 =head1 VERSION
 
-This describes version B<0.01> of IkiWiki::Plugin::pod
+This describes version B<1.20100519> of IkiWiki::Plugin::pod
 
 =cut
 
-our $VERSION = '0.01';
+our $VERSION = '1.20100519';
 
 =head1 PREREQUISITES
 
