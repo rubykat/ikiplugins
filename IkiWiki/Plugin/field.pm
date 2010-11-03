@@ -316,7 +316,7 @@ sub field_get_value ($$) {
 			    push @array_value, $link;
 			}
 		    }
-		    $value = join(",", @array_value);
+		    $value = join(",", @array_value) if $array_value[0];
 		}
 	    }
 	}
