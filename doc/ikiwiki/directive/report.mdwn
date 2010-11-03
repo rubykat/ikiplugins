@@ -29,6 +29,11 @@ them work as wiki pages.
 
 **pages**: A PageSpec to determine the pages to report on.
 
+**pagenames**: If given instead of pages, this is interpreted as a
+space-separated list of links to pages, and they are shown in exactly the order
+given: the sort and pages parameters cannot be used in conjunction with this
+one.  If they are used, they will be ignored.
+
 **trail**: A page or pages to use as a "trail" page.
 
 When a trail page is used, the matching pages are limited to (a subset
@@ -43,6 +48,11 @@ For example:
 
 This will take the links from both the "animals/cats" page and the
 "animals/dogs" page as the set of pages to apply the PageSpec to.
+
+**start**: Start the report at the given page-index; the index starts
+from zero.
+
+**count**: Report only on N pages where count=N.
 
 **sort**: A SortSpec to determine how the matching pages should be sorted.
 
@@ -85,7 +95,19 @@ The "mood_summary" template might be like this:
     ### <TMPL_VAR NAME="TITLE">
     (<TMPL_VAR NAME="DATE">) \[[<TMPL_VAR NAME="PAGE">]]
     <TMPL_VAR NAME="DESCRIPTION">
-    
+ 
+### Multi-page Reports
+
+Reports can now be split over multiple pages, so that there aren't
+too many items per report-page.
+
+**per_page**: how many items to show per report-page.
+
+**first_page_is_index**: If true, the first page of the report is just
+an index which contains links to the other report pages.
+If false, the first page will contain report-content as well as links
+to the other pages.
+
 ### Advanced Options
 
 The following options are used to improve efficiency when dealing

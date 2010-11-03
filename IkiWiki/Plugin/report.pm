@@ -7,11 +7,11 @@ IkiWiki::Plugin::report - Produce templated reports from page field data.
 
 =head1 VERSION
 
-This describes version B<0.10> of IkiWiki::Plugin::report
+This describes version B<1.20101101> of IkiWiki::Plugin::report
 
 =cut
 
-our $VERSION = '0.10';
+our $VERSION = '1.20101101';
 
 =head1 PREREQUISITES
 
@@ -36,6 +36,7 @@ modify it under the same terms as Perl itself.
 use IkiWiki 3.00;
 use HTML::Template;
 use Encode;
+use POSIX qw(ceil);
 
 sub import {
 	hook(type => "getsetup", id => "report", call => \&getsetup);
@@ -74,18 +75,22 @@ sub preprocess (@) {
     }
 
     my $this_page = $params{page};
-    delete $params{page};
+    my $dest_page = $params{destpage};
     my $pages = (defined $params{pages} ? $params{pages} : '*');
     $pages =~ s/{{\$page}}/$this_page/g;
 
+    if (!defined $params{first_page_is_index})
+    {
+	$params{first_page_is_index} = 0;
+    }
+
     my $template;
     eval {
+	# Do this in an eval because it might fail
+	# if the template isn't a page in the wiki
 	$template=template_depends($params{template}, $params{page},
 				   blind_cache => 1);
     };
-    if ($@) {
-	error gettext("failed to process template $params{id}:")." $@";
-    }
     if (! $template) {
 	# look for .tmpl template (in global templates dir)
 	eval {
@@ -93,7 +98,7 @@ sub preprocess (@) {
 				       blind_cache => 1);
 	};
 	if ($@) {
-	    error gettext("failed to process template $params{id}.tmpl:")." $@";
+	    error gettext("failed to process template $params{template}.tmpl:")." $@";
 	}
 	if (! $template) {
 
@@ -111,7 +116,19 @@ sub preprocess (@) {
     # which is a bit looser than the PmWiki definition
     # but it will do
     my @trailpages = ();
-    if ($params{trail})
+    if ($params{pagenames})
+    {
+	@matching_pages =
+	    map { bestlink($params{page}, $_) } split ' ', $params{pagenames};
+	foreach my $mp (@matching_pages)
+	{
+	    if ($mp ne $dest_page)
+	    {
+		add_depends($dest_page, $mp, $deptype);
+	    }
+	}
+    }
+    elsif ($params{trail})
     {
 	@trailpages = split(' ', $params{trail});
 	foreach my $tp (@trailpages)
@@ -136,14 +153,12 @@ sub preprocess (@) {
 		if ($result)
 		{
 		    push @filtered, $mp;
-		    add_depends($this_page, $mp, $deptype);
+
+		    # Don't add the dependencies yet
+		    # because the results could be further filtered below
 		}
 	    }
 	    @matching_pages = @filtered;
-	}
-	if (!$params{here_only})
-	{
-	    debug("report found " . scalar @matching_pages . " pages");
 	}
 	# Because we used a trail, we have to sort the pages ourselves.
 	# This code is cribbed from pagespec_match_list
@@ -164,28 +179,28 @@ sub preprocess (@) {
 
     # ------------------------------------------------------------------
     # If we want this report to be in "here_only", that is,
-    # the current page ($this_page) and the previous page
+    # the current page ($dest_page) and the previous page
     # and the next page only, we need to find the current page
     # in the list of matching pages, and set the matching
     # pages to those three pages.
     my @here_only = ();
-    my $this_page_ind;
+    my $dest_page_ind;
     if ($params{here_only})
     {
 	for (my $i=0; $i < @matching_pages; $i++)
 	{
-	    if ($matching_pages[$i] eq $this_page)
+	    if ($matching_pages[$i] eq $dest_page)
 	    {
 		if ($i > 0)
 		{
 		    push @here_only, $matching_pages[$i-1];
 		    push @here_only, $matching_pages[$i];
-		    $this_page_ind = 1;
+		    $dest_page_ind = 1;
 		}
 		else
 		{
 		    push @here_only, $matching_pages[$i];
-		    $this_page_ind = 0;
+		    $dest_page_ind = 0;
 		}
 		if ($i < $#matching_pages)
 		{
@@ -196,16 +211,20 @@ sub preprocess (@) {
 	} # for all matching pages
 	@matching_pages = @here_only;
     }
-    # only add the dependency on the trail pages
-    # if we found matches
+
+    # Only add dependencies when using trails IF we found matches
     if ($params{trail} and $#matching_pages > 0)
     {
 	foreach my $tp (@trailpages)
 	{
-	    add_depends($this_page, $tp, deptype("links"));
+	    add_depends($dest_page, $tp, deptype("links"));
+	}
+	foreach my $mp (@matching_pages)
+	{
+	    add_depends($dest_page, $mp, $deptype);
 	}
     }
-    ##debug("report($this_page) found " . scalar @matching_pages . " pages");
+    ##debug("report($dest_page) found " . scalar @matching_pages . " pages");
 
     # ------------------------------------------------------------------
     # If we are scanning, we only care about the list of pages we found.
@@ -219,10 +238,10 @@ sub preprocess (@) {
     {
 	if ($params{doscan} and !$params{trail})
 	{
-	    debug("report ($this_page) NO MATCHING PAGES") if !@matching_pages;
+	    debug("report ($dest_page) NO MATCHING PAGES") if !@matching_pages;
 	    foreach my $page (@matching_pages)
 	    {
-		add_link($this_page, $page);
+		add_link($dest_page, $page);
 	    }
 	}
 	return;
@@ -232,18 +251,230 @@ sub preprocess (@) {
     #
     my @report = ();
 
-    my $start = ($params{here_only} ? $this_page_ind : 0);
+    my $start = ($params{here_only}
+		 ? $dest_page_ind
+		 : ($params{start} ? $params{start} : 0));
     my $stop = ($params{here_only}
-		? $this_page_ind + 1
+		? $dest_page_ind + 1
 		: ($params{count}
-		   ? ($params{count} < @matching_pages
-		      ? $params{count}
+		   ? (($start + $params{count}) <= @matching_pages
+		      ? $start + $params{count}
 		      : scalar @matching_pages
 		     )
 		   : scalar @matching_pages)
 	       );
+    my $output = '';
+    my $num_pages = 1;
+    if ($params{per_page})
+    {
+	my $num_recs = scalar @matching_pages;
+	$num_pages = ceil($num_recs / $params{per_page});
+    }
+    # Don't do pagination
+    # - when there's only one page
+    # - on included pages
+    if (($num_pages <= 1)
+	or ($params{page} ne $params{destpage}))
+    {
+	$output = build_report(%params,
+			       start=>$start,
+			       stop=>$stop,
+			       matching_pages=>\@matching_pages,
+			       template=>$template,
+			       scanning=>$scanning,
+			      );
+    }
+    else
+    {
+	$output = multi_page_report(%params,
+				    num_pages=>$num_pages,
+				    start=>$start,
+				    stop=>$stop,
+				    matching_pages=>\@matching_pages,
+				    template=>$template,
+				    scanning=>$scanning,
+				   );
+    }
+
+    return $output;
+} # preprocess
+
+# -------------------------------------------------------------------
+# Private Functions
+# -------------------------------------
+
+# Do a multi-page report.
+# This assumes that this is not an inlined page.
+sub multi_page_report (@) {
+    my %params = (
+		start=>0,
+		@_
+	       );
+
+    my @matching_pages = @{$params{matching_pages}};
+    my $template = $params{template};
+    my $scanning = $params{scanning};
+    my $num_pages = $params{num_pages};
+    my $first_page_is_index = $params{first_page_is_index};
+
+    my $page_type = pagetype($pagesources{$params{page}});
+
+    my $first_page_out = '';
+    for (my $pind = 0; $pind < $num_pages; $pind++)
+    {
+	my $rep_links = create_page_links(%params,
+					  num_pages=>$num_pages,
+					  cur_page=>$pind,
+					  first_page_is_index=>$first_page_is_index);
+	my $start_at = $params{start} + ($pind * $params{per_page});
+	my $end_at = $params{start} + (($pind + 1) * $params{per_page});
+	my $pout = build_report(%params,
+			       start=>$start_at,
+			       stop=>$end_at,
+			       matching_pages=>\@matching_pages,
+			       template=>$template,
+			       scanning=>$scanning,
+			      );
+	$pout =<<EOT;
+<div class="report">
+$rep_links
+$pout
+$rep_links
+</div>
+EOT
+	if ($pind == 0 and !$first_page_is_index)
+	{
+	    $first_page_out = $pout;
+	}
+	else
+	{
+	    my $new_page = sprintf("%s%s_%d", 'report', $params{report_id},
+				   $pind + 1);
+	    my $target = targetpage($params{page}, $config{htmlext}, $new_page);
+	    will_render($params{page}, $target);
+	    my $rep = IkiWiki::linkify($params{page}, $new_page, $pout);
+
+	    # render as a simple page
+	    $rep = render_simple_page(%params,
+				      new_page=>$new_page,
+				      content=>$rep);
+	    writefile($target, $config{destdir}, $rep);
+	}
+    }
+    if ($first_page_is_index)
+    {
+	$first_page_out = create_page_links(%params,
+					    num_pages=>$num_pages,
+					    cur_page=>-1,
+					    first_page_is_index=>$first_page_is_index);
+    }
+
+    return $first_page_out;
+} # multi_page_report
+
+sub create_page_links {
+    my %params = (
+		num_pages=>0,
+		cur_page=>0,
+		@_
+	       );
+    my $first_page_is_index = $params{first_page_is_index};
+
+    my @page_links = ();
+    for (my $pind = ($first_page_is_index ? -1 : 0);
+	 $pind < $params{num_pages}; $pind++)
+    {
+	if ($pind == $params{cur_page}
+	    and $pind == -1)
+	{
+	    push @page_links,
+		 sprintf('<b>[%s]</b>',
+			 IkiWiki::pagetitle(IkiWiki::basename($params{page})));
+	}
+	elsif ($pind == $params{cur_page})
+	{
+	    push @page_links, sprintf('<b>[%d]</b>', $pind + 1);
+	}
+	elsif ($pind == -1)
+	{
+	    push @page_links,
+		 sprintf('<a href="%s">[%s]</a>',
+			 ($config{usedirs}
+			  ? './'
+			  : '../' . IkiWiki::basename($params{page})
+			  . '.' . $config{htmlext}),
+			 IkiWiki::pagetitle(IkiWiki::basename($params{page})));
+	}
+	elsif ($pind == 0 and !$first_page_is_index)
+	{
+	    push @page_links,
+		 sprintf('<a href="%s">[%d]</a>',
+			 ($config{usedirs}
+			  ? './'
+			  : '../' . IkiWiki::basename($params{page})
+			  . '.' . $config{htmlext}),
+			 $pind + 1);
+	}
+	else
+	{
+	    my $new_page = sprintf("%s%s_%d", 'report', $params{report_id},
+				   $pind + 1);
+	    push @page_links,
+		 sprintf('<a href="%s.%s">[%d]</a>',
+			 $new_page, $config{htmlext},
+			 $pind + 1);
+	}
+    }
+    return '<div class="rep_pages">' . join(' ', @page_links) . '</div>';
+} # create_page_links
+
+sub render_simple_page (@) {
+    my %params=@_;
+
+    my $new_page = $params{new_page};
+    my $content = $params{content};
+
+    # render as a simple page
+    # cargo-culted from IkiWiki::Render::genpage
+    my $ptmpl = IkiWiki::template('page.tmpl', blind_cache=>1);
+    $ptmpl->param(
+		  title => IkiWiki::pagetitle(IkiWiki::basename($new_page)),
+		  wikiname => $config{wikiname},
+		  content => $content,
+		  html5 => $config{html5},
+		 );
+
+    IkiWiki::run_hooks(pagetemplate => sub {
+		       shift->(page => $params{page},
+			       destpage => $new_page,
+			       template => $ptmpl);
+		       });
+
+    $content=$ptmpl->output;
+
+    IkiWiki::run_hooks(format => sub {
+		       $content=shift->(
+				    page => $params{page},
+				    content => $content,
+				   );
+		       });
+    return $content;
+} # render_simple_page
+
+sub build_report (@) {
+    my %params = (
+		start=>0,
+		@_
+	       );
+
+    my @matching_pages = @{$params{matching_pages}};
+    my $template = $params{template};
+    my $scanning = $params{scanning};
+    my @report = ();
+
+    my $start = $params{start};
+    my $stop = $params{stop};
     my @header_fields = ($params{headers} ? split(' ', $params{headers}) : ());
-    delete $params{headers};
     my @prev_headers = ();
     for (my $j=0; $j < @header_fields; $j++)
     {
@@ -254,8 +485,8 @@ sub preprocess (@) {
 	my $page = $matching_pages[$i];
 	my $prev_page = ($i > 0 ? $matching_pages[$i-1] : '');
 	my $next_page = ($i < $#matching_pages ? $matching_pages[$i+1] : '');
-	my $first = ($page eq $matching_pages[0]);
-	my $last = ($page eq $matching_pages[$#matching_pages]);
+	my $first = ($i == $start);
+	my $last = ($i == ($stop - 1));
 	my @header_values = ();
 	foreach my $fn (@header_fields)
 	{
@@ -293,7 +524,7 @@ sub preprocess (@) {
     my $output = join('', @report);
 
     return $output;
-}
+} # build_report
 
 sub do_one_template (@) {
     my %params=@_;
