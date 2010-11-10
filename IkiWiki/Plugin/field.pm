@@ -133,7 +133,7 @@ sub scan (@) {
     # scan for tag fields
     if ($config{field_tags})
     {
-	foreach my $field (sort keys %{$config{field_tags}})
+	foreach my $field (keys %{$config{field_tags}})
 	{
 	    my @values = field_get_value($field, $page);
 	    if (@values)
@@ -177,28 +177,9 @@ sub field_register (%) {
 	return 0;
     }
 
-    $Fields{$param{id}} = \%param;
-    if (!exists $param{call})
-    {
-	# closure to get the data from the pagestate hash
-	$Fields{$param{id}}->{call} = sub {
-	    my $field_name = shift;
-	    my $page = shift;
-	    if (exists $pagestate{$page}{$param{id}}{$field_name})
-	    {
-		return (wantarray
-			? ($pagestate{$page}{$param{id}}{$field_name})
-			: $pagestate{$page}{$param{id}}{$field_name});
-	    }
-	    elsif (exists $pagestate{$page}{$param{id}}{lc($field_name)})
-	    {
-		return (wantarray
-			? ($pagestate{$page}{$param{id}}{lc($field_name)})
-			: $pagestate{$page}{$param{id}}{lc($field_name)});
-	    }
-	    return undef;
-	};
-    }
+    my $id = $param{id};
+    $Fields{$id} = \%param;
+
     # add this to the ordering hash
     # first, last, order; by default, middle
     my $when = ($param{first}
@@ -219,7 +200,7 @@ sub field_register (%) {
 		      : '_middle'
 		     )
 		  ));
-    add_lookup_order($param{id}, $when);
+    add_lookup_order($id, $when);
     return 1;
 } # field_register
 
@@ -238,100 +219,103 @@ sub field_get_value ($$) {
     # any field that happens to be defined in a YAML page file, which
     # could be anything!
  
-    my $value = undef;
-    my @array_value = undef;
-
     # check the cache first
-    if (exists $Cache{$page}{$field_name}
-	and defined $Cache{$page}{$field_name})
+    if (wantarray)
     {
-	return (wantarray
-	    ? @{$Cache{$page}{$field_name}{array}}
-	    : $Cache{$page}{$field_name}{scalar});
+	if (exists $Cache{$page}{$field_name}{array}
+	    and defined $Cache{$page}{$field_name}{array})
+	{
+	    return @{$Cache{$page}{$field_name}{array}};
+	}
+    }
+    else
+    {
+	if (exists $Cache{$page}{$field_name}{scalar}
+	    and defined $Cache{$page}{$field_name}{scalar})
+	{
+	    return $Cache{$page}{$field_name}{scalar};
+	}
     }
 
     if (!@FieldsLookupOrder)
     {
 	build_fields_lookup_order();
     }
-    foreach my $id (@FieldsLookupOrder)
-    {
-	$value = $Fields{$id}{call}->($field_name, $page);
-	@array_value = $Fields{$id}{call}->($field_name, $page);
-	if (defined $value)
-	{
-	    last;
-	}
-    }
+    my $lc_field_name = lc($field_name);
 
-    # extra definitions
-    if (!defined $value)
+    # Get either the scalar or the array value depending
+    # on what is requested - don't get both because it wastes time.
+    if (wantarray)
     {
-	# Exception for titles
-	# If the title hasn't been found, construct it
-	if ($field_name eq 'title')
+	my @array_value = undef;
+	foreach my $id (@FieldsLookupOrder)
 	{
-	    $value = pagetitle(IkiWiki::basename($page));
-	}
-	# and set "page" if desired
-	elsif ($field_name eq 'page')
-	{
-	    $value = $page;
-	}
-	# the page above this page; aka the current directory
-	elsif ($field_name eq 'parent_page')
-	{
-	    if ($page =~ m{^(.*)/[-\.\w]+$})
+	    # get the data from the pagestate hash if it's there
+	    if (exists $pagestate{$page}{$id}{$field_name})
 	    {
-		$value = $1;
+		@array_value = (ref $pagestate{$page}{$id}{$field_name}
+				? @{$pagestate{$page}{$id}{$field_name}}
+				: ($pagestate{$page}{$id}{$field_name}));
+	    }
+	    elsif (exists $pagestate{$page}{$id}{$lc_field_name})
+	    {
+		@array_value = (ref $pagestate{$page}{$id}{$lc_field_name}
+				? @{$pagestate{$page}{$id}{$lc_field_name}}
+				: ($pagestate{$page}{$id}{$lc_field_name}));
+	    }
+	    elsif (exists $Fields{$id}{call})
+	    {
+		@array_value = $Fields{$id}{call}->($field_name, $page);
+	    }
+	    if (@array_value)
+	    {
+		last;
 	    }
 	}
-	elsif ($field_name eq 'basename')
-	{
-	    $value = IkiWiki::basename($page);
-	}
-	elsif ($config{field_allow_config}
-	       and $field_name =~ /^config-(.*)$/i)
-	{
-	    my $cfield = $1;
-	    if (exists $config{$cfield})
-	    {
-		$value = $config{$cfield};
-	    }
-	}
-	elsif ($field_name =~ /^(.*)-tagpage$/)
-	{
-	    my $real_fn = $1;
-	    if (exists $config{field_tags}{$real_fn}
-		and defined $config{field_tags}{$real_fn})
-	    {
-		my @values = field_get_value($real_fn, $page);
-		if (@values)
-		{
-		    foreach my $tag (@values)
-		    {
-			if ($tag)
-			{
-			    my $link = $config{field_tags}{$real_fn} . '/' . $tag;
-			    push @array_value, $link;
-			}
-		    }
-		    $value = join(",", @array_value) if $array_value[0];
-		}
-	    }
-	}
-    }
-    if (defined $value)
-    {
 	if (!@array_value)
 	{
-	    @array_value = ($value);
+	    @array_value = field_calculated_values($field_name, $page);
+	}
+	# cache the value
+	$Cache{$page}{$field_name}{array} = \@array_value;
+	return @array_value;
+    }
+    else # scalar
+    {
+	my $value = undef;
+	foreach my $id (@FieldsLookupOrder)
+	{
+	    # get the data from the pagestate hash if it's there
+	    # but only if it's already a scalar
+	    if (exists $pagestate{$page}{$id}{$field_name}
+		and !ref $pagestate{$page}{$id}{$field_name})
+	    {
+		$value = $pagestate{$page}{$id}{$field_name};
+	    }
+	    elsif (exists $pagestate{$page}{$id}{$lc_field_name}
+		   and !ref $pagestate{$page}{$id}{$lc_field_name})
+	    {
+		$value = $pagestate{$page}{$id}{$lc_field_name};
+	    }
+	    elsif (exists $Fields{$id}{call})
+	    {
+		$value = $Fields{$id}{call}->($field_name, $page);
+	    }
+	    if (defined $value)
+	    {
+		last;
+	    }
+	}
+	if (!defined $value)
+	{
+	    $value = field_calculated_values($field_name, $page);
 	}
 	# cache the value
 	$Cache{$page}{$field_name}{scalar} = $value;
-	$Cache{$page}{$field_name}{array} = \@array_value;
+	return $value;
     }
-    return (wantarray ? @array_value : $value);
+
+    return undef;
 } # field_get_value
 
 # set the values for the given HTML::Template template
@@ -360,7 +344,7 @@ sub field_set_template_values ($$;@) {
 	next if ($template->param($field));
 
 	my $type = $template->query(name => $field);
-	if ($type eq 'LOOP' and $field =~ /_LOOP$/i)
+	if ($type eq 'LOOP' and $field =~ /_LOOP$/oi)
 	{
 	    # Loop fields want arrays.
 	    # Figure out what field names to look for:
@@ -371,7 +355,7 @@ sub field_set_template_values ($$;@) {
 	    my %loop_field_arrays = ();
 	    foreach my $fn (@loop_fields)
 	    {
-		if ($fn !~ /^__/) # not a special loop variable
+		if ($fn !~ /^__/o) # not a special loop variable
 		{
 		    my @ival_array = $get_value_fn->($fn, $page);
 		    if (@ival_array)
@@ -418,7 +402,7 @@ sub add_lookup_order  {
     my $when = shift;
 
     # may have given an explicit ordering
-    if ($when =~ /^[A-Z][A-Z]$/)
+    if ($when =~ /^[A-Z][A-Z]$/o)
     {
 	$Fields{$id}{seq} = $when;
     }
@@ -426,7 +410,7 @@ sub add_lookup_order  {
     {
 	my $cmp = '=';
 	my $seq_field = $when;
-	if ($when =~ /^([<>])(.+)$/)
+	if ($when =~ /^([<>])(.+)$/o)
 	{
 	    $cmp = $1;
 	    $seq_field = $2;
@@ -479,6 +463,77 @@ sub build_fields_lookup_order {
     }
 } # build_fields_lookup_order
 
+# standard values deduced from other values
+sub field_calculated_values {
+    my $field_name = shift;
+    my $page = shift;
+
+    my $value = undef;
+
+    # Exception for titles
+    # If the title hasn't been found, construct it
+    if ($field_name eq 'title')
+    {
+	$value = pagetitle(IkiWiki::basename($page));
+    }
+    # and set "page" if desired
+    elsif ($field_name eq 'page')
+    {
+	$value = $page;
+    }
+    # the page above this page; aka the current directory
+    elsif ($field_name eq 'parent_page')
+    {
+	if ($page =~ m{^(.*)/[-\.\w]+$}o)
+	{
+	    $value = $1;
+	}
+    }
+    elsif ($field_name eq 'basename')
+    {
+	$value = IkiWiki::basename($page);
+    }
+    elsif ($config{field_allow_config}
+	   and $field_name =~ /^config-(.*)$/oi)
+    {
+	my $cfield = $1;
+	if (exists $config{$cfield})
+	{
+	    $value = $config{$cfield};
+	}
+    }
+    elsif ($field_name =~ /^(.*)-tagpage$/o)
+    {
+	my @array_value = undef;
+	my $real_fn = $1;
+	if (exists $config{field_tags}{$real_fn}
+	    and defined $config{field_tags}{$real_fn})
+	{
+	    my @values = field_get_value($real_fn, $page);
+	    if (@values)
+	    {
+		foreach my $tag (@values)
+		{
+		    if ($tag)
+		    {
+			my $link = $config{field_tags}{$real_fn} . '/' . $tag;
+			push @array_value, $link;
+		    }
+		}
+		if (wantarray)
+		{
+		    return @array_value;
+		}
+		else
+		{
+		    $value = join(",", @array_value) if $array_value[0];
+		}
+	    }
+	}
+    }
+    return (wantarray ? ($value) : $value);
+} # field_calculated_values
+
 # match field funcs
 # page-to-check, wanted
 sub match_a_field ($$) {
@@ -488,7 +543,7 @@ sub match_a_field ($$) {
     # The field name is first; the rest is the match
     my $field_name;
     my $glob;
-    if ($wanted =~ /^(\w+)\s+(.*)$/)
+    if ($wanted =~ /^(\w+)\s+(.*)$/o)
     {
 	$field_name = $1;
 	$glob = $2;
@@ -526,7 +581,7 @@ sub match_a_field_item ($$) {
     # The field name is first; the rest is the match
     my $field_name;
     my $glob;
-    if ($wanted =~ /^(\w+)\s+(.*)$/)
+    if ($wanted =~ /^(\w+)\s+(.*)$/o)
     {
 	$field_name = $1;
 	$glob = $2;
@@ -607,7 +662,7 @@ sub match_field_tagged ($$;@) {
     # The field name is first; the rest is the match
     my $field_name;
     my $glob;
-    if ($wanted =~ /^(\w+)\s+(.*)$/)
+    if ($wanted =~ /^(\w+)\s+(.*)$/o)
     {
 	$field_name = $1;
 	$glob = $2;
