@@ -316,12 +316,17 @@ sub multi_page_report (@) {
     my $scanning = $params{scanning};
     my $num_pages = $params{num_pages};
     my $first_page_is_index = $params{first_page_is_index};
+    my $report_title = ($params{report_title}
+			? sprintf("<h1>%s</h1>", $params{report_title})
+			: ''
+		       );
 
     my $page_type = pagetype($pagesources{$params{page}});
 
     my $first_page_out = '';
     for (my $pind = 0; $pind < $num_pages; $pind++)
     {
+	my $page_title = ($pind == 0 ? '' : $report_title);
 	my $rep_links = create_page_links(%params,
 					  num_pages=>$num_pages,
 					  cur_page=>$pind,
@@ -337,6 +342,7 @@ sub multi_page_report (@) {
 			      );
 	$pout =<<EOT;
 <div class="report">
+$page_title
 $rep_links
 $pout
 $rep_links
@@ -348,7 +354,9 @@ EOT
 	}
 	else
 	{
-	    my $new_page = sprintf("%s%s_%d", 'report', $params{report_id},
+	    my $new_page = sprintf("%s_%d",
+				   ($params{report_id}
+				    ? $params{report_id} : 'report'),
 				   $pind + 1);
 	    my $target = targetpage($params{page}, $config{htmlext}, $new_page);
 	    will_render($params{page}, $target);
@@ -380,6 +388,10 @@ sub create_page_links {
 	       );
     my $first_page_is_index = $params{first_page_is_index};
 
+    my $prev_link = '';
+    my $next_link = '';
+    my $report_base = ($params{report_id}
+		       ? $params{report_id} : 'report');
     my @page_links = ();
     for (my $pind = ($first_page_is_index ? -1 : 0);
 	 $pind < $params{num_pages}; $pind++)
@@ -394,6 +406,18 @@ sub create_page_links {
 	elsif ($pind == $params{cur_page})
 	{
 	    push @page_links, sprintf('<b>[%d]</b>', $pind + 1);
+	    if ($pind + 1 < $params{num_pages})
+	    {
+		$next_link =
+		    sprintf(' <a href="%s_%d.%s">Next -&gt;</a> ',
+			    $report_base, $pind + 2, $config{htmlext});
+	    }
+	    if ($pind > 0)
+	    {
+		$prev_link =
+		    sprintf(' <a href="%s_%d.%s">&lt;- Prev</a> ',
+			    $report_base, $pind, $config{htmlext});
+	    }
 	}
 	elsif ($pind == -1)
 	{
@@ -417,15 +441,17 @@ sub create_page_links {
 	}
 	else
 	{
-	    my $new_page = sprintf("%s%s_%d", 'report', $params{report_id},
-				   $pind + 1);
 	    push @page_links,
-		 sprintf('<a href="%s.%s">[%d]</a>',
-			 $new_page, $config{htmlext},
+		 sprintf('<a href="%s_%d.%s">[%d]</a>',
+			 $report_base, $pind + 1, $config{htmlext},
 			 $pind + 1);
 	}
     }
-    return '<div class="rep_pages">' . join(' ', @page_links) . '</div>';
+    return '<div class="rep_pages">'
+	. ($prev_link ? $prev_link : '')
+	. join(' ', @page_links)
+	. ($next_link ? $next_link : '')
+	. '</div>';
 } # create_page_links
 
 sub render_simple_page (@) {
@@ -486,7 +512,7 @@ sub build_report (@) {
 	my $prev_page = ($i > 0 ? $matching_pages[$i-1] : '');
 	my $next_page = ($i < $#matching_pages ? $matching_pages[$i+1] : '');
 	my $first = ($i == $start);
-	my $last = ($i == ($stop - 1));
+	my $last = (($i == ($stop - 1)) or ($i == $#matching_pages));
 	my @header_values = ();
 	foreach my $fn (@header_fields)
 	{
@@ -582,25 +608,28 @@ sub report_get_value ($$;%) {
     my $is_raw = 0;
     my $page_type = pagetype($pagesources{$page});
 
-    if ($field =~ /^raw_(.*)/)
+    if ($field =~ /^raw_(.*)/o)
     {
 	$real_fn = $1;
 	$is_raw = 1;
     }
-    elsif ($field =~ /^(first|last|header)$/i)
+    elsif ($field =~ /^first$/io
+	|| $field =~ /^last$/io 
+	|| $field =~ /^header$/io)
     {
 	$is_raw = 1;
     }
-    if ($real_fn =~ /^(prev|next)_page$/i)
+    if ($real_fn =~ /^prev_page$/io
+	|| $real_fn =~ /^next_page$/io)
     {
 	$use_page = $params{$real_fn};
     }
-    elsif ($real_fn =~ /^prev_(.*)/)
+    elsif ($real_fn =~ /^prev_(.*)/o)
     {
 	$real_fn = $1;
 	$use_page = $params{prev_page};
     }
-    elsif ($real_fn =~ /^next_(.*)/)
+    elsif ($real_fn =~ /^next_(.*)/o)
     {
 	$real_fn = $1;
 	$use_page = $params{next_page};
