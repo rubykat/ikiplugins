@@ -60,17 +60,16 @@ sub preprocess (@) {
     my %params=@_;
 
     if (! exists $params{id}) {
-	error gettext("missing id parameter")
+	error gettext("missing id parameter");
     }
 
     my $template;
     eval {
+	# Do this in an eval because it might fail
+	# if the template isn't a page in the wiki
 	$template=template_depends($params{id}, $params{page},
 				   blind_cache => 1);
     };
-    if ($@) {
-	error gettext("failed to process template $params{id}:")." $@";
-    }
     if (! $template) {
 	# look for .tmpl template (in global templates dir)
 	eval {
@@ -84,7 +83,7 @@ sub preprocess (@) {
 
 	    error sprintf(gettext("%s not found"),
 			  htmllink($params{page}, $params{destpage},
-				   "/templates/$params{id}"))
+				   "/templates/$params{id}"));
 	}
     }
     delete $params{template};
