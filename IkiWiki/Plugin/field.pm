@@ -220,20 +220,21 @@ sub field_get_value ($$) {
     # could be anything!
  
     # check the cache first
+    my $lc_field_name = lc($field_name);
     if (wantarray)
     {
-	if (exists $Cache{$page}{$field_name}{array}
-	    and defined $Cache{$page}{$field_name}{array})
+	if (exists $Cache{$page}{$lc_field_name}{array}
+	    and defined $Cache{$page}{$lc_field_name}{array})
 	{
-	    return @{$Cache{$page}{$field_name}{array}};
+	    return @{$Cache{$page}{$lc_field_name}{array}};
 	}
     }
     else
     {
-	if (exists $Cache{$page}{$field_name}{scalar}
-	    and defined $Cache{$page}{$field_name}{scalar})
+	if (exists $Cache{$page}{$lc_field_name}{scalar}
+	    and defined $Cache{$page}{$lc_field_name}{scalar})
 	{
-	    return $Cache{$page}{$field_name}{scalar};
+	    return $Cache{$page}{$lc_field_name}{scalar};
 	}
     }
 
@@ -241,7 +242,6 @@ sub field_get_value ($$) {
     {
 	build_fields_lookup_order();
     }
-    my $lc_field_name = lc($field_name);
 
     # Get either the scalar or the array value depending
     # on what is requested - don't get both because it wastes time.
@@ -251,13 +251,15 @@ sub field_get_value ($$) {
 	foreach my $id (@FieldsLookupOrder)
 	{
 	    # get the data from the pagestate hash if it's there
-	    if (exists $pagestate{$page}{$id}{$field_name})
+	    if (exists $pagestate{$page}{$id}{$field_name}
+		and defined $pagestate{$page}{$id}{$field_name})
 	    {
 		@array_value = (ref $pagestate{$page}{$id}{$field_name}
 				? @{$pagestate{$page}{$id}{$field_name}}
 				: ($pagestate{$page}{$id}{$field_name}));
 	    }
-	    elsif (exists $pagestate{$page}{$id}{$lc_field_name})
+	    elsif (exists $pagestate{$page}{$id}{$lc_field_name}
+		   and defined $pagestate{$page}{$id}{$lc_field_name})
 	    {
 		@array_value = (ref $pagestate{$page}{$id}{$lc_field_name}
 				? @{$pagestate{$page}{$id}{$lc_field_name}}
@@ -267,7 +269,7 @@ sub field_get_value ($$) {
 	    {
 		@array_value = $Fields{$id}{call}->($field_name, $page);
 	    }
-	    if (@array_value)
+	    if (@array_value and $array_value[0])
 	    {
 		last;
 	    }
@@ -277,7 +279,7 @@ sub field_get_value ($$) {
 	    @array_value = field_calculated_values($field_name, $page);
 	}
 	# cache the value
-	$Cache{$page}{$field_name}{array} = \@array_value;
+	$Cache{$page}{$lc_field_name}{array} = \@array_value;
 	return @array_value;
     }
     else # scalar
@@ -311,7 +313,7 @@ sub field_get_value ($$) {
 	    $value = field_calculated_values($field_name, $page);
 	}
 	# cache the value
-	$Cache{$page}{$field_name}{scalar} = $value;
+	$Cache{$page}{$lc_field_name}{scalar} = $value;
 	return $value;
     }
 
