@@ -14,7 +14,7 @@ This describes version B<1.20100808> of IkiWiki::Plugin::ymlfront
 
 =cut
 
-our $VERSION = '1.20100808';
+our $VERSION = '1.20101116';
 
 =head1 PREREQUISITES
 

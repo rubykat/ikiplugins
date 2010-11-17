@@ -14,7 +14,7 @@ This describes version B<1.20101101> of IkiWiki::Plugin::field
 
 =cut
 
-our $VERSION = '1.20101101';
+our $VERSION = '1.20101115';
 
 =head1 PREREQUISITES
 
