@@ -10,11 +10,11 @@ IkiWiki::Plugin::field - front-end for per-page record fields.
 
 =head1 VERSION
 
-This describes version B<1.20101101> of IkiWiki::Plugin::field
+This describes version B<1.20101126> of IkiWiki::Plugin::field
 
 =cut
 
-our $VERSION = '1.20101115';
+our $VERSION = '1.20101126';
 
 =head1 PREREQUISITES
 
@@ -536,6 +536,8 @@ sub field_calculated_values {
     return (wantarray ? ($value) : $value);
 } # field_calculated_values
 
+my %match_a_field_globs = ();
+
 # match field funcs
 # page-to-check, wanted
 sub match_a_field ($$) {
@@ -556,16 +558,21 @@ sub match_a_field ($$) {
     }
 
     # turn glob into a safe regexp
-    my $re=IkiWiki::glob2re($glob);
+    if (!exists $match_a_field_globs{$glob})
+    {
+	my $re=IkiWiki::glob2re($glob);
+	$match_a_field_globs{$glob} = qr/^$re$/i;
+    }
+    my $regexp = $match_a_field_globs{$glob};
 
     my $val = IkiWiki::Plugin::field::field_get_value($field_name, $page);
 
     if (defined $val) {
-	if ($val=~/^$re$/i) {
-	    return IkiWiki::SuccessReason->new("$re matches $field_name of $page", $page => $IkiWiki::DEPEND_CONTENT, "" => 1);
+	if ($val=~$regexp) {
+	    return IkiWiki::SuccessReason->new("$regexp matches $field_name of $page", $page => $IkiWiki::DEPEND_CONTENT, "" => 1);
 	}
 	else {
-	    return IkiWiki::FailReason->new("$re does not match $field_name of $page", "" => 1);
+	    return IkiWiki::FailReason->new("$regexp does not match $field_name of $page", "" => 1);
 	}
     }
     else {
