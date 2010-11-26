@@ -7,11 +7,11 @@ IkiWiki::Plugin::report - Produce templated reports from page field data.
 
 =head1 VERSION
 
-This describes version B<1.20101101> of IkiWiki::Plugin::report
+This describes version B<1.20101126> of IkiWiki::Plugin::report
 
 =cut
 
-our $VERSION = '1.20101110';
+our $VERSION = '1.20101126';
 
 =head1 PREREQUISITES
 
@@ -135,10 +135,17 @@ sub preprocess (@) {
 	{
 	    foreach my $ln (@{$links{$tp}})
 	    {
-		my $bl = bestlink($tp, $ln);
-		if ($bl)
+		if (exists $pagesources{$ln})
 		{
-		    push @matching_pages, $bl;
+		    push @matching_pages, $ln;
+		}
+		else
+		{
+		    my $bl = bestlink($tp, $ln);
+		    if ($bl)
+		    {
+			push @matching_pages, $bl;
+		    }
 		}
 	    }
 	}
