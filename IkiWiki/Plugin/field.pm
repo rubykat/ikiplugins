@@ -10,11 +10,11 @@ IkiWiki::Plugin::field - front-end for per-page record fields.
 
 =head1 VERSION
 
-This describes version B<1.20101126> of IkiWiki::Plugin::field
+This describes version B<1.20101130> of IkiWiki::Plugin::field
 
 =cut
 
-our $VERSION = '1.20101126';
+our $VERSION = '1.20101130';
 
 =head1 PREREQUISITES
 
@@ -251,15 +251,13 @@ sub field_get_value ($$) {
 	foreach my $id (@FieldsLookupOrder)
 	{
 	    # get the data from the pagestate hash if it's there
-	    if (exists $pagestate{$page}{$id}{$field_name}
-		and defined $pagestate{$page}{$id}{$field_name})
+	    if (exists $pagestate{$page}{$id}{$field_name})
 	    {
 		@array_value = (ref $pagestate{$page}{$id}{$field_name}
 				? @{$pagestate{$page}{$id}{$field_name}}
 				: ($pagestate{$page}{$id}{$field_name}));
 	    }
-	    elsif (exists $pagestate{$page}{$id}{$lc_field_name}
-		   and defined $pagestate{$page}{$id}{$lc_field_name})
+	    elsif (exists $pagestate{$page}{$id}{$lc_field_name})
 	    {
 		@array_value = (ref $pagestate{$page}{$id}{$lc_field_name}
 				? @{$pagestate{$page}{$id}{$lc_field_name}}
@@ -580,6 +578,8 @@ sub match_a_field ($$) {
     }
 } # match_a_field
 
+my %match_a_field_item_globs = ();
+
 # check against individual items of a field
 # (treat the field as an array)
 # page-to-check, wanted
@@ -601,7 +601,12 @@ sub match_a_field_item ($$) {
     }
 
     # turn glob into a safe regexp
-    my $re=IkiWiki::glob2re($glob);
+    if (!exists $match_a_field_globs{$glob})
+    {
+	my $re=IkiWiki::glob2re($glob);
+	$match_a_field_globs{$glob} = qr/^$re$/i;
+    }
+    my $regexp = $match_a_field_globs{$glob};
 
     my @val_array = IkiWiki::Plugin::field::field_get_value($field_name, $page);
 
@@ -610,13 +615,13 @@ sub match_a_field_item ($$) {
 	foreach my $val (@val_array)
 	{
 	    if (defined $val) {
-		if ($val=~/^$re$/i) {
-		    return IkiWiki::SuccessReason->new("$re matches $field_name of $page", $page => $IkiWiki::DEPEND_CONTENT, "" => 1);
+		if ($val=~$regexp) {
+		    return IkiWiki::SuccessReason->new("$regexp matches $field_name of $page", $page => $IkiWiki::DEPEND_CONTENT, "" => 1);
 		}
 	    }
 	}
 	# not found
-	return IkiWiki::FailReason->new("$re does not match $field_name of $page", "" => 1);
+	return IkiWiki::FailReason->new("$regexp does not match $field_name of $page", "" => 1);
     }
     else {
 	return IkiWiki::FailReason->new("$page does not have a $field_name", "" => 1);
