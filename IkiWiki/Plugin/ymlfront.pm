@@ -10,11 +10,11 @@ IkiWiki::Plugin::ymlfront - add YAML-format data to a page
 
 =head1 VERSION
 
-This describes version B<1.20100808> of IkiWiki::Plugin::ymlfront
+This describes version B<1.20101206> of IkiWiki::Plugin::ymlfront
 
 =cut
 
-our $VERSION = '1.20101116';
+our $VERSION = '1.20101206';
 
 =head1 PREREQUISITES
 
@@ -52,31 +52,6 @@ sub import {
 }
 
 # ------------------------------------------------------------
-# Package Vars
-# --------------------------------
-my $ymlfront_regex = qr{
-	    (\\?)		# 1: escape?
-		\[\[(!)		# directive open; 2: prefix
-		(ymlfront)	# 3: command
-		(		# 4: the parameters..
-				\s+	# Must have space if parameters present
-				(?:
-				 (?:[-\w]+=)?		# named parameter key?
-				 (?:
-				  """.*?"""	# triple-quoted value
-				  |
-				  "[^"]*?"	# single-quoted value
-				  |
-				  [^"\s\]]+	# unquoted value
-				 )
-				 \s*			# whitespace or end
-				 # of directive
-				)
-				*)?		# 0 or more parameters
-		\]\]		# directive closed
-	}sx;
-
-# ------------------------------------------------------------
 # Hooks
 # --------------------------------
 sub getsetup () {
@@ -87,8 +62,15 @@ sub getsetup () {
 		},
 		ymlfront_delim => {
 			type => "array",
-			example => "ymlfront_sep => [qw(--YAML-START-- --YAML-END--)]",
+			example => "ymlfront_delim => [qw(--YAML-START-- --YAML-END--)]",
 			description => "delimiters of YAML data",
+			safe => 0,
+			rebuild => undef,
+		},
+		ymlfront_set_content => {
+			type => "boolean",
+			example => "ymlfront_set_content => 1",
+			description => "allow ymlfront to define the content of the page inside the YAML",
 			safe => 0,
 			rebuild => undef,
 		},
@@ -109,6 +91,10 @@ sub checkconfig () {
     {
 	$config{ymlfront_delim} = [qw(--- ---)];
     }
+    if (!defined $config{ymlfront_set_content})
+    {
+	$config{ymlfront_set_content} = 0;
+    }
 } # checkconfig
 
 # scan gets called before filter
@@ -127,32 +113,36 @@ sub scan (@) {
     {
 	delete $pagestate{$page}{ymlfront};
     }
-    my $parsed_yml = parse_yml(%params);
-    if (defined $parsed_yml
-	and defined $parsed_yml->{yml})
+    my $extracted_yml = extract_yml(%params);
+    if (defined $extracted_yml
+	and defined $extracted_yml->{yml})
     {
-	# save the data to pagestate
-	foreach my $fn (keys %{$parsed_yml->{yml}})
+	my $parsed_yml = parse_yml(%params, data=>$extracted_yml->{yml});
+	if (defined $parsed_yml)
 	{
-	    my $fval = $parsed_yml->{yml}->{$fn};
-	    $pagestate{$page}{ymlfront}{$fn} = $fval;
+	    # save the data to pagestate
+	    foreach my $fn (keys %{$parsed_yml})
+	    {
+		my $fval = $parsed_yml->{$fn};
+		$pagestate{$page}{ymlfront}{$fn} = $fval;
+	    }
+	    # update meta hash
+	    if (exists $pagestate{$page}{ymlfront}{title}
+		and $pagestate{$page}{ymlfront}{title})
+	    {
+		$pagestate{$page}{meta}{title} = $pagestate{$page}{ymlfront}{title};
+	    }
+	    if (exists $pagestate{$page}{ymlfront}{description}
+		and $pagestate{$page}{ymlfront}{description})
+	    {
+		$pagestate{$page}{meta}{description} = $pagestate{$page}{ymlfront}{description};
+	    }
+	    if (exists $pagestate{$page}{ymlfront}{author}
+		and $pagestate{$page}{ymlfront}{author})
+	    {
+		$pagestate{$page}{meta}{author} = $pagestate{$page}{ymlfront}{author};
+	    }
 	}
-    }
-    # update meta hash
-    if (exists $pagestate{$page}{ymlfront}{title}
-	and $pagestate{$page}{ymlfront}{title})
-    {
-	$pagestate{$page}{meta}{title} = $pagestate{$page}{ymlfront}{title};
-    }
-    if (exists $pagestate{$page}{ymlfront}{description}
-	and $pagestate{$page}{ymlfront}{description})
-    {
-	$pagestate{$page}{meta}{description} = $pagestate{$page}{ymlfront}{description};
-    }
-    if (exists $pagestate{$page}{ymlfront}{author}
-	and $pagestate{$page}{ymlfront}{author})
-    {
-	$pagestate{$page}{meta}{author} = $pagestate{$page}{ymlfront}{author};
     }
 } # scan
 
@@ -182,31 +172,34 @@ sub preprocess (@) {
 	delete $pagestate{$page}{ymlfront};
     }
     my $parsed_yml = parse_yml(%params);
-    if (defined $parsed_yml
-	and defined $parsed_yml->{yml})
+    if (defined $parsed_yml)
     {
 	# save the data to pagestate
-	foreach my $fn (keys %{$parsed_yml->{yml}})
+	foreach my $fn (keys %{$parsed_yml})
 	{
-	    my $fval = $parsed_yml->{yml}->{$fn};
+	    my $fval = $parsed_yml->{$fn};
 	    $pagestate{$page}{ymlfront}{$fn} = $fval;
 	}
+	# update meta hash
+	if (exists $pagestate{$page}{ymlfront}{title}
+	    and $pagestate{$page}{ymlfront}{title})
+	{
+	    $pagestate{$page}{meta}{title} = $pagestate{$page}{ymlfront}{title};
+	}
+	if (exists $pagestate{$page}{ymlfront}{description}
+	    and $pagestate{$page}{ymlfront}{description})
+	{
+	    $pagestate{$page}{meta}{description} = $pagestate{$page}{ymlfront}{description};
+	}
+	if (exists $pagestate{$page}{ymlfront}{author}
+	    and $pagestate{$page}{ymlfront}{author})
+	{
+	    $pagestate{$page}{meta}{author} = $pagestate{$page}{ymlfront}{author};
+	}
     }
-    # update meta hash
-    if (exists $pagestate{$page}{ymlfront}{title}
-	and $pagestate{$page}{ymlfront}{title})
+    else
     {
-	$pagestate{$page}{meta}{title} = $pagestate{$page}{ymlfront}{title};
-    }
-    if (exists $pagestate{$page}{ymlfront}{description}
-	and $pagestate{$page}{ymlfront}{description})
-    {
-	$pagestate{$page}{meta}{description} = $pagestate{$page}{ymlfront}{description};
-    }
-    if (exists $pagestate{$page}{ymlfront}{author}
-	and $pagestate{$page}{ymlfront}{author})
-    {
-	$pagestate{$page}{meta}{author} = $pagestate{$page}{ymlfront}{author};
+	error gettext("ymlfront: data not legal YAML")
     }
     return '';
 } # preprocess
@@ -221,14 +214,15 @@ sub filter (@) {
     {
 	return $params{content};
     }
-    my $parsed_yml = parse_yml(%params);
-    if (defined $parsed_yml
-	and defined $parsed_yml->{yml}
-	and defined $parsed_yml->{content})
+    my $extracted_yml = extract_yml(%params);
+    if (defined $extracted_yml
+	and defined $extracted_yml->{yml}
+	and defined $extracted_yml->{content})
     {
-	$params{content} = $parsed_yml->{content};
-	# also check for a content value
-	if (exists $pagestate{$page}{ymlfront}{content}
+	$params{content} = $extracted_yml->{content};
+	# check for a content value
+	if ($config{ymlfront_set_content}
+	    and exists $pagestate{$page}{ymlfront}{content}
 	    and defined $pagestate{$page}{ymlfront}{content}
 	    and $pagestate{$page}{ymlfront}{content})
 	{
@@ -253,8 +247,9 @@ sub checkcontent {
 	    return undef;
 	}
     }
-    my $parsed_yml = parse_yml(%params);
-    if (!defined $parsed_yml)
+    my $extracted_yml = extract_yml(%params);
+    if (defined $extracted_yml
+	and !defined $extracted_yml->{yml})
     {
 	debug("ymlfront: Save of $page failed: $@");
 	return gettext("YAML data incorrect: $@");
@@ -299,10 +294,12 @@ sub yml_get_value ($$) {
 # Helper functions
 # --------------------------------
 
-# parse the YAML data from the given content
+# extract the YAML data from the given content
 # Expects page, content
-# Returns { yml=>%yml_data, content=>$content } or undef
-sub parse_yml {
+# Returns { yml=>$yml_str, content=>$content } or undef
+# if undef is returned, there is no YAML
+# but if $yml_str is undef then there was YAML but it was not legal
+sub extract_yml {
     my %params=@_;
     my $page = $params{page};
     my $content = $params{content};
@@ -319,11 +316,7 @@ sub parse_yml {
     my $start_of_content = '';
     my $yml_str = '';
     my $rest_of_content = '';
-    if ($params{data})
-    {
-	$yml_str = $params{data};
-    }
-    elsif ($content)
+    if ($content)
     {
 	my $ystart = $config{ymlfront_delim}[0];
 	my $yend = $config{ymlfront_delim}[1];
@@ -339,62 +332,38 @@ sub parse_yml {
 	    $yml_str = $2;
 	    $rest_of_content = $1 . $3;
 	} 
-	elsif ($content =~ $ymlfront_regex)
-	{
-	    my $escape=$1;
-	    my $prefix=$2;
-	    my $command=$3;
-	    my $params=$4;
-	    if ($escape)
-	    {
-		$rest_of_content = $content;
-	    }
-	    else
-	    {
-		my %phash = ();
-		while ($params =~ m{
-		       (?:([-\w]+)=)?		# 1: named parameter key?
-		       (?:
-			"""(.*?)"""	# 2: triple-quoted value
-			|
-			"([^"]*?)"	# 3: single-quoted value
-			|
-			(\S+)		# 4: unquoted value
-		       )
-		       (?:\s+|$)		# delimiter to next param
-		       }sgx) {
-		    my $key=$1;
-		    my $val;
-		    if (defined $2) {
-			$val=$2;
-			$val=~s/\r\n/\n/mg;
-			$val=~s/^\n+//g;
-			$val=~s/\n+$//g;
-		    }
-		    elsif (defined $3) {
-			$val=$3;
-		    }
-		    elsif (defined $4) {
-			$val=$4;
-		    }
-
-		    if (defined $key) {
-			$phash{$key} = $val;
-		    }
-		    else {
-			$phash{''} = $val;
-		    }
-		}
-		if (defined $phash{data})
-		{
-		    $yml_str = $phash{data};
-		    $content =~ /^(.*?)\[\[!ymlfront.*?\]\](.*?)$/s;
-		    $start_of_content = $1;
-		    $rest_of_content = $2;
-		}
-	    }
-	}
     }
+    if ($yml_str) # possible YAML
+    {
+	# if {{$page}} is there, do an immediate substitution
+	$yml_str =~ s/\{\{\$page\}\}/$page/sg;
+
+	my $ydata;
+	eval q{$ydata = Load($yml_str);};
+	if ($@)
+	{
+	    debug("ymlfront: Load of $page data failed: $@");
+	    return { yml=>undef, content=>$content };
+	}
+	if (!$ydata)
+	{
+	    debug("ymlfront: no legal YAML for $page");
+	    return { yml=>undef, content=>$content };
+	}
+	return { yml=>$yml_str,
+	    content=>$start_of_content . $rest_of_content};
+    }
+    return undef;
+} # extract_yml
+
+# parse the YAML data from the given string
+# Expects page, data
+# Returns \%yml_data or undef
+sub parse_yml {
+    my %params=@_;
+    my $page = $params{page};
+    my $yml_str = $params{data};
+
     if ($yml_str)
     {
 	# if {{$page}} is there, do an immediate substitution
@@ -404,27 +373,27 @@ sub parse_yml {
 	eval q{$ydata = Load($yml_str);};
 	if ($@)
 	{
-	    debug("ymlfront: Load of $page failed: $@");
+	    debug("ymlfront parse: Load of $page data failed: $@");
 	    return undef;
 	}
 	if (!$ydata)
 	{
-	    debug("ymlfront: no YAML for $page");
+	    debug("ymlfront parse: no legal YAML for $page");
 	    return undef;
 	}
-	my %lc_data = ();
 	if ($ydata)
 	{
+	    my %lc_data = ();
+
 	    # make lower-cased versions of the data
 	    foreach my $fn (keys %{$ydata})
 	    {
 		my $fval = $ydata->{$fn};
 		$lc_data{lc($fn)} = $fval;
 	    }
+	    return \%lc_data;
 	}
-	return { yml=>\%lc_data,
-	    content=>$start_of_content . $rest_of_content};
     }
-    return { yml=>undef, content=>$content };
+    return undef;
 } # parse_yml
 1;
