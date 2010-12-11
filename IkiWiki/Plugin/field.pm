@@ -601,12 +601,12 @@ sub match_a_field_item ($$) {
     }
 
     # turn glob into a safe regexp
-    if (!exists $match_a_field_globs{$glob})
+    if (!exists $match_a_field_item_globs{$glob})
     {
 	my $re=IkiWiki::glob2re($glob);
-	$match_a_field_globs{$glob} = qr/^$re$/i;
+	$match_a_field_item_globs{$glob} = qr/^$re$/i;
     }
-    my $regexp = $match_a_field_globs{$glob};
+    my $regexp = $match_a_field_item_globs{$glob};
 
     my @val_array = IkiWiki::Plugin::field::field_get_value($field_name, $page);
 
