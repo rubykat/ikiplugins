@@ -328,8 +328,6 @@ sub multi_page_report (@) {
 			: ''
 		       );
 
-    my $page_type = pagetype($pagesources{$params{page}});
-
     my $first_page_out = '';
     for (my $pind = 0; $pind < $num_pages; $pind++)
     {
@@ -613,7 +611,8 @@ sub report_get_value ($$;%) {
     my $use_page = $page;
     my $real_fn = $field;
     my $is_raw = 0;
-    my $page_type = pagetype($pagesources{$page});
+    my $page_file = $pagesources{$page};
+    my $page_type = ($page_file ? pagetype($page_file) : '');
 
     if ($field =~ /^raw_(.*)/o)
     {
