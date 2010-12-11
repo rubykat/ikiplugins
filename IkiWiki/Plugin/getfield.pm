@@ -61,7 +61,7 @@ sub do_filter (@) {
     my $page = $params{page};
     my $destpage = ($params{destpage} ? $params{destpage} : $params{page});
 
-    my $page_file=$pagesources{$page};
+    my $page_file = $pagesources{$page} || return $params{content};
     my $page_type=pagetype($page_file);
     if (defined $page_type)
     {
@@ -75,7 +75,7 @@ sub do_filter (@) {
 	}
     }
 
-    $page_file=$pagesources{$destpage};
+    $page_file=$pagesources{$destpage} || return $params{content};
     $page_type=pagetype($page_file);
     if (defined $page_type)
     {
