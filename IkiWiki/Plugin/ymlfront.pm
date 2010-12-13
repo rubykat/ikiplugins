@@ -108,11 +108,6 @@ sub scan (@) {
     {
 	return;
     }
-    # clear the old data
-    if (exists $pagestate{$page}{ymlfront})
-    {
-	delete $pagestate{$page}{ymlfront};
-    }
     my $extracted_yml = extract_yml(%params);
     if (defined $extracted_yml
 	and defined $extracted_yml->{yml})
@@ -120,6 +115,11 @@ sub scan (@) {
 	my $parsed_yml = parse_yml(%params, data=>$extracted_yml->{yml});
 	if (defined $parsed_yml)
 	{
+	    # clear the old data
+	    if (exists $pagestate{$page}{ymlfront})
+	    {
+		delete $pagestate{$page}{ymlfront};
+	    }
 	    # save the data to pagestate
 	    foreach my $fn (keys %{$parsed_yml})
 	    {
@@ -174,6 +174,11 @@ sub preprocess (@) {
     my $parsed_yml = parse_yml(%params);
     if (defined $parsed_yml)
     {
+	# clear the old data
+	if (exists $pagestate{$page}{ymlfront})
+	{
+	    delete $pagestate{$page}{ymlfront};
+	}
 	# save the data to pagestate
 	foreach my $fn (keys %{$parsed_yml})
 	{
