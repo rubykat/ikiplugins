@@ -10,11 +10,11 @@ IkiWiki::Plugin::field - front-end for per-page record fields.
 
 =head1 VERSION
 
-This describes version B<1.20110217> of IkiWiki::Plugin::field
+This describes version B<1.20101130> of IkiWiki::Plugin::field
 
 =cut
 
-our $VERSION = '1.20110217';
+our $VERSION = '1.20101130';
 
 =head1 PREREQUISITES
 
@@ -60,6 +60,7 @@ sub import {
 	hook(type => "getsetup", id => "field",  call => \&getsetup);
 	hook(type => "checkconfig", id => "field", call => \&checkconfig);
 	hook(type => "scan", id => "field", call => \&scan, last=>1);
+	hook(type => "preprocess", id => "field", call => \&preprocess, scan=>1);
 	hook(type => "pagetemplate", id => "field", call => \&pagetemplate);
 }
 
@@ -119,6 +120,9 @@ sub checkconfig () {
 	    field_register(id=>$config{field_register});
 	}
     }
+    # also register the "field" plugin itself
+    field_register(id=>'field');
+
     if (!defined $config{field_allow_config})
     {
 	$config{field_allow_config} = 0;
@@ -151,6 +155,44 @@ sub scan (@) {
 	}
     }
 } # scan
+
+sub preprocess (@) {
+    my %params= @_;
+
+    my $page_type = pagetype($pagesources{$params{page}});
+    # add the content of the field directive to the fields
+    if (!defined wantarray) # scanning
+    {
+	foreach my $key (keys %params)
+	{
+	    if ($key =~ /^(page|destpage|preview|raw)$/) # skip non-fieldname things
+	    {
+		next;
+	    }
+	    my $value = $params{$key};
+	    if ($value and !$params{raw})
+	    {
+		# HTMLize the text
+		$value = IkiWiki::htmlize($params{page},
+					  $params{destpage},
+					  $page_type,
+					  $value) unless (!$page_type);
+
+		# Preprocess the text to expand any preprocessor directives
+		# embedded inside it.
+		$value= IkiWiki::preprocess
+		    ($params{page},
+		     $params{destpage}, 
+		     IkiWiki::filter($params{page},
+				     $params{destpage},
+				     $value)
+		    );
+	    }
+	    $pagestate{$params{page}}{field}{$key} = $value;
+	}
+    }
+    return '';
+}
 
 sub pagetemplate (@) {
     my %params=@_;
@@ -611,12 +653,12 @@ sub match_a_field_item ($$) {
     }
 
     # turn glob into a safe regexp
-    if (!exists $match_a_field_item_globs{$glob})
+    if (!exists $match_a_field_globs{$glob})
     {
 	my $re=IkiWiki::glob2re($glob);
-	$match_a_field_item_globs{$glob} = qr/^$re$/i;
+	$match_a_field_globs{$glob} = qr/^$re$/i;
     }
-    my $regexp = $match_a_field_item_globs{$glob};
+    my $regexp = $match_a_field_globs{$glob};
 
     my @val_array = IkiWiki::Plugin::field::field_get_value($field_name, $page);
 
