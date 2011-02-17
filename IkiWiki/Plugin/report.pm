@@ -7,11 +7,11 @@ IkiWiki::Plugin::report - Produce templated reports from page field data.
 
 =head1 VERSION
 
-This describes version B<1.20101211> of IkiWiki::Plugin::report
+This describes version B<1.20110217> of IkiWiki::Plugin::report
 
 =cut
 
-our $VERSION = '1.20101211';
+our $VERSION = '1.20110217';
 
 =head1 PREREQUISITES
 
@@ -476,7 +476,8 @@ sub render_simple_page (@) {
 		 );
 
     IkiWiki::run_hooks(pagetemplate => sub {
-		       shift->(page => $params{page},
+		       shift->(%params,
+			       page => $params{page},
 			       destpage => $new_page,
 			       template => $ptmpl);
 		       });
@@ -484,7 +485,7 @@ sub render_simple_page (@) {
     $content=$ptmpl->output;
 
     IkiWiki::run_hooks(format => sub {
-		       $content=shift->(
+		       $content=shift->(%params,
 				    page => $params{page},
 				    content => $content,
 				   );
