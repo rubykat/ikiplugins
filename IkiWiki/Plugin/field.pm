@@ -10,11 +10,11 @@ IkiWiki::Plugin::field - front-end for per-page record fields.
 
 =head1 VERSION
 
-This describes version B<1.20101211> of IkiWiki::Plugin::field
+This describes version B<1.20110217> of IkiWiki::Plugin::field
 
 =cut
 
-our $VERSION = '1.20101211';
+our $VERSION = '1.20110217';
 
 =head1 PREREQUISITES
 
@@ -475,6 +475,16 @@ sub field_calculated_values {
     if ($field_name eq 'title')
     {
 	$value = pagetitle(IkiWiki::basename($page));
+    }
+    elsif ($field_name eq 'titlecaps')
+    {
+	$value = field_get_value('title', $page);
+	$value =~ s/ (
+		      (^\w)    #at the beginning of the line
+		      |      # or
+		      (\s\w)   #preceded by whitespace
+		     )
+	    /\U$1/xg;
     }
     # and set "page" if desired
     elsif ($field_name eq 'page')
