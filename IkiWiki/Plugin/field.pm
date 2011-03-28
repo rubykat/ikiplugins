@@ -10,11 +10,11 @@ IkiWiki::Plugin::field - front-end for per-page record fields.
 
 =head1 VERSION
 
-This describes version B<1.20101130> of IkiWiki::Plugin::field
+This describes version B<1.20110217> of IkiWiki::Plugin::field
 
 =cut
 
-our $VERSION = '1.20101130';
+our $VERSION = '1.20110217';
 
 =head1 PREREQUISITES
 
@@ -159,18 +159,21 @@ sub scan (@) {
 sub preprocess (@) {
     my %params= @_;
 
-    my $page_type = pagetype($pagesources{$params{page}});
     # add the content of the field directive to the fields
     if (!defined wantarray) # scanning
     {
+	my $page_type = pagetype($pagesources{$params{page}});
+	# perform htmlizing on content on HTML pages
+	$page_type = $config{default_pageext} if $page_type eq 'html';
+
 	foreach my $key (keys %params)
 	{
-	    if ($key =~ /^(page|destpage|preview|raw)$/) # skip non-fieldname things
+	    if ($key =~ /^(page|destpage|preview|_raw)$/) # skip non-fieldname things
 	    {
 		next;
 	    }
 	    my $value = $params{$key};
-	    if ($value and !$params{raw})
+	    if ($value and !$params{_raw})
 	    {
 		# HTMLize the text
 		$value = IkiWiki::htmlize($params{page},
@@ -521,6 +524,7 @@ sub field_calculated_values {
     elsif ($field_name eq 'titlecaps')
     {
 	$value = field_get_value('title', $page);
+	$value =~ s/\.\w+$//; # remove extension
 	$value =~ s/ (
 		      (^\w)    #at the beginning of the line
 		      |      # or
