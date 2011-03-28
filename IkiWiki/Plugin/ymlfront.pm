@@ -10,11 +10,11 @@ IkiWiki::Plugin::ymlfront - add YAML-format data to a page
 
 =head1 VERSION
 
-This describes version B<1.20101206> of IkiWiki::Plugin::ymlfront
+This describes version B<1.20110328> of IkiWiki::Plugin::ymlfront
 
 =cut
 
-our $VERSION = '1.20101206';
+our $VERSION = '1.20110328';
 
 =head1 PREREQUISITES
 
@@ -325,12 +325,13 @@ sub extract_yml {
     {
 	my $ystart = $config{ymlfront_delim}[0];
 	my $yend = $config{ymlfront_delim}[1];
-	if ($ystart eq '---'
-	    and $yend eq '---'
-	    and $content =~ /^---[\n\r](.*?[\n\r])---[\n\r](.*)$/s)
+	if ($ystart eq '---' and $yend eq '---')
 	{
-	    $yml_str = $1;
-	    $rest_of_content = $2;
+	    if ($content =~ /^---[\n\r](.*?[\n\r])---[\n\r](.*)$/s)
+	    {
+		$yml_str = $1;
+		$rest_of_content = $2;
+	    }
 	}
 	elsif ($content =~ /^(.*?)${ystart}[\n\r](.*?[\n\r])${yend}([\n\r].*)$/s)
 	{
