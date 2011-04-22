@@ -183,7 +183,15 @@ sub preprocess (@) {
 
 		# Preprocess the text to expand any preprocessor directives
 		# embedded inside it.
-		$value= IkiWiki::preprocess
+		# First in scan mode, then in real mode
+		my $fake_value = IkiWiki::preprocess
+		    ($params{page},
+		     $params{destpage}, 
+		     IkiWiki::filter($params{page},
+				     $params{destpage},
+				     $value)
+		    );
+		($value) = IkiWiki::preprocess
 		    ($params{page},
 		     $params{destpage}, 
 		     IkiWiki::filter($params{page},
