@@ -88,7 +88,7 @@ sub change (@) {
 			{
 			    my $full_rf = $config{destdir} . '/' . $rf;
 			    # only change permissions of html files
-			    if ($rf =~ /\.$config{htmlext}$/
+			    if ($rf =~ /\.($config{htmlext}|s?html?)$/
 				and -f $full_rf
 				and (!$config{permish_chmod_ignore}
 				     or $rf !~ /$config{permish_chmod_ignore}/)
