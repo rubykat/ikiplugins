@@ -18,8 +18,8 @@ use File::Temp ();
 sub import {
 	hook(type => "getsetup", id => "fauxinclude",  call => \&getsetup);
 	hook(type => "checkconfig", id => "fauxinclude", call => \&checkconfig);
-	hook(type => "change", id => "fauxinclude", call => \&change);
 	hook(type => "scan", id => "fauxinclude", call => \&scan);
+	hook(type => "format", id => "fauxinclude", call => \&format);
 }
 
 # ------------------------------------------------------------
@@ -76,27 +76,36 @@ sub scan (@) {
     }
 } # scan
 
-sub change (@) {
-    my @files=@_;
-    foreach my $file (@files)
+sub format (@) {
+    my %params=@_;
+    my $page=$params{page};
+
+    # don't do this during preview
+    if ($params{preview})
     {
-	my $page=pagename($file);
-	my $page_type=pagetype($file);
-	if ($page_type)
+	return $params{content};
+    }
+
+    my $page_file = $pagesources{$params{page}};
+    my $page_type=pagetype($page_file);
+    if ($page_type)
+    {
+	while (my ($tmpl, $ps) = each %{$config{fauxinclude_pages}})
 	{
-	    while (my ($tmpl, $ps) = each %{$config{fauxinclude_pages}})
+	    if (pagespec_match($page, $ps))
 	    {
-		if (pagespec_match($page, $ps))
-		{
-		    gen_navpages(page=>$page,
-				 template=>$tmpl,
-				 file=>$config{fauxinclude_files}->{$tmpl},
-				 scan=>0);
-		}
+		gen_navpages(page=>$page,
+			     template=>$tmpl,
+			     file=>$config{fauxinclude_files}->{$tmpl},
+			     scan=>0);
 	    }
 	}
     }
-} # change
+
+    # This does NOT alter the content
+    return $params{content};
+
+} # format
 
 # ------------------------------------------------------------
 # Private Functions
