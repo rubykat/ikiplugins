@@ -88,12 +88,16 @@ sub checkconfig () {
     if ($config{swishe_run})
     {
 	my ($name,$path,$suffix) = fileparse($config{swishe_index},'');
+	if (!-d $path)
+	{
+	    mkdir $path;
+	}
 	chdir $path;
 	my @command = ($config{swishe_binary},
 	    '-c', $config{swishe_run_config},
 	    '-i', $config{destdir},
 	);
-	push @command, ('-v', '2') if $config{verbose};
+	push @command, ('-v', '1') if $config{verbose};
 	if (system(@command) != 0)
 	{
 	    die sprintf("swishe_run '%s' FAILED: %s", join(' ', @command), $@);
