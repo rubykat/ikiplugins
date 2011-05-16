@@ -78,6 +78,35 @@ sub checkconfig () {
     {
 	error(sprintf(gettext("%s does not exist; needed for %s plugin"), $config{swishe_binary}, 'swishe'));
     }
+    if (! defined $config{swishe_index}) {
+	$config{swishe_index} = "$config{wikistatedir}/swishe/index.swish-e";
+    }
+
+    # ------------------------------------------------------------
+    # If swishe_run is true, then run swish-e and exit
+    #
+    if ($config{swishe_run})
+    {
+	my ($name,$path,$suffix) = fileparse($config{swishe_index},'');
+	chdir $path;
+	my @command = ($config{swishe_binary},
+	    '-c', $config{swishe_run_config},
+	    '-i', $config{destdir},
+	);
+	push @command, ('-v', '2') if $config{verbose};
+	if (system(@command) != 0)
+	{
+	    die sprintf("swishe_run '%s' FAILED: %s", join(' ', @command), $@);
+	}
+	else
+	{
+	    exit 0;
+	}
+    }
+
+    # ------------------------------------------------------------
+    # NOT running swish-e
+
     if (! defined $config{swishe_mods}) {
 	$config{swishe_mods}="/usr/lib/swish-e/perl";
     }
@@ -90,10 +119,6 @@ sub checkconfig () {
     {
 	error(sprintf(gettext("use lib failed for %s; needed for %s plugin"), $config{swishe_mods}, 'swishe'));
 	return 0;
-    }
-
-    if (! defined $config{swishe_index}) {
-	$config{swishe_index} = "$config{wikistatedir}/swishe/index.swish-e";
     }
     if (! defined $config{swishe_page_size}) {
 	$config{swishe_page_size} = 15;
@@ -196,27 +221,6 @@ sub checkconfig () {
 #	date_range      => 1,
 #    };
 
-    #
-    # If swishe_run is true, then run swish-e and exit
-    #
-    if ($config{swishe_run})
-    {
-	my ($name,$path,$suffix) = fileparse($config{swishe_index},'');
-	chdir $path;
-	my @command = ($config{swishe_binary}, '-c', $config{swishe_run_config});
-	if (system(@command) != 0)
-	{
-	    die sprintf("swishe_run '%s' FAILED: %s", join(' ', @command), $@);
-	}
-	else
-	{
-	    exit 0;
-	}
-    }
-
-    # ------------------------------------------------------------
-    # NOT running swish-e
-    
     # This is a mass dependency, so if the swishe form template
     # changes, every page is rebuilt.
     add_depends("", "templates/swishe_form.tmpl");
