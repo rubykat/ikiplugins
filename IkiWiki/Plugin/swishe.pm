@@ -5,15 +5,26 @@ package IkiWiki::Plugin::swishe;
 use warnings;
 use strict;
 use IkiWiki 3.00;
+use File::Basename;
 use Carp;
 require CGI;
 
 sub import {
+	hook(type => "getopt", id => "tag", call => \&getopt);
 	hook(type => "getsetup", id => "swishe", call => \&getsetup);
 	hook(type => "checkconfig", id => "swishe", call => \&checkconfig);
 	hook(type => "preprocess", id => "swishe", call => \&preprocess);
 	hook(type => "pagetemplate", id => "swishe", call => \&pagetemplate);
 	hook(type => "cgi", id => "swishe", call => \&cgi);
+}
+
+sub getopt () {
+	eval q{use Getopt::Long};
+	error($@) if $@;
+	Getopt::Long::Configure('pass_through');
+	GetOptions("swishe_run!" => \$config{swishe_run},
+	"swishe_run_config=s" => \$config{swishe_run_config}
+    );
 }
 
 sub getsetup () {
@@ -185,9 +196,31 @@ sub checkconfig () {
 #	date_range      => 1,
 #    };
 
+    #
+    # If swishe_run is true, then run swish-e and exit
+    #
+    if ($config{swishe_run})
+    {
+	my ($name,$path,$suffix) = fileparse($config{swishe_index},'');
+	chdir $path;
+	my @command = ($config{swishe_binary}, '-c', $config{swishe_run_config});
+	if (system(@command) != 0)
+	{
+	    die sprintf("swishe_run '%s' FAILED: %s", join(' ', @command), $@);
+	}
+	else
+	{
+	    exit 0;
+	}
+    }
+
+    # ------------------------------------------------------------
+    # NOT running swish-e
+    
     # This is a mass dependency, so if the swishe form template
     # changes, every page is rebuilt.
     add_depends("", "templates/swishe_form.tmpl");
+
 }
 
 sub preprocess (@) {
