@@ -1472,6 +1472,7 @@ sub generate_view{
     IkiWiki::run_hooks(pagetemplate => sub {
 		       shift->(page => $page,
 			       destpage => $page,
+			       dynamic=>1,
 			       template => $ptmpl);
 		       });
 
@@ -1481,6 +1482,7 @@ sub generate_view{
 		       $content=shift->(
 				    page => $page,
 				    content => $content,
+				    dynamic=>1,
 				   );
 		       });
     return $content;

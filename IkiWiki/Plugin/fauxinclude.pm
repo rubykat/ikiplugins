@@ -18,7 +18,6 @@ use File::Temp ();
 sub import {
 	hook(type => "getsetup", id => "fauxinclude",  call => \&getsetup);
 	hook(type => "checkconfig", id => "fauxinclude", call => \&checkconfig);
-	hook(type => "scan", id => "fauxinclude", call => \&scan);
 	hook(type => "format", id => "fauxinclude", call => \&format);
 }
 
@@ -55,33 +54,11 @@ sub checkconfig () {
 	}
 } # checkconfig
 
-sub scan (@) {
-    my %params=@_;
-    my $page=$params{page};
-
-    my $page_file = $pagesources{$params{page}};
-    my $page_type=pagetype($page_file);
-    if ($page_type)
-    {
-	while (my ($tmpl, $ps) = each %{$config{fauxinclude_pages}})
-	{
-	    if (pagespec_match($page, $ps))
-	    {
-		gen_navpages(page=>$page,
-			     template=>$tmpl,
-			     file=>$config{fauxinclude_files}->{$tmpl},
-			     scan=>1);
-	    }
-	}
-    }
-} # scan
-
 sub format (@) {
     my %params=@_;
     my $page=$params{page};
 
-    # don't do this during preview
-    if ($params{preview})
+    if ($params{dynamic})
     {
 	return $params{content};
     }
@@ -94,10 +71,19 @@ sub format (@) {
 	{
 	    if (pagespec_match($page, $ps))
 	    {
+		# register the page
 		gen_navpages(page=>$page,
 			     template=>$tmpl,
 			     file=>$config{fauxinclude_files}->{$tmpl},
-			     scan=>0);
+			     scan=>1);
+		# render page (if not preview)
+		if (!$params{preview})
+		{
+		    gen_navpages(page=>$page,
+			template=>$tmpl,
+			file=>$config{fauxinclude_files}->{$tmpl},
+			scan=>0);
+		}
 	    }
 	}
     }
