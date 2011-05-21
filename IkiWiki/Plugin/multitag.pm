@@ -51,16 +51,24 @@ sub preprocess_multitag (@) {
     delete $params{sep};
     my $tags = $params{tags};
     delete $params{tags};
+    my $strip = $params{strip};
+    delete $params{strip};
 
     my @tags = ($tags ? split(($sep ? $sep : ' '), $tags) : ());
     push @tags, (keys %params);
     my @links = ();
     foreach my $tag (@tags)
     {
-	my $tagpage=linkpage($tag);
+	my $tagpage=$tag;
+	if ($strip)
+	{
+	    $tagpage =~ s/\s//g;
+	    $tagpage =~ s/[^0-9a-zA-Z]//g if ($strip eq 'alpha');
+	}
+	$tagpage=linkpage($tagpage);
 	my $link = multitaglink($tagpage, $base);
 
-	push @links, htmllink($page, $destpage, $link);
+	push @links, htmllink($page, $destpage, $link, linktext=>$tag);
 	add_link($page, $link, ($base ? $base : 'tag'));
 
 	genmultitag($tagpage, $base);
