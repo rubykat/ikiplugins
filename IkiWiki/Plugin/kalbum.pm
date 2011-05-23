@@ -493,8 +493,7 @@ sub make_thumbnail {
 	$thumb_link = "$dir/tn/$thumb_name";
 	$pagestate{$item}{kalbum}{outfile} = $outfile;
 	$pagestate{$item}{kalbum}{thumb_link} = $thumb_link;
-
-	will_render($params{page}, $thumb_link);
+	$pagestate{$item}{kalbum}{render_thumb} = $thumb_link;
 
 	$thumb_url=urlto($thumb_link, 'index', 1);
 	$pagestate{$item}{kalbum}{thumb_url} = $thumb_url;
@@ -509,6 +508,9 @@ sub make_thumbnail {
     $outfile = $pagestate{$item}{kalbum}{outfile};
     $thumb_link = $pagestate{$item}{kalbum}{thumb_link};
     $thumb_url = $pagestate{$item}{kalbum}{thumb_url};
+    will_render($params{page}, $pagestate{$item}{kalbum}{render_thumb})
+    if $pagestate{$item}{kalbum}{render_thumb};
+
     if ($params{preview})
     {
 	$thumb_url="$config{url}/$thumb_link";
