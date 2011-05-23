@@ -120,7 +120,7 @@ sub gen_navpages (@) {
     {
 	my $message = sprintf(gettext("creating fauxinclude file %s"),
 			      $newfile);
-	debug($message);
+	#debug($message);
 
 	my $content = IkiWiki::Plugin::ftemplate::preprocess(
 							     page=>$page,
