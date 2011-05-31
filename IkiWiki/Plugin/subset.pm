@@ -29,6 +29,13 @@ sub getsetup () {
 	rebuild => undef,
 	section => "widget",
     },
+    subset_page => {
+	type => "string",
+	example => "subset_page => 'subsets'",
+	description => "page to look for subset definitions",
+	safe => 0,
+	rebuild => undef,
+    },
 }
 
 sub checkconfig () {
