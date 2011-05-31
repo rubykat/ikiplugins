@@ -201,7 +201,7 @@ sub htmlize (@) {
 
     return '' if !$params{content};
 
-    eval q{use Text::PmWiki};
+    eval {use Text::PmWiki};
     return $params{content} if $@;
 
     # don't parse WikiLinks, that's been done already

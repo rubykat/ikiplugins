@@ -31,14 +31,14 @@ sub getsetup () {
 }
 
 sub checkconfig () {
-    eval q{use HTML::LinkList qw(nav_tree full_tree link_list breadcrumb_trail)};
+    eval {use HTML::LinkList qw(nav_tree full_tree link_list breadcrumb_trail)};
     if ($@)
     {
 	error("pmap: HTML::LinkList failed to load");
 	return 0;
     }
     $config{pmap_sort_naturally} = 1;
-    eval q{use Sort::Naturally};
+    eval {use Sort::Naturally};
     if ($@)
     {
 	$config{pmap_sort_naturally} = 0;

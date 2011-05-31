@@ -95,7 +95,7 @@ sub checkconfig () {
 	}
 	if ($config{navdb_cgicache})
 	{
-	    eval q{use CGI::Cache};
+	    eval {use CGI::Cache};
 	    if ($@) {
 		error(sprintf(gettext("CGI:Cache needed for caching %s plugin"), 'navdb'));
 	    }
@@ -321,7 +321,7 @@ sub build_2nd_level_tree {
     # Use pagespec_match because we don't want to have to deal
     # with dependencies here
     my @candidates = keys %pagesources;
-    eval q{use Sort::Naturally};
+    eval {use Sort::Naturally};
     if ($@) {
 	@candidates = sort(@candidates);
     }

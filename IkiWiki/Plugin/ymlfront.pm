@@ -77,8 +77,8 @@ sub getsetup () {
 }
 
 sub checkconfig () {
-    eval q{use YAML::Any};
-    eval q{use YAML} if $@;
+    eval {use YAML::Any};
+    eval {use YAML} if $@;
     if ($@)
     {
 	return error ("ymlfront: failed to use YAML::Any or YAML");
@@ -345,7 +345,7 @@ sub extract_yml {
 	$yml_str =~ s/\{\{\$page\}\}/$page/sg;
 
 	my $ydata;
-	eval q{$ydata = Load($yml_str);};
+	eval {$ydata = Load($yml_str);};
 	if ($@)
 	{
 	    debug("ymlfront: Load of $page data failed: $@");
@@ -376,7 +376,7 @@ sub parse_yml {
 	$yml_str =~ s/\{\{\$page\}\}/$page/sg;
 
 	my $ydata;
-	eval q{$ydata = Load($yml_str);};
+	eval {$ydata = Load($yml_str);};
 	if ($@)
 	{
 	    debug("ymlfront parse: Load of $page data failed: $@");

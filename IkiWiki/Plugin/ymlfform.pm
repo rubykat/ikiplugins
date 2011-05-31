@@ -237,7 +237,7 @@ sub edit_yml ($$) {
 
     IkiWiki::decode_cgi_utf8($cgi);
 
-    eval q{use CGI::FormBuilder};
+    eval {use CGI::FormBuilder};
     error($@) if $@;
 
     # The untaint is OK (as in editpage) because we're about to pass
@@ -305,10 +305,10 @@ sub get_page_formspec ($) {
 	}
 	if ($file =~ /\.yml$/)
 	{
-	    eval q{use YAML::Any qw(Dump LoadFile);};
+	    eval {use YAML::Any qw(Dump LoadFile);};
 	    if ($@)
 	    {
-		eval q{use YAML qw(Dump LoadFile);};
+		eval {use YAML qw(Dump LoadFile);};
 		error($@) if $@;
 	    }
 	    $formspec = LoadFile($file);

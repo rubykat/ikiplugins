@@ -19,7 +19,7 @@ sub import {
 }
 
 sub getopt () {
-	eval q{use Getopt::Long};
+	eval {use Getopt::Long};
 	error($@) if $@;
 	Getopt::Long::Configure('pass_through');
 	GetOptions("swishe_run!" => \$config{swishe_run},

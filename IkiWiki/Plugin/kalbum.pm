@@ -519,7 +519,7 @@ sub make_thumbnail {
     # only read the image if we need to make a thumbnail
     if (!(-e $outfile && (-M $thumb_src >= -M $outfile)))
     {
-	eval q{use Image::Magick};
+	eval {use Image::Magick};
 	error gettext("Image::Magick is not installed") if $@;
 	my $im = Image::Magick->new;
 	my $r = $im->Read($thumb_src);
@@ -599,7 +599,7 @@ sub get_caption {
 
     my $image = $params{image};
     
-    eval q{use Image::ExifTool};
+    eval {use Image::ExifTool};
     error gettext("Image::ExifTool is not installed") if $@;
 
     my $format = ($params{format}

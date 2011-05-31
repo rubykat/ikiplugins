@@ -20,7 +20,7 @@ sub import {
 sub my_find_src_files () {
 	my @files;
 	my %pages;
-	eval q{use File::Find};
+	eval {use File::Find};
 	error($@) if $@;
 
 	my ($page, $dir, $underlay);

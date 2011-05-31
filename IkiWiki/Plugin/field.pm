@@ -784,7 +784,7 @@ sub cmp_field_natural {
     my $field = shift;
     error(gettext("sort=field requires a parameter")) unless defined $field;
 
-    eval q{use Sort::Naturally};
+    eval {use Sort::Naturally};
     error $@ if $@;
 
     my $left = IkiWiki::Plugin::field::field_get_value($field, $a);

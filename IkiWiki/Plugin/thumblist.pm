@@ -110,7 +110,7 @@ sub process_image (@) {
 	my $dir = $params{img_dir};
 	my $base = IkiWiki::basename($file);
 
-	eval q{use Image::Magick};
+	eval {use Image::Magick};
 	error gettext("Image::Magick is not installed") if $@;
 	my $im = Image::Magick->new;
 	my $imglink;
@@ -226,7 +226,7 @@ sub get_caption {
 
     my $srcfile = $params{srcfile};
     
-    eval q{use Image::ExifTool};
+    eval {use Image::ExifTool};
     error gettext("Image::ExifTool is not installed") if $@;
     my @out = ();
     if ($params{caption})

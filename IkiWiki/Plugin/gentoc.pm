@@ -57,7 +57,7 @@ sub getsetup () {
 }
 
 sub checkconfig () {
-    eval q{use HTML::GenToc};
+    eval {use HTML::GenToc};
     if ($@)
     {
 	error("pmap: HTML::GenToc failed to load");
