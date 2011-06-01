@@ -66,32 +66,32 @@ sub checkconfig () {
 sub preprocess_subset (@) {
     my %params=@_;
 
-    if (! defined $params{name} || ! defined $params{set}) {
-	error gettext("missing name or set parameter");
+    if (! defined $params{name} || ! defined $params{pages}) {
+	error gettext("missing name or pages parameter");
     }
     if ($params{name} !~ /^\w+$/)
     {
 	error gettext(sprintf("name '%s' is not valid", $params{name}));
     }
 
+    my $key = $params{name};
+    $pagestate{$params{page}}{subset}{name}{$key} = $params{pages};
+    $pagestate{$params{page}}{subset}{matches}{$key} = undef;
+    $pagestate{$params{page}}{subset}{sort}{$key} = $params{sort} if exists $params{sort};
     {
-	my $key = $params{name};
-	$pagestate{$params{page}}{subset}{name}{$key} = $params{set};
-	$pagestate{$params{page}}{subset}{matches}{$key} = undef;
-
 	no strict 'refs';
 	no warnings 'redefine';
 
 	my $subname = "IkiWiki::PageSpec::match_$key";
 	*{ $subname } = sub {
 	    my $path = shift;
-	    return IkiWiki::pagespec_match($path, $params{set});
+	    return IkiWiki::pagespec_match($path, $params{pages});
 	}
     }
 
     #This is used to display what subsets are defined.
-    return sprintf(gettext("subset <b>%s()</b> is <i>%s</i>"),
-	$params{name}, $params{set});
+    return sprintf(gettext("<b>%s()</b>: `%s`"),
+	$params{name}, $params{pages});
 }
 
 # ===============================================
@@ -119,8 +119,24 @@ sub subset_pagespec_match_list ($$;@) {
 	}
 	else
 	{
-	    @subset = $OrigSubs{pagespec_match_list}->($page, "${subset_spec}()", %params);
+	    my $old_sort;
+	    if (exists $pagestate{$config{subset_page}}{subset}{sort}{$subset_spec})
+	    {
+		$old_sort = $params{sort};
+		$params{sort} = $pagestate{$config{subset_page}}{subset}{sort}{$subset_spec};
+	    }
+	    @subset = $OrigSubs{pagespec_match_list}->($page,
+		"${subset_spec}()",
+		%params);
 	    $pagestate{$config{subset_page}}{subset}{matches}{$subset_spec} = \@subset;
+	    if ($old_sort)
+	    {
+		$params{sort} = $old_sort;
+	    }
+	    else
+	    {
+		delete $params{sort};
+	    }
 	}
 	return $OrigSubs{pagespec_match_list}->($page, $pagespec, %params,
 	    list=>\@subset);

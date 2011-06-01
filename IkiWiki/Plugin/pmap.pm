@@ -136,7 +136,9 @@ sub preprocess (@) {
 					      deptype => $deptype);
     }
 
-    if (!$params{trail} and !$params{pagenames})
+    if (!$params{trail}
+	    and !$params{pagenames}
+	    and !$params{subset})
     {
 	if ($config{pmap_sort_naturally})
 	{
