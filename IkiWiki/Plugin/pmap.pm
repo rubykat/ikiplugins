@@ -55,15 +55,22 @@ sub preprocess (@) {
     my $show = $params{show};
     delete $params{show};
     my $map_type = (defined $params{map_type} ? $params{map_type} : '');
+
+    # backwards-compatible (should use maketrail not doscan)
+    if (!exists $params{maketrail} and exists $params{doscan})
+    {
+	$params{maketrail} = $params{doscan};
+	delete $params{doscan};
+    }
     my $scanning=! defined wantarray;
 
-    if (exists $params{doscan} and exists $params{trail})
+    if (exists $params{maketrail} and exists $params{trail})
     {
-	error gettext("doscan and trail are incompatible")
+	error gettext("maketrail and trail are incompatible")
     }
 
     # disable scanning if we don't want it
-    if ($scanning and !$params{doscan})
+    if ($scanning and !$params{maketrail})
     {
 	return '';
     }
@@ -153,15 +160,15 @@ sub preprocess (@) {
     # If we are scanning, we only care about the list of pages we found.
     # (but we want to do the sort first, because we want to preserve
     # the order that we expect)
-    # If "doscan" is true, then add the found pages to the list of links
+    # If "maketrail" is true, then add the found pages to the list of links
     # from this page.
-    # Note that "doscan" and "trail" are incompatible because one
+    # Note that "maketrail" and "trail" are incompatible because one
     # cannot guarantee that the trail page has been scanned before
     # this current page.
 
     if ($scanning)
     {
-	if ($params{doscan} and !$params{trail})
+	if ($params{maketrail} and !$params{trail})
 	{
 	    debug("pmap ($this_page) NO MATCHING PAGES") if !@matching_pages;
 	    foreach my $page (@matching_pages)

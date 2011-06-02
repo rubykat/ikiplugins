@@ -62,14 +62,22 @@ sub preprocess (@) {
     if (! exists $params{template}) {
 	error gettext("missing template parameter");
     }
-    if (exists $params{doscan} and exists $params{trail})
+
+    # backwards-compatible (should use maketrail not doscan)
+    if (!exists $params{maketrail} and exists $params{doscan})
     {
-	error gettext("doscan and trail are incompatible");
+	$params{maketrail} = $params{doscan};
+	delete $params{doscan};
+    }
+
+    if (exists $params{maketrail} and exists $params{trail})
+    {
+	error gettext("maketrail and trail are incompatible");
     }
 
     # disable scanning if we don't want it
     my $scanning=! defined wantarray;
-    if ($scanning and !$params{doscan})
+    if ($scanning and !$params{maketrail})
     {
 	return '';
     }
@@ -235,15 +243,15 @@ sub preprocess (@) {
 
     # ------------------------------------------------------------------
     # If we are scanning, we only care about the list of pages we found.
-    # If "doscan" is true, then add the found pages to the list of links
+    # If "maketrail" is true, then add the found pages to the list of links
     # from this page.
-    # Note that "doscan" and "trail" are incompatible because one
+    # Note that "maketrail" and "trail" are incompatible because one
     # cannot guarantee that the trail page has been scanned before
     # this current page.
 
     if ($scanning)
     {
-	if ($params{doscan} and !$params{trail})
+	if ($params{maketrail} and !$params{trail})
 	{
 	    debug("report ($dest_page) NO MATCHING PAGES") if !@matching_pages;
 	    foreach my $page (@matching_pages)
