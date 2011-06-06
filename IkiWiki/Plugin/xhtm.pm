@@ -21,7 +21,8 @@ sub import {
 	$config{wiki_file_prune_regexps} = [ grep { !m/\\\.x\?html\?\$/ } @{$config{wiki_file_prune_regexps}} ];
 
 	IkiWiki::loadplugin("field");
-	IkiWiki::Plugin::field::field_register(id=>'xhtml');
+	IkiWiki::Plugin::field::field_register(id=>'xhtml',
+	    all_values=>\&scan_meta);
 }
 
 sub getsetup () {
@@ -44,27 +45,8 @@ sub scan (@) {
     {
 	return;
     }
-    # scan for titles and descriptions
     if ($page_type =~ /x?html?/o)
     {
-	if ($params{content} =~ m#<html[^>]*>.*<head>\s*(.*)\s*</head>#iso)
-	{
-	    my $head = $1;
-	    if ($head =~ m#<title>(.*)</title>#iso)
-	    {
-		my $title = $1;
-		$pagestate{$page}{xhtm}{title} = $title;
-		$pagestate{$page}{meta}{title} = $title;
-	    }
-	    if ($head =~ m#<meta\s+name="description"\s+content\s*=\s*"([^"]*)"#iso)
-	    {
-		my $desc = $1;
-		$pagestate{$page}{xhtm}{description} = $desc;
-		$pagestate{$page}{meta}{description} = $desc;
-	    }
-	    $head =~ s#\s*<title>.*</title>\s*##iso;
-	}
-
 	# scan for internal links
 	$params{content} =~ s/{{\$page}}/$page/sg; # we know what the page is
 	while ($params{content} =~ m/<a[^>]+href\s*=\s*['"]([^'"#]+)(#[^\s"']+)?['"][^>]*>[^<]+<\/a>/igso)
@@ -81,6 +63,41 @@ sub scan (@) {
 	}
     }
 }
+
+# scan the certain meta content and remember it
+sub scan_meta (@) {
+    my %params=@_;
+    my $page=$params{page};
+
+    my $page_file=$pagesources{$page};
+    my $page_type=pagetype($page_file);
+    if (!defined $page_type)
+    {
+	return undef;
+    }
+    # scan for titles and descriptions
+    my %meta = ();
+    if ($page_type =~ /x?html?/o)
+    {
+	if ($params{content} =~ m#<html[^>]*>.*<head>\s*(.*)\s*</head>#iso)
+	{
+	    my $head = $1;
+	    if ($head =~ m#<title>(.*)</title>#iso)
+	    {
+		my $title = $1;
+		$meta{title} = $title;
+		$pagestate{$page}{meta}{title} = $title;
+	    }
+	    if ($head =~ m#<meta\s+name="description"\s+content\s*=\s*"([^"]*)"#iso)
+	    {
+		my $desc = $1;
+		$meta{description} = $desc;
+		$pagestate{$page}{meta}{description} = $desc;
+	    }
+	}
+    }
+    return \%meta;
+} # scan_meta
 
 # return the BODY content
 sub filter (@) {

@@ -63,7 +63,9 @@ sub import {
 
     IkiWiki::loadplugin("field");
     IkiWiki::Plugin::field::field_register(id=>'katspace',
-						call=>\&katspace_vars);
+	all_values=>\&all_katspace_vars);
+    IkiWiki::Plugin::field::field_register_calculation(id=>'tarball',
+	call=>\&tool_tarball);
 
 }
 
@@ -81,6 +83,17 @@ sub getsetup () {
 #-------------------------------------------------------
 # field functions
 #-------------------------------------------------------
+sub all_katspace_vars (@) {
+    my %params=@_;
+
+    my %values = ();
+    foreach my $fn (qw(navbar year month monthname winfandom winrating wintype windescription wintiefandom wintierating wintietype wintiedescription bunnycount fandomlist))
+    {
+	$values{$fn} = katspace_vars($fn, $params{page});
+    }
+    return \%values;
+} # all_katspace_vars
+
 sub katspace_vars ($$;$) {
     my $field_name = shift;
     my $page = shift;
@@ -93,17 +106,17 @@ sub katspace_vars ($$;$) {
     elsif ($field_name =~ /^year$/i)
     {
 	$value =
-	    IkiWiki::Plugin::field::field_get_value('FicDate-year',$page);
+	    IkiWiki::Plugin::field::field_get_value('FicDate.year',$page);
     }
     elsif ($field_name =~ /^month$/i)
     {
 	$value =
-	    IkiWiki::Plugin::field::field_get_value('FicDate-month',$page);
+	    IkiWiki::Plugin::field::field_get_value('FicDate.month',$page);
     }
     elsif ($field_name =~ /^monthname$/i)
     {
 	$value =
-	    IkiWiki::Plugin::field::field_get_value('FicDate-monthname',$page);
+	    IkiWiki::Plugin::field::field_get_value('FicDate.monthname',$page);
     }
     elsif ($field_name =~ /^(win(?:tie)?)(fandom|rating|type|description)/oi)
     {
@@ -117,11 +130,6 @@ sub katspace_vars ($$;$) {
     {
 	return do_finishathon_fandom_list($page, wantarray);
     }
-    elsif ($field_name =~ /^([-\w]+)-tarball$/o)
-    {
-	my $proj = $1;
-	$value = tool_tarball($page, $proj);
-    }
     if (defined $value)
     {
 	return (wantarray ? ($value) : $value);
@@ -130,8 +138,9 @@ sub katspace_vars ($$;$) {
 } # katspace_vars
 
 sub tool_tarball ($$) {
-    my $page = shift;
-    my $proj = shift;
+    my %params=@_;
+    my $page = $params{page};
+    my $proj = $params{value};
 
     my $page_file=srcfile($pagesources{$page}) || return '';
     my $dir = dirname($page_file) . '/' . IkiWiki::basename($page);

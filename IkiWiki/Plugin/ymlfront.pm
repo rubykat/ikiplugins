@@ -42,12 +42,12 @@ sub import {
 	hook(type => "checkconfig", id => "ymlfront", call => \&checkconfig);
 	hook(type => "filter", id => "ymlfront", call => \&filter, first=>1);
 	hook(type => "preprocess", id => "ymlfront", call => \&preprocess, scan=>1);
-	hook(type => "scan", id => "ymlfront", call => \&scan);
+    #hook(type => "scan", id => "ymlfront", call => \&scan);
 	hook(type => "checkcontent", id => "ymlfront", call => \&checkcontent);
 
 	IkiWiki::loadplugin('field');
 	IkiWiki::Plugin::field::field_register(id=>'ymlfront',
-					       call=>\&yml_get_value,
+					       all_values=>\&yml_get_values,
 					       first=>1);
 }
 
@@ -97,7 +97,6 @@ sub checkconfig () {
     }
 } # checkconfig
 
-# scan gets called before filter
 sub scan (@) {
     my %params=@_;
     my $page = $params{page};
@@ -265,6 +264,26 @@ sub checkcontent {
 # ------------------------------------------------------------
 # Field functions
 # --------------------------------
+sub yml_get_values (@) {
+    my %params=@_;
+    my $page = $params{page};
+
+    my $page_file=$pagesources{$page} || return;
+    my $page_type=pagetype($page_file);
+    if (!defined $page_type)
+    {
+	return;
+    }
+    my $extracted_yml = extract_yml(%params);
+    if (defined $extracted_yml
+	and defined $extracted_yml->{yml})
+    {
+	my $parsed_yml = parse_yml(%params, data=>$extracted_yml->{yml});
+	return $parsed_yml;
+    }
+    return undef;
+} # yml_get_values
+
 sub yml_get_value ($$) {
     my $field_name = shift;
     my $page = shift;

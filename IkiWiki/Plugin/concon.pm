@@ -12,7 +12,11 @@ sub import {
 	hook(type => "getopt", id => "concon",  call => \&getopt);
 	hook(type => "getsetup", id => "concon",  call => \&getsetup);
 	hook(type => "checkconfig", id => "concon", call => \&checkconfig);
-	hook(type => "scan", id => "concon", call => \&scan, first=>1);
+
+	IkiWiki::loadplugin('field');
+	IkiWiki::Plugin::field::field_register(id=>'concon',
+					       all_values=>\&concon_get_values,
+					       first=>1);
 }
 
 sub getopt () {
@@ -80,26 +84,17 @@ sub checkconfig () {
 
 	);
 
-    # if using field plugin, register fields
-    if (UNIVERSAL::can("IkiWiki::Plugin::field", "import"))
-    {
-	IkiWiki::Plugin::field::field_register(id=>'concon');
-    }
     return 1;
 }
 
-sub scan {
+sub concon_get_values {
     my %params=@_;
     my $page=$params{page};
 
     my $page_file=$pagesources{$page} || return;
 
-    # clear the info
-    delete $pagestate{$page}{'concon'};
-
     my %config = $ConfObj->context(page=>"/${page}", file=>$page_file);
-    # set the pagestate so that other modules can use it.
-    $pagestate{$page}{'concon'} = \%config if %config;
-} # scan
+    return \%config;
+} # concon_get_values
 
 1;

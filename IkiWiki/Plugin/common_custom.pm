@@ -15,7 +15,13 @@ sub import {
 
     IkiWiki::loadplugin("field");
     IkiWiki::Plugin::field::field_register(id=>'common_custom',
-						call=>\&common_vars);
+	all_values=>\&all_common_vars);
+    foreach my $id (qw(year month monthname))
+    {
+	IkiWiki::Plugin::field::field_register_calculation(
+	    id=>$id,
+	    call=>\&common_vars_calc);
+    }
 
     $OrigSubs{htmllink} = \&htmllink;
     inject(name => 'IkiWiki::htmllink', call => \&my_htmllink);
@@ -129,7 +135,23 @@ sub my_htmllink ($$$;@) {
 #-------------------------------------------------------
 # field functions
 #-------------------------------------------------------
-sub common_vars ($$;$) {
+sub all_common_vars ($$) {
+    my $field_name = shift;
+    my $page = shift;
+
+    my %values = ();
+    foreach my $key (qw(pageterm namespaced namespaced_no_ext title base_no_ext name_a title_a local_css local_css2))
+    {
+	my $val = common_vars($key, $page);
+	if (defined $val)
+	{
+	    $values{$key} = $val;
+	}
+    }
+    return \%values;
+} # all_common_vars
+
+sub common_vars ($$) {
     my $field_name = shift;
     my $page = shift;
 
@@ -173,16 +195,6 @@ sub common_vars ($$;$) {
 	$basename =~ s/\.\w+$//;
 	$value = $basename;
     }
-    elsif ($field_name eq 'name_a')
-    {
-	$value = uc(substr(IkiWiki::basename($page), 0, 1));
-    }
-    elsif ($field_name eq 'title_a')
-    {
-	my $title =
-	    IkiWiki::Plugin::field::field_get_value('title',$page);
-	$value = uc(substr($title, 0, 1));
-    }
     elsif ($field_name eq 'local_css')
     {
 	if (exists $config{local_css}
@@ -213,11 +225,28 @@ sub common_vars ($$;$) {
 	    }
 	}
     }
-    elsif ($field_name =~ /^(.*)-year$/i)
+    if (defined $value)
     {
-	my $date_field = $1;
-	my $date =
-	    IkiWiki::Plugin::field::field_get_value($date_field,$page);
+	return (wantarray ? ($value) : $value);
+    }
+    return undef;
+} # common_vars
+
+sub common_vars_calc (@) {
+    my %params=@_;
+    my $page = $params{page};
+    my $value = $params{value};
+    my $calc_id = $params{id};
+
+    return $value if (!defined $value);
+
+    if ($calc_id eq 'a')
+    {
+	$value = uc(substr($value, 0, 1));
+    }
+    elsif ($calc_id eq 'year')
+    {
+	my $date = $value;
 	if ($date)
 	{
 	    if ($date =~ /^\d{4}$/)
@@ -230,16 +259,9 @@ sub common_vars ($$;$) {
 	    }
 	}
     }
-    elsif ($field_name =~ /^(.*)-month$/i)
+    elsif ($calc_id eq 'month')
     {
-	my $date_field = $1;
-	my $date =
-	    IkiWiki::Plugin::field::field_get_value($date_field,$page);
-	if (!$date)
-	{
-	    $date =
-		IkiWiki::Plugin::field::field_get_value("${date_field}-date",$page);
-	}
+	my $date = $value;
 	if ($date)
 	{
 	    if ($date =~ /^\d{4}$/)
@@ -252,11 +274,9 @@ sub common_vars ($$;$) {
 	    }
 	}
     }
-    elsif ($field_name =~ /^(.*)-monthname$/i)
+    elsif ($calc_id eq 'monthname')
     {
-	my $date_field = $1;
-	my $month =
-	    IkiWiki::Plugin::field::field_get_value("${date_field}-month",$page);
+	my $month = $value;
 	$value = gettext($month == 1
 		       ? 'January'
 		       : ($month == 2
@@ -293,10 +313,10 @@ sub common_vars ($$;$) {
     }
     if (defined $value)
     {
-	return (wantarray ? ($value) : $value);
+	return $value;
     }
     return undef;
-} # common_vars
+} # common_vars_calc
 
 # ===============================================
 # PageSpec functions

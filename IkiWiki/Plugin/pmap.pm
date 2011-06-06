@@ -89,6 +89,7 @@ sub preprocess (@) {
 
     # Get all the items to map.
     my @matching_pages;
+    my @trailpages = ();
     if ($params{pagenames})
     {
 	@matching_pages =
@@ -106,34 +107,21 @@ sub preprocess (@) {
     # but it will do
     elsif ($params{trail})
     {
-	my @trailpages = split(' ', $params{trail});
+	@trailpages = split(' ', $params{trail});
 	foreach my $tp (@trailpages)
 	{
-	    add_depends($this_page, $tp, deptype("links"));
-	    foreach my $ln (@{$links{$tp}})
+	    foreach my $pn (@{$links{$tp}})
 	    {
-		my $bl = bestlink($tp, $ln);
-		if ($bl)
-		{
-		    push @matching_pages, $bl;
-		}
+		# NEED to use bestlink because the links list
+		# does not store absolute links
+		push @matching_pages, bestlink($tp, $pn);
 	    }
 	}
 	if ($params{pages})
 	{
 	    # filter out the pages that don't match
-	    my @filtered = ();
-	    my $result=0;
-	    foreach my $mp (@matching_pages)
-	    {
-		$result=pagespec_match($mp, $params{pages});
-		if ($result)
-		{
-		    push @filtered, $mp;
-		    add_depends($this_page, $mp, $deptype);
-		}
-	    }
-	    @matching_pages = @filtered;
+	    @matching_pages = pagespec_match_list($destpage, $params{pages},
+		%params, deptype=>$deptype, list=>\@matching_pages);
 	}
     }
     else
@@ -157,6 +145,15 @@ sub preprocess (@) {
 	}
     }
 
+    # Only add dependencies when using trails IF we found matches
+    if ($params{trail} and $#matching_pages > 0)
+    {
+	foreach my $tp (@trailpages)
+	{
+	    add_depends($destpage, $tp, deptype("links"));
+	}
+    }
+
     # If we are scanning, we only care about the list of pages we found.
     # (but we want to do the sort first, because we want to preserve
     # the order that we expect)
@@ -170,7 +167,7 @@ sub preprocess (@) {
     {
 	if ($params{maketrail} and !$params{trail})
 	{
-	    debug("pmap ($this_page) NO MATCHING PAGES") if !@matching_pages;
+	    debug("pmap ($this_page) [$pages] NO MATCHING PAGES") if !@matching_pages;
 	    foreach my $page (@matching_pages)
 	    {
 		add_link($this_page, $page);
@@ -204,38 +201,33 @@ sub preprocess (@) {
 	}
 	my $urlto = IkiWiki::urlto($page, $destpage, 1);
 	# strip off leading http://site stuff
-	$urlto =~ s!https?://[^/]+!!;
-	$urlto =~ s!^\s+!!;
-	$urlto =~ s!\s+$!!;
+	$urlto =~ s!https?://[^/]+!!o;
+	$urlto =~ s!^\s+!!o;
+	$urlto =~ s!\s+$!!o;
 	push @link_list, $urlto;
 
 	if (defined $show
 	    and exists $pagestate{$page}
-	    and $show =~ /title/)
+	    and $show =~ /title/o)
 	{
-	    if ($using_field_plugin)
-	    {
-		$page_labels{$urlto}=
-		    IkiWiki::Plugin::field::field_get_value('titlecaps', $page);
-	    }
-	    elsif (exists $pagestate{$page}{meta}{title})
+	    if (exists $pagestate{$page}{meta}{title})
 	    {
 		$page_labels{$urlto}=$pagestate{$page}{meta}{title};
+		$page_labels{$urlto} =~ s/ & / &amp; /go;
 	    }
-	    $page_labels{$urlto} =~ s/ & / &amp; /g;
 	}
 	if (defined $show
 	    and exists $pagestate{$page}
-	    and $show =~ /desc/)
+	    and $show =~ /desc/o)
 	{
-	    if ($using_field_plugin)
+	    if (exists $pagestate{$page}{meta}{description})
+	    {
+		$page_desc{$urlto}=$pagestate{$page}{meta}{description};
+	    }
+	    elsif ($using_field_plugin)
 	    {
 		$page_desc{$urlto}=
 		    IkiWiki::Plugin::field::field_get_value('description', $page);
-	    }
-	    elsif (exists $pagestate{$page}{meta}{description})
-	    {
-		$page_desc{$urlto}=$pagestate{$page}{meta}{description};
 	    }
 	}
     }
@@ -249,10 +241,10 @@ sub preprocess (@) {
     # Note the current URL
     my $current_url = IkiWiki::urlto($destpage, $destpage, 1);
     # strip off leading http://site stuff
-    $current_url =~ s!https?://[^/]+!!;
-    $current_url =~ s!//!/!g;
-    $current_url =~ s!^\s+!!;
-    $current_url =~ s!\s+$!!;
+    $current_url =~ s!https?://[^/]+!!o;
+    $current_url =~ s!//!/!go;
+    $current_url =~ s!^\s+!!o;
+    $current_url =~ s!\s+$!!o;
 
     # if all the pages are at the same depth, and the map_type is
     # not set, then set the map_type to 'list'

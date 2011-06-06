@@ -70,6 +70,8 @@ sub import {
 	hook(type => "filter", id => "pmwiki", call => \&filter);
 	hook(type => "linkify", id => "pmwiki", call => \&linkify, first=>1);
 	hook(type => "htmlize", id => "pmwiki", call => \&htmlize);
+    IkiWiki::Plugin::field::field_register(id=>'pmwiki',
+	all_values=>\&scan_ptvs, first=>1);
 }
 
 # ===============================================
@@ -113,7 +115,6 @@ sub checkconfig () {
 		\]\]                    # end of link
 	}x;
     }
-    IkiWiki::Plugin::field::field_register(id=>'pmwiki', first=>1);
     return 1;
 }
 
@@ -128,7 +129,6 @@ sub scan (@) {
     {
 	return;
     }
-    scan_ptvs(%params);
     if ($config{pmwiki_links})
     {
 	$params{content} =~ s/{{\$page}}/$page/sg;
@@ -232,27 +232,23 @@ sub scan_ptvs (@) {
     if (!defined $page_type
 	or $page_type ne 'pmwiki')
     {
-	return;
+	return undef;
     }
+    my %values = ();
     # scan for title
     if ($params{content} =~ m!(?:^|\n)\(:title\s+(.*?):\)\s*!so)
     {
 	my $key = 'title';
 	my $val = $1;
-	$pagestate{$page}{pmwiki}{$key} = $val;
+	$values{$key} = $val;
     }
     while ($params{content} =~ m!(?:^|\n)\(:([-\w]+):(.*?):\)!igso)
     {
 	my $key = $1;
 	my $val = $2;
-	$pagestate{$page}{pmwiki}{lc($key)} = $val;
+	$values{lc($key)} = $val;
     }
-    if (exists $pagestate{$page}{pmwiki}{title}
-	and $pagestate{$page}{pmwiki}{title})
-    {
-	$pagestate{$page}{meta}{title} = $pagestate{$page}{pmwiki}{title};
-    }
-
+    return \%values;
 } # scan_ptvs
 
 sub process_link ($$$$) {

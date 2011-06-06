@@ -38,7 +38,7 @@ sub import {
 
     IkiWiki::loadplugin("field");
     IkiWiki::Plugin::field::field_register(id=>'katplay',
-						call=>\&katplay_vars);
+	all_values=>\&katplay_vars);
 
 }
 
@@ -56,24 +56,14 @@ sub getsetup () {
 #-------------------------------------------------------
 # field functions
 #-------------------------------------------------------
-sub katplay_vars ($$) {
-    my $field_name = shift;
-    my $page = shift;
+sub katplay_vars (@) {
+    my %params=@_;
+    my $page = $parsms{page};
 
-    my $value = undef;
-    if ($field_name eq 'navbar')
-    {
-	$value = do_navbar($page);
-    }
-    elsif ($field_name eq 'navbar2')
-    {
-	$value = do_navbar2($page);
-    }
-    if (defined $value)
-    {
-	return (wantarray ? ($value) : $value);
-    }
-    return undef;
+    my %values = ();
+    $values{navbar} = do_navbar($page);
+    $values{navbar2} = do_navbar2($page);
+    return \%values;
 } # katplay_vars
 
 sub do_navbar ($) {

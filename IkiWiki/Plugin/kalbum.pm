@@ -20,7 +20,7 @@ sub import {
 	IkiWiki::loadplugin("report");
 
 	IkiWiki::Plugin::field::field_register(id=>'kalbum',
-					       call=>\&kalbum_get_value);
+					       all_values=>\&kalbum_get_values);
 }
 
 #------------------------------------------------------------------
@@ -555,6 +555,17 @@ sub make_thumbnail {
     }
 } # make_thumbnail
 
+sub kalbum_get_values (@) {
+    my %params=@_;
+
+    my %values = ();
+    foreach my $fn (qw(img_page_url short_caption caption is_image))
+    {
+	$values{$fn} = kalbum_get_value($fn, $params{page});
+    }
+    return \%values;
+} # kalbum_get_values
+
 sub kalbum_get_value ($$) {
     my $field_name = shift;
     my $page = shift;
@@ -585,11 +596,6 @@ sub kalbum_get_value ($$) {
     {
 	my $is_image = ($page =~ $config{kalbum_image_regexp});
 	return $is_image;
-    }
-    elsif (exists $pagestate{$page}{kalbum}{$field_name}
-	   and defined $pagestate{$page}{kalbum}{$field_name})
-    {
-	return $pagestate{$page}{kalbum}{$field_name};
     }
     return undef;
 } # kalbum_get_value

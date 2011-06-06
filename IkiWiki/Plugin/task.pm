@@ -47,7 +47,7 @@ sub import {
 
 	IkiWiki::loadplugin('field');
 	IkiWiki::Plugin::field::field_register(id=>'task',
-					       call=>\&task_vars,
+					       all_values=>\&all_task_vars,
 					       first=>1);
 }
 
@@ -207,20 +207,24 @@ sub preprocess (@) {
 # ===============================================
 # field functions
 # ---------------------------
+sub all_task_vars {
+    my %params=@_;
+
+    # this expects preprocess-scan to have already been done
+    my %values = ();
+    foreach my $fn (qw(task_is_done task_is_started task_project task_full_project task_proj_type))
+    {
+	$values{$fn} = task_vars($fn, $params{page});
+    }
+    return \%values;
+} # all_task_vars
+
 sub task_vars ($$) {
     my $field_name = shift;
     my $page = shift;
 
     my $value = undef;
-    if ($field_name eq 'task_annotations') # this is an array
-    {
-	if (exists $pagestate{$page}{task}{$field_name})
-	{
-	    $value = $pagestate{$page}{task}{$field_name};
-	    return (wantarray ? $value : join(", ", @{$value}));
-	}
-    }
-    elsif ($field_name eq 'task_is_done')
+    if ($field_name eq 'task_is_done')
     {
 	if (exists $pagestate{$page}{task}{task_status}
 	    and defined $pagestate{$page}{task}{task_status})
@@ -297,14 +301,6 @@ sub task_vars ($$) {
 	{
 	    $value = $pagestate{$page}{task}{task_proj_type};
 	}
-    }
-    elsif (exists $pagestate{$page}{task}{$field_name})
-    {
-	$value = $pagestate{$page}{task}{$field_name};
-    }
-    elsif (exists $pagestate{$page}{task}{lc($field_name)})
-    {
-	$value = $pagestate{$page}{task}{lc($field_name)};
     }
     if (defined $value)
     {

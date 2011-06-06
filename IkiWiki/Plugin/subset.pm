@@ -127,6 +127,7 @@ sub subset_pagespec_match_list ($$;@) {
 	    }
 	    @subset = $OrigSubs{pagespec_match_list}->($page,
 		"${subset_spec}()",
+		deptype=>deptype('presence'),
 		%params);
 	    $pagestate{$config{subset_page}}{subset}{matches}{$subset_spec} = \@subset;
 	    if ($old_sort)

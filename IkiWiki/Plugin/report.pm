@@ -120,9 +120,6 @@ sub preprocess (@) {
     my $deptype=deptype($params{quick} ? 'presence' : 'content');
 
     my @matching_pages;
-    # "trail" means "all the pages linked to from a given page"
-    # which is a bit looser than the PmWiki definition
-    # but it will do
     my @trailpages = ();
     if ($params{pagenames})
     {
@@ -136,41 +133,43 @@ sub preprocess (@) {
 	    }
 	}
     }
+    # "trail" means "all the pages linked to from a given page"
+    # which is a bit looser than the PmWiki definition
+    # but it will do
     elsif ($params{trail})
     {
 	@trailpages = split(' ', $params{trail});
 	foreach my $tp (@trailpages)
 	{
-	    foreach my $ln (@{$links{$tp}})
+	    foreach my $pn (@{$links{$tp}})
 	    {
-		if (exists $pagesources{$ln})
-		{
-		    push @matching_pages, $ln;
-		}
-		else
-		{
-		    my $bl = bestlink($tp, $ln);
-		    if ($bl)
-		    {
-			push @matching_pages, $bl;
-		    }
-		}
+		# NEED to use bestlink because the links list
+		# does not store absolute links
+		push @matching_pages, bestlink($tp, $pn);
 	    }
 	}
 	if ($params{pages})
 	{
-	    # filter out the pages that don't match
+	    # Filter out the pages that don't match.
+	    # Don't add the dependencies yet because
+	    # the results could be further filtered below.
+	    # Therefore we should not use pagespec_match_list here
+	    # because it will add premature dependencies.
+	    # However, for the sake of speed, we don't want to call
+	    # pagespec_match repeatedly, as it will have to re-compile
+	    # the pagespec each time; so pull out the code and compile
+	    # the pagespec only once.
 	    my @filtered = ();
 	    my $result=0;
+	    my $sub=IkiWiki::pagespec_translate($params{pages});
+	    error(sprintf("syntax error in pagespec '%s'",
+		    $params{pages})) if !defined $sub;
 	    foreach my $mp (@matching_pages)
 	    {
-		$result=pagespec_match($mp, $params{pages});
+		$result=$sub->($mp, %params);
 		if ($result)
 		{
 		    push @filtered, $mp;
-
-		    # Don't add the dependencies yet
-		    # because the results could be further filtered below
 		}
 	    }
 	    @matching_pages = @filtered;
@@ -576,12 +575,9 @@ sub do_one_template (@) {
     $params{included}=($params{page} ne $params{destpage});
 
     $template->clear_params(); # don't accidentally repeat values
-    IkiWiki::Plugin::field::field_set_template_values($template, $params{page},
-	 value_fn => sub {
-	    my $field = shift;
-	    my $page = shift;
-	    return report_get_value($field, $page, %params);
-	 },);
+    IkiWiki::Plugin::field::field_set_template_values($template,
+	$params{page}, %params);
+
     # -------------------------------------------------
     # headers
     for (my $i=0; $i < @{$params{headers}}; $i++) # clear the headers
@@ -611,104 +607,5 @@ sub do_one_template (@) {
 					       $output), $scan);
 
 } # do_one_template
-
-sub report_get_value ($$;%) {
-    my $field = shift;
-    my $page = shift;
-    my %params = @_;
-
-    my $use_page = $page;
-    my $real_fn = $field;
-    my $is_raw = 0;
-    my $page_file = $pagesources{$page};
-    my $page_type = ($page_file ? pagetype($page_file) : '');
-
-    if ($field =~ /^raw_(.*)/o)
-    {
-	$real_fn = $1;
-	$is_raw = 1;
-    }
-    elsif ($field =~ /^first$/io
-	|| $field =~ /^last$/io 
-	|| $field =~ /^header$/io)
-    {
-	$is_raw = 1;
-    }
-    if ($real_fn =~ /^prev_page$/io
-	|| $real_fn =~ /^next_page$/io)
-    {
-	$use_page = $params{$real_fn};
-    }
-    elsif ($real_fn =~ /^prev_(.*)/o)
-    {
-	$real_fn = $1;
-	$use_page = $params{prev_page};
-    }
-    elsif ($real_fn =~ /^next_(.*)/o)
-    {
-	$real_fn = $1;
-	$use_page = $params{next_page};
-    }
-
-    if (wantarray)
-    {
-	my @val_array = ();
-	if (exists $params{$real_fn}
-	    and defined $params{$real_fn})
-	{
-	    if (ref $params{$real_fn})
-	    {
-		@val_array = @{$params{$real_fn}};
-	    }
-	    else
-	    {
-		@val_array = ($params{$real_fn});
-	    }
-	}
-	else
-	{
-	    @val_array = IkiWiki::Plugin::field::field_get_value($real_fn, $page);
-	}
-	if (!$is_raw && $page_type)
-	{
-	    # HTMLize the values
-	    my @h_vals = ();
-	    foreach my $v (@val_array)
-	    {
-		if (defined $v and $v)
-		{
-		    my $hv = IkiWiki::htmlize($params{page}, $params{destpage},
-					      $page_type,
-					      $v);
-		    push @h_vals, $hv;
-		}
-	    }
-	    @val_array = @h_vals;
-	}
-	return @val_array;
-    }
-    else # simple value
-    {
-	my $value = ((exists $params{$real_fn}
-		      and defined $params{$real_fn})
-		     ? (ref $params{$real_fn}
-			? join(",", @{$params{$real_fn}})
-			: $params{$real_fn}
-		       )
-		     : ($use_page
-			? IkiWiki::Plugin::field::field_get_value($real_fn,
-								  $use_page)
-			: ''));
-	if (defined $value and $value)
-	{
-	    $value = IkiWiki::htmlize($params{page}, $params{destpage},
-				      $page_type,
-				      $value) unless ($is_raw ||
-						      !$page_type);
-	}
-	return $value;
-    }
-    return undef;
-} # report_get_value
 
 1;
