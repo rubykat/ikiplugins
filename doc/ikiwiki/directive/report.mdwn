@@ -113,14 +113,15 @@ to the other pages.
 The following options are used to improve efficiency when dealing
 with large numbers of pages; most people probably won't need them.
 
-**doscan**:
+**maketrail**:
 
-Whether this report should be called in "scan" mode; if it is, then
-the pages which match the pagespec are added to the list of links from
-this page.  This can be used by *another* report by setting this
-page to be a "trail" page in *that* report.
-It is not possible to use "trail" and "doscan" at the same time.
-By default, "doscan" is false.
+Make a trail; if true, then this report is called in "scan" mode and the
+pages which match the pagespec are added to the list of links from this
+page.  This can be used by *another* report by setting this page to be a
+"trail" page in *that* report.
+
+It is not possible to use "trail" and "maketrail" at the same time.
+By default, "maketrail" is false.
 
 ## TEMPLATE PARAMETERS
 
