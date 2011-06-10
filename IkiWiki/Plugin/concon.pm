@@ -1,8 +1,46 @@
 #!/usr/bin/perl
 package IkiWiki::Plugin::concon;
-
 use warnings;
 use strict;
+=head1 NAME
+
+IkiWiki::Plugin::concon - define field values by context
+
+=head1 VERSION
+
+This describes version B<1.20110610> of IkiWiki::Plugin::concon
+
+=cut
+
+our $VERSION = '1.20110610';
+
+=head1 DESCRIPTION
+
+Rather than having just global field-values or per-page field-values,
+this allows one to define field-values for sets of pages that
+match a given pattern.
+
+See doc/plugin/contrib/concon.mdwn for documentation.
+
+=head1 PREREQUISITES
+
+    IkiWiki
+    Config::Context
+
+=head1 AUTHOR
+
+    Kathryn Andersen (RUBYKAT)
+    http://github.com/rubykat
+
+=head1 COPYRIGHT
+
+Copyright (c) 2009-2011 Kathryn Andersen
+
+This program is free software; you can redistribute it and/or
+modify it under the same terms as Perl itself.
+
+=cut
+
 use IkiWiki 3.00;
 use Config::Context;
 

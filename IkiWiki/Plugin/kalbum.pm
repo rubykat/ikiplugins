@@ -1,10 +1,50 @@
 #!/usr/bin/perl
 package IkiWiki::Plugin::kalbum;
-
 use warnings;
 use strict;
+=head1 NAME
+
+IkiWiki::Plugin::kalbum - kat's album plugin
+
+=head1 VERSION
+
+This describes version B<1.20110610> of IkiWiki::Plugin::kalbum
+
+=cut
+
+our $VERSION = '1.20110610';
+
+=head1 DESCRIPTION
+
+Creates an album from a set of images; generates thumbnails,
+image-pages, and multiple index-pages for an album.
+
+See doc/plugin/contrib/kalbum.mdwn for documentation.
+
+=head1 PREREQUISITES
+
+    IkiWiki
+    File::Basename
+    POSIX
+    IkiWiki::Plugin::field
+    IkiWiki::Plugin::report
+
+=head1 AUTHOR
+
+    Kathryn Andersen (RUBYKAT)
+    http://github.com/rubykat
+
+=head1 COPYRIGHT
+
+Copyright (c) 2009-2011 Kathryn Andersen
+
+This program is free software; you can redistribute it and/or
+modify it under the same terms as Perl itself.
+
+=cut
 use IkiWiki 3.00;
 use File::Basename;
+use POSIX qw(ceil);
 
 sub import {
 	hook(type => "getsetup", id => "kalbum",  call => \&getsetup);
@@ -152,6 +192,17 @@ sub preprocess (@) {
 		       size=>$size,
 		       scanning=>$scanning,
 		       item=>$item);
+
+	# Force the field plugin to apply to the images too
+	if ($scanning and !is_page($item))
+	{
+	    IkiWiki::Plugin::field::scan(%params,
+		page=>$item,
+		destpage=>$item,
+		content=>'');
+	    # remember them separately
+	    $pagestate{$item}{kalbum} = $pagestate{$item}{field};
+	}
     }
 
     if (!$scanning)
@@ -162,41 +213,41 @@ sub preprocess (@) {
 	{
 	    my $item = $items[$i];
 	    my $prev_item = ($i > 0
-			    ? $items[$i-1]
-			    : $items[$stop]);
+		? $items[$i-1]
+		: $items[$stop]);
 	    my $next_item = ($i < $#items
-			    ? $items[$i+1]
-			    : $items[$start]);
+		? $items[$i+1]
+		: $items[$start]);
 	    my $first = ($i == $start);
 	    my $last = ($i == ($stop - 1));
 	    make_image_page(%params,
-			    image=>$item,
-			    album=>$page,
-			    prev_item=>$prev_item,
-			    prev_page_url=>kalbum_get_value('img_page_url', $prev_item),
-			    prev_thumb_url=>kalbum_get_value('thumb_url', $prev_item),
-			    next_item=>$next_item,
-			    next_page_url=>kalbum_get_value('img_page_url', $next_item),
-			    next_thumb_url=>kalbum_get_value('thumb_url', $next_item),
-			    first=>$first,
-			    last=>$last,
-			   );
+		image=>$item,
+		album=>$page,
+		prev_item=>$prev_item,
+		prev_page_url=>kalbum_get_value('img_page_url', $prev_item),
+		prev_thumb_url=>kalbum_get_value('thumb_url', $prev_item),
+		next_item=>$next_item,
+		next_page_url=>kalbum_get_value('img_page_url', $next_item),
+		next_thumb_url=>kalbum_get_value('thumb_url', $next_item),
+		first=>$first,
+		last=>$last,
+	    );
 	}
 
 	my $out = '';
 	if (@items)
 	{
 	    my $basename = IkiWiki::basename($page);
-	    $out .= IkiWiki::Plugin::report::preprocess(%params,
-							template=>($params{album_template}
-								   ? $params{album_template}
-								   : "kalbum"),
-							report_id=>($params{report_id}
-								    ? $params{report_id}
-								    : $basename),
-							albumdesc=>$params{albumdesc},
-							pages=>$pagespec,
-						       );
+	    $out .= make_index_pages(%params,
+		template=>($params{album_template}
+		    ? $params{album_template}
+		    : "kalbum"),
+		report_id=>($params{report_id}
+		    ? $params{report_id}
+		    : $basename),
+		albumdesc=>$params{albumdesc},
+		items => \@items,
+	    );
 	}
 	return $out;
     }
@@ -251,7 +302,6 @@ sub sanitize (@) {
     my $page = $params{page};
     my $content = $params{content};
 
-
     if (exists $pagestate{$page}{kalbum}{page_in_album_params}
 	and defined $pagestate{$page}{kalbum}{page_in_album_params}
 	and $page eq $params{destpage})
@@ -259,23 +309,45 @@ sub sanitize (@) {
 	my %page_params = %{$pagestate{$page}{kalbum}{page_in_album_params}};
 	my $caption = get_caption(%page_params);
 	my $img_basename = IkiWiki::basename($page);
-
-	# make the content
-	my $pout = '';
+	my $id = ($page_params{image_template}
+	    ? $page_params{image_template}
+	    : "kalbum_image"),
+	my $template;
 	eval {
-	    $pout = IkiWiki::Plugin::ftemplate::preprocess(%page_params,
-							   destpage=>'',
-							   id=>($page_params{image_template}
-								? $page_params{image_template}
-								: "kalbum_image"),
-							   image=>$page,
-							   image_basename=>$img_basename,
-							   caption=>$caption,
-							   is_image=>0,
-							   is_page=>1,
-							   page_content=>$content,
-							  );
+	    # Do this in an eval because it might fail
+	    # if the template isn't a page in the wiki
+	    $template=template_depends($id, $params{page},
+		blind_cache => 1);
 	};
+	if (! $template) {
+	    # look for .tmpl template (in global templates dir)
+	    eval {
+		$template=template("$id.tmpl",
+		    blind_cache => 1);
+	    };
+	    if ($@) {
+		error gettext("failed to process template $id.tmpl:")." $@";
+	    }
+	    if (! $template) {
+		error sprintf(gettext("%s not found"),
+		    htmllink($params{page}, $params{page},
+			"/templates/$id"));
+	    }
+	}
+	IkiWiki::Plugin::field::field_set_template_values($template,
+	    $params{page},
+	    %params,
+	    %page_params,
+	    destpage=>'',
+	    image=>$page,
+	    image_basename=>$img_basename,
+	    caption=>$caption,
+	    is_image=>0,
+	    is_page=>1,
+	    page_content=>$content,
+	);
+	my $pout = $template->output;
+
 	if (!$pout)
 	{
 	    $pout=<<EOT;
@@ -285,10 +357,7 @@ prev_item=$page_params{prev_item}
 next_item=$page_params{next_item}
 EOT
 	}
-	else
-	{
-	}
-	$content = $pout;
+	$content = IkiWiki::linkify($params{page}, $params{page}, $pout);
     }
     return $content;
 } # sanitize
@@ -351,23 +420,48 @@ sub create_image_page {
     my $target = targetpage('', $config{htmlext}, $new_page);
 
     my $is_image = ($image =~ $config{kalbum_image_regexp});
-    my $caption = get_caption(%params);
     my $img_basename = IkiWiki::basename($image);
-
-    # make the content
-    my $pout = '';
+    my $id = ($params{image_template}
+	? $params{image_template}
+	: "kalbum_image"),
+    my $template;
     eval {
-	$pout = IkiWiki::Plugin::ftemplate::preprocess(%params,
-		       destpage=>$new_page,
-		       id=>($params{image_template}
-			    ? $params{image_template}
-			    : "kalbum_image"),
-		       image=>$image,
-		       image_basename=>$img_basename,
-		       caption=>$caption,
-		       is_image=>$is_image,
-		      );
+	# Do this in an eval because it might fail
+	# if the template isn't a page in the wiki
+	$template=template_depends($id, $params{page},
+	    blind_cache => 1);
     };
+    if (! $template) {
+	# look for .tmpl template (in global templates dir)
+	eval {
+	    $template=template("$id.tmpl",
+		blind_cache => 1);
+	};
+	if ($@) {
+	    error gettext("failed to process template $id.tmpl:")." $@";
+	}
+	if (! $template) {
+	    error sprintf(gettext("%s not found"),
+		htmllink($params{page}, $params{page},
+		    "/templates/$id"));
+	}
+    }
+    $pagestate{$image}{kalbum}{img_page_url} = kalbum_get_value('img_page_url', $new_page);
+    $pagestate{$image}{kalbum}{title} = pagetitle(basename($new_page));
+
+    my %itemvals = %{$pagestate{$image}{kalbum}};
+
+    IkiWiki::Plugin::field::field_set_template_values($template,
+	$params{page},
+	%params,
+	%itemvals,
+	album=>$params{page},
+	image=>$image,
+	image_basename=>$img_basename,
+	is_image=>$is_image,
+    );
+    my $pout = $template->output;
+
     if (!$pout)
     {
 	$pout=<<EOT;
@@ -389,11 +483,182 @@ EOT
     writefile($target, $config{destdir}, $rep);
 } # create_image_page
 
-sub alter_existing_page {
+sub make_index_pages {
     my %params=@_;
-    my $this_page = $params{image};
- 
-} # alter_existing_page
+    my $template_id = $params{template};
+    my $report_id = $params{report_id};
+    my $albumdesc = $params{albumdesc};
+    my @items = @{$params{items}};
+
+    my $template;
+    eval {
+	# Do this in an eval because it might fail
+	# if the template isn't a page in the wiki
+	$template=template_depends($template_id, $params{page},
+	    blind_cache => 1);
+    };
+    if (! $template) {
+	# look for .tmpl template (in global templates dir)
+	eval {
+	    $template=template("$template_id.tmpl",
+		blind_cache => 1);
+	};
+	if ($@) {
+	    error gettext("failed to process template $template_id.tmpl:")." $@";
+	}
+	if (! $template) {
+	    error sprintf(gettext("%s not found"),
+		htmllink($params{page}, $params{page},
+		    "/templates/$template_id"));
+	}
+    }
+
+    my $start = ($params{start} ? $params{start} : 0);
+    my $stop = ($params{count}
+	? (($start + $params{count}) <= @items
+	    ? $start + $params{count}
+	    : scalar @items
+	)
+	: scalar @items);
+    my $output = '';
+    my $num_pages = 1;
+    if ($params{per_page})
+    {
+	my $num_recs = scalar @items;
+	$num_pages = ceil($num_recs / $params{per_page});
+    }
+    # Don't do pagination
+    # - when there's only one page
+    # - on included pages
+    if (($num_pages <= 1)
+	or ($params{page} ne $params{destpage}))
+    {
+	$output = make_single_index(%params,
+			       start=>$start,
+			       stop=>$stop,
+			       items=>\@items,
+			       template=>$template,
+			      );
+    }
+    else
+    {
+	$output = multi_page_index(%params,
+				    num_pages=>$num_pages,
+				    start=>$start,
+				    stop=>$stop,
+				    items=>\@items,
+				    template=>$template,
+				   );
+    }
+
+    return $output;
+} # make_index_pages
+
+sub make_single_index {
+    my %params=@_;
+
+    my $template = $params{template};
+    my $report_id = $params{report_id};
+    my $albumdesc = $params{albumdesc};
+    my @items = @{$params{items}};
+
+    my $start = $params{start};
+    my $stop = $params{stop};
+    my $out = '';
+    for (my $i = $start; $i <= $stop and $i < @items; $i++)
+    {
+	my $item = $items[$i];
+	my $first = ($i == $start);
+	my $last = ($i == ($stop - 1));
+	my %itemvals = %{$pagestate{$item}{kalbum}};
+	$template->clear_params();
+	IkiWiki::Plugin::field::field_set_template_values($template,
+	    $params{page},
+	    %params,
+	    %itemvals,
+	    image=>$item,
+	    first=>$first,
+	    last=>$last,
+	);
+	$out .= $template->output;
+    }
+    $out = IkiWiki::linkify($params{page}, $params{page}, $out) if $out;
+
+    return $out;
+} # make_single_index
+
+# Do a multi-page index.
+# This assumes that this is not an inlined page.
+sub multi_page_index (@) {
+    my %params = (
+		start=>0,
+		@_
+	       );
+
+    my @items = @{$params{items}};
+    my $template = $params{template};
+    my $num_pages = $params{num_pages};
+    my $first_page_is_index = $params{first_page_is_index};
+    my $report_title = ($params{report_title}
+			? sprintf("<h1>%s</h1>", $params{report_title})
+			: ''
+		       );
+
+    my $first_page_out = '';
+    for (my $pind = 0; $pind < $num_pages; $pind++)
+    {
+	my $page_title = ($pind == 0 ? '' : $report_title);
+	my $rep_links = IkiWiki::Plugin::report::create_page_links(%params,
+					  num_pages=>$num_pages,
+					  cur_page=>$pind,
+					  first_page_is_index=>$first_page_is_index);
+	my $start_at = $params{start} + ($pind * $params{per_page});
+	my $end_at = $params{start} + (($pind + 1) * $params{per_page});
+	my $pout = make_single_index(%params,
+			       start=>$start_at,
+			       stop=>$end_at,
+			       items=>\@items,
+			       template=>$template,
+			      );
+	$pout =<<EOT;
+<div class="report">
+$page_title
+$rep_links
+$pout
+$rep_links
+</div>
+EOT
+	if ($pind == 0 and !$first_page_is_index)
+	{
+	    $first_page_out = $pout;
+	}
+	else
+	{
+	    my $new_page = sprintf("%s_%d",
+				   ($params{report_id}
+				    ? $params{report_id} : 'report'),
+				   $pind + 1);
+	    my $target = targetpage($params{page}, $config{htmlext}, $new_page);
+	    will_render($params{page}, $target);
+	    my $rep = IkiWiki::linkify($params{page}, $new_page, $pout);
+
+	    # render as a simple page
+	    $rep = IkiWiki::Plugin::report::render_simple_page(%params,
+				      new_page=>$new_page,
+				      content=>$rep);
+	    writefile($target, $config{destdir}, $rep);
+	}
+    }
+    if ($first_page_is_index)
+    {
+	$first_page_out = IkiWiki::Plugin::report::create_page_links(%params,
+					    num_pages=>$num_pages,
+					    cur_page=>-1,
+					    first_page_is_index=>$first_page_is_index);
+    }
+
+    return $first_page_out;
+} # multi_page_report
 
 sub make_thumbnail {
     my %params=@_;
@@ -621,7 +886,7 @@ sub get_caption {
 	$user_cap .= $params{caption};
 	$user_cap .= ' ';
     }
-    if (exists $pagestate{$image}{kalbum}{caption}
+    elsif (exists $pagestate{$image}{kalbum}{caption}
 	and defined $pagestate{$image}{kalbum}{caption})
     {
 	$user_cap .= $pagestate{$image}{kalbum}{caption};
@@ -653,10 +918,6 @@ sub get_caption {
 	    if ($field eq 'caption' and $user_cap)
 	    {
 		my $fieldval = $user_cap;
-		# make the fieldval HTML-safe
-		$fieldval =~ s/&/&amp;/g;
-		$fieldval =~ s/</&lt;/g;
-		$fieldval =~ s/>/&gt;/g;
 		$fieldspec =~ s/%${field}%/$fieldval/g;
 		$items++;
 	    }
@@ -751,4 +1012,5 @@ sub is_page ($) {
     my $type=defined $source ? IkiWiki::pagetype($source) : undef;
     return (defined $type);
 } # is_page
+
 1

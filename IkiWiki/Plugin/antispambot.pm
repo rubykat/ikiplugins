@@ -1,6 +1,5 @@
 #!/usr/bin/perl
 # Ikiwiki antispambot plugin.
-# Substitute field values in the content of the page.
 package IkiWiki::Plugin::antispambot;
 
 use warnings;
@@ -81,6 +80,6 @@ sub process_mailto ($$$) {
     {
 	return "$label &lt;${user}${at}${spell_domain}&gt;";
     }
-} # get_field_value
+} # process_mailto
 
 1;

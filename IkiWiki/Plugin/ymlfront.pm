@@ -1,6 +1,4 @@
 #!/usr/bin/perl
-# YAML format for structured data
-# See plugins/contrib/ymlfront for documentation.
 package IkiWiki::Plugin::ymlfront;
 use warnings;
 use strict;
@@ -10,11 +8,18 @@ IkiWiki::Plugin::ymlfront - add YAML-format data to a page
 
 =head1 VERSION
 
-This describes version B<1.20110328> of IkiWiki::Plugin::ymlfront
+This describes version B<1.20110610> of IkiWiki::Plugin::ymlfront
 
 =cut
 
-our $VERSION = '1.20110328';
+our $VERSION = '1.20110610';
+
+=head1 DESCRIPTION
+
+This allows field-data to be defined in YAML format on a page.
+This is a back-end for the "field" plugin.
+
+See doc/plugins/contrib/ymlfront and ikiwiki/directive/ymlfront for docs.
 
 =head1 PREREQUISITES
 
@@ -29,7 +34,7 @@ our $VERSION = '1.20110328';
 
 =head1 COPYRIGHT
 
-Copyright (c) 2009 Kathryn Andersen
+Copyright (c) 2009-2011 Kathryn Andersen
 
 This program is free software; you can redistribute it and/or
 modify it under the same terms as Perl itself.

@@ -9,11 +9,11 @@ IkiWiki::Plugin::pmwiki - process pages written in PmWiki format.
 
 =head1 VERSION
 
-This describes version B<0.01> of IkiWiki::Plugin::pmwiki
+This describes version B<0.20110610> of IkiWiki::Plugin::pmwiki
 
 =cut
 
-our $VERSION = '0.01';
+our $VERSION = '0.20110610';
 
 =head1 SYNOPSIS
 

@@ -1,5 +1,4 @@
 #!/usr/bin/perl
-# One half of integration with taskwarrior tasks.
 package IkiWiki::Plugin::task;
 use warnings;
 use strict;
@@ -9,11 +8,16 @@ IkiWiki::Plugin::task - integration with taskwarrior.
 
 =head1 VERSION
 
-This describes version B<0.01> of IkiWiki::Plugin::task
+This describes version B<0.20110610> of IkiWiki::Plugin::task
 
 =cut
 
-our $VERSION = '0.01';
+our $VERSION = '0.20110610';
+
+=head1 DESCRIPTION
+
+This provides one half of integration with taskwarrior tasks.
+The other half is provided by an external script.
 
 =head1 PREREQUISITES
 
@@ -27,7 +31,7 @@ our $VERSION = '0.01';
 
 =head1 COPYRIGHT
 
-Copyright (c) 2009 Kathryn Andersen
+Copyright (c) 2009-2011 Kathryn Andersen
 
 This program is free software; you can redistribute it and/or
 modify it under the same terms as Perl itself.

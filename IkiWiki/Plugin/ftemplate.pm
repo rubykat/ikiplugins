@@ -1,7 +1,4 @@
 #!/usr/bin/perl
-# Structured template plugin.
-# This uses the "fields" plugin to look for values.
-# See plugins/contrib/ftemplate and ikiwiki/directive/ftemplate for docs.
 package IkiWiki::Plugin::ftemplate;
 use strict;
 =head1 NAME
@@ -11,6 +8,13 @@ IkiWiki::Plugin::ftemplate - field-aware structured template plugin
 =head1 VERSION
 
 This describes version B<1.20100519> of IkiWiki::Plugin::ftemplate
+
+=head1 DESCRIPTION
+
+This uses the "field" plugin to look for values for the template,
+as well as the passed-in values.
+
+See doc/plugins/contrib/ftemplate and ikiwiki/directive/ftemplate for docs.
 
 =cut
 
@@ -89,12 +93,6 @@ sub preprocess (@) {
     delete $params{template};
 
     $params{included}=($params{page} ne $params{destpage});
-
-    # The reason we check the template for field names is because we
-    # don't know what fields the registered plugins provide; and this is
-    # reasonable because for some plugins (e.g. a YAML data plugin) they
-    # have no way of knowing, ahead of time, what fields they might be
-    # able to provide.
 
     IkiWiki::Plugin::field::field_set_template_values($template, $params{page});
 

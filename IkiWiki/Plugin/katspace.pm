@@ -1,9 +1,45 @@
 #!/usr/bin/perl
 # Ikiwiki katspace plugin; common customizations for my IkiWikis.
 package IkiWiki::Plugin::katspace;
-
 use warnings;
 use strict;
+=head1 NAME
+
+IkiWiki::Plugin::katspace - customizations for the KatSpace site
+
+=head1 VERSION
+
+This describes version B<1.20110610> of IkiWiki::Plugin::katspace
+
+=cut
+
+our $VERSION = '1.20110610';
+
+=head1 PREREQUISITES
+
+    IkiWiki
+    File::Basename
+    HTML::LinkList
+    Sort::Naturally
+    Fcntl
+    Tie::File
+    DBM::Deep
+    YAML::Any
+    IkiWiki::Plugin::field
+
+=head1 AUTHOR
+
+    Kathryn Andersen (RUBYKAT)
+    http://github.com/rubykat
+
+=head1 COPYRIGHT
+
+Copyright (c) 2009-2011 Kathryn Andersen
+
+This program is free software; you can redistribute it and/or
+modify it under the same terms as Perl itself.
+
+=cut
 use IkiWiki 3.00;
 use File::Basename;
 use HTML::LinkList qw(link_list nav_tree);
@@ -63,9 +99,7 @@ sub import {
 
     IkiWiki::loadplugin("field");
     IkiWiki::Plugin::field::field_register(id=>'katspace',
-	all_values=>\&all_katspace_vars);
-    IkiWiki::Plugin::field::field_register_calculation(id=>'tarball',
-	call=>\&tool_tarball);
+	all_values=>\&all_katspace_vars, last=>1);
 
 }
 
@@ -85,69 +119,26 @@ sub getsetup () {
 #-------------------------------------------------------
 sub all_katspace_vars (@) {
     my %params=@_;
+    my $page = $params{page};
 
     my %values = ();
-    foreach my $fn (qw(navbar year month monthname winfandom winrating wintype windescription wintiefandom wintierating wintietype wintiedescription bunnycount fandomlist))
+    $values{navbar} = do_navbar($page);
+
+    if ($page =~ /ficathon/)
     {
-	$values{$fn} = katspace_vars($fn, $params{page});
+	foreach my $wt (qw(win tie))
+	{
+	    foreach my $fn (qw(fandom rating type description))
+	    {
+		$values{"${wt}${fn}"} = do_finishathon_winners($wt, $fn, $page, wantarray);
+	    }
+	}
+	$values{bunnycount} = do_finishathon_bunny_count($page, wantarray);
+	$values{fandomlist} = do_finishathon_fandom_list($page, wantarray);
     }
+
     return \%values;
 } # all_katspace_vars
-
-sub katspace_vars ($$;$) {
-    my $field_name = shift;
-    my $page = shift;
-
-    my $value = undef;
-    if ($field_name eq 'navbar')
-    {
-	$value = do_navbar($page);
-    }
-    elsif ($field_name =~ /^year$/i)
-    {
-	$value =
-	    IkiWiki::Plugin::field::field_get_value('FicDate.year',$page);
-    }
-    elsif ($field_name =~ /^month$/i)
-    {
-	$value =
-	    IkiWiki::Plugin::field::field_get_value('FicDate.month',$page);
-    }
-    elsif ($field_name =~ /^monthname$/i)
-    {
-	$value =
-	    IkiWiki::Plugin::field::field_get_value('FicDate.monthname',$page);
-    }
-    elsif ($field_name =~ /^(win(?:tie)?)(fandom|rating|type|description)/oi)
-    {
-	return do_finishathon_winners($1, $2, $page, wantarray);
-    }
-    elsif ($field_name eq 'bunnycount')
-    {
-	return do_finishathon_bunny_count($page, wantarray);
-    }
-    elsif ($field_name eq 'fandomlist')
-    {
-	return do_finishathon_fandom_list($page, wantarray);
-    }
-    if (defined $value)
-    {
-	return (wantarray ? ($value) : $value);
-    }
-    return undef;
-} # katspace_vars
-
-sub tool_tarball ($$) {
-    my %params=@_;
-    my $page = $params{page};
-    my $proj = $params{value};
-
-    my $page_file=srcfile($pagesources{$page}) || return '';
-    my $dir = dirname($page_file) . '/' . IkiWiki::basename($page);
-    my $tb = `ls $dir/${proj}*.tar.gz`;
-    $tb = basename($tb);
-    return $tb;
-} # tool_tarball
 
 sub do_navbar ($$) {
     my $page = shift;

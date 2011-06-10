@@ -1,7 +1,7 @@
 #!/usr/bin/perl
 #
 # Produce a hierarchical map of links.
-# Uses HTML::LinkList and DBM::Deep
+# Uses HTML::LinkList
 #
 # based on map by Alessandro Dotti Contra <alessandro@hyboria.org>
 #

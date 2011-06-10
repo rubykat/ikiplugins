@@ -1,9 +1,47 @@
 #!/usr/bin/perl
 # HTML as a wiki page type.
 package IkiWiki::Plugin::xhtm;
-
 use warnings;
 use strict;
+=head1 NAME
+
+IkiWiki::Plugin::xhtm - HTML as a wiki page type
+
+=head1 VERSION
+
+This describes version B<1.20110610> of IkiWiki::Plugin::xhtm
+
+=cut
+
+our $VERSION = '1.20110610';
+
+=head1 DESCRIPTION
+
+Allows one to use a full HTML page as an input page; unlike the rawhtml
+plugin, it doesn't just pass the page on untouched, and unlike the html
+plugin, it does parse the body content out of the page, so one gets
+a semantically correct page.
+
+See doc/plugin/contrib/xhtm for documentation.
+
+=head1 PREREQUISITES
+
+    IkiWiki
+    IkiWiki::Plugin::meta
+
+=head1 AUTHOR
+
+    Kathryn Andersen (RUBYKAT)
+    http://github.com/rubykat
+
+=head1 COPYRIGHT
+
+Copyright (c) 2009-2011 Kathryn Andersen
+
+This program is free software; you can redistribute it and/or
+modify it under the same terms as Perl itself.
+
+=cut
 use IkiWiki 3.00;
 
 my %PageHeads;

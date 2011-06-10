@@ -1,9 +1,45 @@
 #!/usr/bin/perl
-# Ikiwiki katplay plugin; customizations for KatPlay
 package IkiWiki::Plugin::katplay;
-
 use warnings;
 use strict;
+=head1 NAME
+
+IkiWiki::Plugin::katplay - customizations for the KatPlay site
+
+=head1 VERSION
+
+This describes version B<1.20110610> of IkiWiki::Plugin::katplay
+
+=cut
+
+our $VERSION = '1.20110610';
+
+=head1 PREREQUISITES
+
+    IkiWiki
+    File::Basename
+    HTML::LinkList
+    Sort::Naturally
+    Fcntl
+    Tie::File
+    DBM::Deep
+    YAML::Any
+    IkiWiki::Plugin::field
+
+=head1 AUTHOR
+
+    Kathryn Andersen (RUBYKAT)
+    http://github.com/rubykat
+
+=head1 COPYRIGHT
+
+Copyright (c) 2009-2011 Kathryn Andersen
+
+This program is free software; you can redistribute it and/or
+modify it under the same terms as Perl itself.
+
+=cut
+
 use IkiWiki 3.00;
 use File::Basename;
 use HTML::LinkList qw(link_list nav_tree);
@@ -58,7 +94,7 @@ sub getsetup () {
 #-------------------------------------------------------
 sub katplay_vars (@) {
     my %params=@_;
-    my $page = $parsms{page};
+    my $page = $params{page};
 
     my %values = ();
     $values{navbar} = do_navbar($page);

@@ -1,9 +1,38 @@
 #!/usr/bin/perl
 # Ikiwiki common_custom plugin; common customizations for my IkiWikis.
 package IkiWiki::Plugin::common_custom;
-
 use warnings;
 use strict;
+=head1 NAME
+
+IkiWiki::Plugin::common_custom - a bunch of personal customizations.
+
+=head1 VERSION
+
+This describes version B<1.20110610> of IkiWiki::Plugin::common_custom
+
+=cut
+
+our $VERSION = '1.20110610';
+
+=head1 PREREQUISITES
+
+    IkiWiki
+    File::Basename
+
+=head1 AUTHOR
+
+    Kathryn Andersen (RUBYKAT)
+    http://github.com/rubykat
+
+=head1 COPYRIGHT
+
+Copyright (c) 2009-2011 Kathryn Andersen
+
+This program is free software; you can redistribute it and/or
+modify it under the same terms as Perl itself.
+
+=cut
 use IkiWiki 3.00;
 use File::Basename;
 
@@ -140,97 +169,80 @@ sub all_common_vars ($$) {
     my $page = shift;
 
     my %values = ();
-    foreach my $key (qw(pageterm namespaced namespaced_no_ext title base_no_ext name_a title_a local_css local_css2))
-    {
-	my $val = common_vars($key, $page);
-	if (defined $val)
-	{
-	    $values{$key} = $val;
-	}
-    }
-    return \%values;
-} # all_common_vars
+    my $basename = pagetitle(basename($page));
 
-sub common_vars ($$) {
-    my $field_name = shift;
-    my $page = shift;
+    # pagename as search term
+    my $term = $basename;
+    $term =~ s#_#+#g;
+    $values{pageterm} = $term;
 
-    my $value = undef;
-    if ($field_name eq 'pageterm')
+    my $namespaced = $basename;
+    $namespaced =~ s#_# #g;
+    $namespaced =~ s#-# #g;
+    $namespaced =~ s/([-\w]+)/\u\L$1/g;
+    $values{namespaced} = $namespaced;
+    
+    $namespaced = $basename;
+    $namespaced =~ s/\.\w+$//;
+    $namespaced =~ s#_# #g;
+    $namespaced =~ s#-# #g;
+    $namespaced =~ s/([-\w]+)/\u\L$1/g;
+    $values{namespaced_no_ext} = $namespaced;
+
+    if (not exists $pagestate{$page}{meta}{title})
     {
-	# pagename as search term
-	my $term = pagetitle(basename($page));
-	$term =~ s#_#+#g;
-	$value = $term;
-    }
-    elsif ($field_name eq 'namespaced')
-    {
-	my $namespaced = pagetitle(basename($page));
-	$namespaced =~ s#_# #g;
-	$namespaced =~ s#-# #g;
-	$namespaced =~ s/([-\w]+)/\u\L$1/g;
-	$value = $namespaced;
-    }
-    elsif ($field_name eq 'namespaced_no_ext')
-    {
-	my $namespaced = pagetitle(basename($page));
-	$namespaced =~ s/\.\w+$//;
-	$namespaced =~ s#_# #g;
-	$namespaced =~ s#-# #g;
-	$namespaced =~ s/([-\w]+)/\u\L$1/g;
-	$value = $namespaced;
-    }
-    elsif ($field_name eq 'title'
-	   and not exists $pagestate{$page}{meta}{title})
-    {
-	my $title = pagetitle(basename($page));
+	my $title = $basename;
 	$title =~ s#_# #g;
 	$title =~ s#-# #g;
 	$title =~ s/([-\w]+)/\u\L$1/g;
-	$value = $title;
+	$values{title} = $title;
     }
-    elsif ($field_name eq 'base_no_ext')
-    {
-	my $basename = IkiWiki::basename($page);
-	$basename =~ s/\.\w+$//;
-	$value = $basename;
-    }
-    elsif ($field_name eq 'local_css')
-    {
-	if (exists $config{local_css}
+
+    $values{name_a} = uc(substr($basename, 0, 1));
+
+    my $bn = $basename;
+    $bn =~ s/\.\w+$//;
+    $values{base_no_ext} = $bn;
+
+    if (exists $config{local_css}
 	    and defined $config{local_css})
+    {
+	foreach my $ps (sort keys %{$config{local_css}})
 	{
-	    foreach my $ps (sort keys %{$config{local_css}})
+	    if (pagespec_match($page, $ps))
 	    {
-		if (pagespec_match($page, $ps))
-		{
-		    $value = $config{local_css}{$ps};
-		    last;
-		}
+		$values{local_css} = $config{local_css}{$ps};
+		last;
 	    }
 	}
     }
-    elsif ($field_name eq 'local_css2')
-    {
-	if (exists $config{local_css2}
+
+    if (exists $config{local_css2}
 	    and defined $config{local_css2})
+    {
+	foreach my $ps (sort keys %{$config{local_css2}})
 	{
-	    foreach my $ps (sort keys %{$config{local_css2}})
+	    if (pagespec_match($page, $ps))
 	    {
-		if (pagespec_match($page, $ps))
-		{
-		    $value = $config{local_css2}{$ps};
-		    last;
-		}
+		$values{local_css2} = $config{local_css2}{$ps};
+		last;
 	    }
 	}
     }
-    if (defined $value)
+
+    if ($IkiWiki::pagemtime{$page})
     {
-	return (wantarray ? ($value) : $value);
+	my $mtime = IkiWiki::date_3339($IkiWiki::pagemtime{$page});
+	$values{plain_mtime} = $mtime;
     }
-    return undef;
-} # common_vars
+    if ($IkiWiki::pagectime{$page})
+    {
+	my $ctime = IkiWiki::date_3339($IkiWiki::pagectime{$page});
+	$values{plain_ctime} = $ctime;
+    }
+
+    return \%values;
+} # all_common_vars
 
 sub common_vars_calc (@) {
     my %params=@_;
@@ -274,7 +286,9 @@ sub common_vars_calc (@) {
 	    }
 	}
     }
-    elsif ($calc_id eq 'monthname')
+    elsif ($calc_id eq 'monthname'
+	    and defined $value
+	    and $value =~ /^\d+$/)
     {
 	my $month = $value;
 	$value = gettext($month == 1
@@ -350,5 +364,19 @@ sub match_links_from ($$;@) {
     return IkiWiki::FailReason->new("$link_page does not link to $page", "" => 1);
 } # match_links_from
 
+# ===============================================
+# SortSpec functions
+# ---------------------------
+package IkiWiki::SortSpec;
+
+sub cmp_page {
+
+    my $left = $a;
+    my $right = $b;
+
+    $left = "" unless defined $left;
+    $right = "" unless defined $right;
+    return $left cmp $right;
+}
 
 1;

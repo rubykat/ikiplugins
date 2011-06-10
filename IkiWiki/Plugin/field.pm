@@ -1,20 +1,26 @@
 #!/usr/bin/perl
 # Ikiwiki field plugin.
-# See doc/plugin/contrib/field.mdwn for documentation.
 package IkiWiki::Plugin::field;
 use warnings;
 use strict;
 =head1 NAME
 
-IkiWiki::Plugin::field - front-end for per-page record fields.
+IkiWiki::Plugin::field - middle-end for per-page record fields.
 
 =head1 VERSION
 
-This describes version B<1.20110217> of IkiWiki::Plugin::field
+This describes version B<1.20110610> of IkiWiki::Plugin::field
 
 =cut
 
-our $VERSION = '1.20110217';
+our $VERSION = '1.20110610';
+
+=head1 DESCRIPTION
+
+Used by other plugins as an interface; treats each page as
+a record which can have multiple fields.
+
+See doc/plugin/contrib/field.mdwn for documentation.
 
 =head1 PREREQUISITES
 
@@ -27,7 +33,7 @@ our $VERSION = '1.20110217';
 
 =head1 COPYRIGHT
 
-Copyright (c) 2009-2010 Kathryn Andersen
+Copyright (c) 2009-2011 Kathryn Andersen
 
 This program is free software; you can redistribute it and/or
 modify it under the same terms as Perl itself.
@@ -35,7 +41,6 @@ modify it under the same terms as Perl itself.
 =cut
 
 use IkiWiki 3.00;
-use YAML::Any;
 
 my %Fields = (
     _first => {
@@ -279,25 +284,11 @@ sub field_get_value ($$;@) {
     # The actual field name must be the first part.
     my @actions = split(/\./, lc($field_name));
 
+    my $page_type = pagetype($pagesources{$page});
+
     my $lc_field_name = shift @actions;
 
-    if ($config{field_allow_config}
-	    and $lc_field_name =~ /^config-(.*)/)
-    {
-	my $real_key = $1;
-	if (exists $config{$real_key})
-	{
-	    if (!ref $config{$real_key})
-	    {
-		return $config{$real_key};
-	    }
-	    elsif (ref $config{$real_key} eq 'ARRAY')
-	    {
-		return $config{$real_key};
-	    }
-	}
-    }
-    elsif (exists $params{$lc_field_name})
+    if (exists $params{$lc_field_name})
     {
 	my $value = $params{$lc_field_name};
 	if (@actions)
@@ -460,9 +451,12 @@ sub remember_values (@) {
 			push @{$values{"${lc_key}_loop"}}, {$lc_key => $v};
 		    }
 		    # When HTML-izing an array, make it a list
-		    $values{"${lc_key}_html"} = IkiWiki::htmlize($page, $page,
-			$page_type,
+		    if ($page_type)
+		    {
+			$values{"${lc_key}_html"} = IkiWiki::htmlize($page, $page,
+			    $page_type,
 			"\n\n* " . join("\n* ", @{$vals{$key}}) . "\n");
+		    }
 		}
 		elsif (!ref $vals{$key})
 		{
@@ -470,9 +464,11 @@ sub remember_values (@) {
 		    if (defined $vals{$key})
 		    {
 			$values{"${lc_key}_loop"} = [{$lc_key => $vals{$key}}];
-			$values{"${lc_key}_html"} =
-			IkiWiki::htmlize($page, $page,
-			    $page_type, $vals{$key});
+			if ($page_type)
+			{
+			    $values{"${lc_key}_html"} =
+			    IkiWiki::htmlize($page, $page, $page_type, $vals{$key});
+			}
 		    }
 		}
 	    }
@@ -595,16 +591,19 @@ sub field_add_calculated_values {
 		    push @{$pagestate{$page}{field}{"${key}_loop"}}, {$key => $v};
 		}
 		# When HTML-izing an array, make it a list
-		$pagestate{$page}{field}{"${key}_html"} =
-		IkiWiki::htmlize($page, $page,
-		    $page_type,
-		    "\n*" . join("\n* ", @{$val}));
+		if ($page_type)
+		{
+		    $pagestate{$page}{field}{"${key}_html"} =
+		    IkiWiki::htmlize($page, $page,
+			$page_type,
+			"\n*" . join("\n* ", @{$val}));
+		}
 	    }
 	    elsif (!ref $val)
 	    {
 		$pagestate{$page}{field}{$key} = $val;
 		$pagestate{$page}{field}{"${key}_loop"} = [{$key=>$val}];
-		if ($val)
+		if ($val and $page_type)
 		{
 		    $pagestate{$page}{field}{"${key}_html"} =
 		    IkiWiki::htmlize($page, $page,
@@ -643,6 +642,18 @@ sub field_add_calculated_values {
 	    my $link = $config{field_tags}{$key} . '/' . $val;
 	    $pagestate{$page}{field}{"${lc_key}-tagpage"} = $link;
 	    $pagestate{$page}{field}{"${lc_key}_loop"} = [{$lc_key=>$link}];
+	}
+    }
+    # config - just remember the scalars
+    if ($config{field_allow_config})
+    {
+	foreach my $key (keys %config)
+	{
+	    my $lc_key = lc($key);
+	    if (!ref $config{$key})
+	    {
+		$pagestate{$page}{field}{"config-${lc_key}"} = $config{$key};
+	    }
 	}
     }
 } # field_add_calculated_values
@@ -706,7 +717,7 @@ sub match_a_field ($$) {
     # The field name is first; the rest is the match
     my $field_name;
     my $glob;
-    if ($wanted =~ /^(\w+)\s+(.*)$/o)
+    if ($wanted =~ /^(\w+)\s+(.+)$/o)
     {
 	$field_name = $1;
 	$glob = $2;
@@ -752,7 +763,7 @@ sub match_a_field_item ($$) {
     # The field name is first; the rest is the match
     my $field_name;
     my $glob;
-    if ($wanted =~ /^(\w+)\s+(.*)$/o)
+    if ($wanted =~ /^(\w+)\s+(.+)$/o)
     {
 	$field_name = $1;
 	$glob = $2;

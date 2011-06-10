@@ -7,11 +7,20 @@ IkiWiki::Plugin::report - Produce templated reports from page field data.
 
 =head1 VERSION
 
-This describes version B<1.20110217> of IkiWiki::Plugin::report
+This describes version B<1.20110610> of IkiWiki::Plugin::report
 
 =cut
 
-our $VERSION = '1.20110217';
+our $VERSION = '1.20110610';
+
+=head1 DESCRIPTION
+
+Given a template, make a report from the field values of multiple pages.
+Depends on the "field" plugin.
+Can also make multi-page reports.
+
+See doc/plugins/contrib/report and doc/ikiwiki/directive/report
+for documentation.
 
 =head1 PREREQUISITES
 
@@ -19,6 +28,7 @@ our $VERSION = '1.20110217';
     IkiWiki::Plugin::field
     HTML::Template
     Encode
+    POSIX
 
 =head1 AUTHOR
 
@@ -27,7 +37,7 @@ our $VERSION = '1.20110217';
 
 =head1 COPYRIGHT
 
-Copyright (c) 2009 Kathryn Andersen
+Copyright (c) 2009-2011 Kathryn Andersen
 
 This program is free software; you can redistribute it and/or
 modify it under the same terms as Perl itself.
@@ -224,6 +234,12 @@ sub preprocess (@) {
 	    }
 	} # for all matching pages
 	@matching_pages = @here_only;
+	# If there is only one match, the dest_page, then
+	# declare there to be no matches at all
+	if (@matching_pages == 1 and $matching_pages[0] eq $dest_page)
+	{
+	    @matching_pages = ();
+	}
     }
 
     # Only add dependencies when using trails IF we found matches
@@ -404,10 +420,14 @@ sub create_page_links {
     my $next_link = '';
     my $report_base = ($params{report_id}
 		       ? $params{report_id} : 'report');
+    debug(sprintf("cpl: page=%s, first_page_is_index=%d",
+	    $params{page},
+	    $first_page_is_index));
     my @page_links = ();
     for (my $pind = ($first_page_is_index ? -1 : 0);
 	 $pind < $params{num_pages}; $pind++)
     {
+	debug(sprintf("cpl: pind=%s", $pind));
 	if ($pind == $params{cur_page}
 	    and $pind == -1)
 	{
@@ -426,9 +446,22 @@ sub create_page_links {
 	    }
 	    if ($pind > 0)
 	    {
-		$prev_link =
+		if ($pind == 1 and !$first_page_is_index)
+		{
+		    $prev_link = sprintf(' <a href="%s">&lt;- Prev</a> ',
+			($config{usedirs}
+			    ? './'
+			    : '../' . IkiWiki::basename($params{page})
+			    . '.' . $config{htmlext}),
+		    );
+		}
+		else
+		{
+		    $prev_link =
 		    sprintf(' <a href="%s_%d.%s">&lt;- Prev</a> ',
-			    $report_base, $pind, $config{htmlext});
+			$report_base, $pind, $config{htmlext});
+		}
+		debug(sprintf("cpl: prev_link=%s", $prev_link));
 	    }
 	}
 	elsif ($pind == -1)
@@ -475,6 +508,7 @@ sub render_simple_page (@) {
     # render as a simple page
     # cargo-culted from IkiWiki::Render::genpage
     my $ptmpl = IkiWiki::template('page.tmpl', blind_cache=>1);
+    $ptmpl->param(%{$pagestate{$params{page}}{field}});
     $ptmpl->param(
 		  title => IkiWiki::pagetitle(IkiWiki::basename($new_page)),
 		  wikiname => $config{wikiname},
@@ -484,7 +518,7 @@ sub render_simple_page (@) {
 
     IkiWiki::run_hooks(pagetemplate => sub {
 		       shift->(%params,
-			       page => $params{page},
+			       page => $new_page,
 			       destpage => $new_page,
 			       template => $ptmpl);
 		       });
