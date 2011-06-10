@@ -1,10 +1,37 @@
 #!/usr/bin/perl
-package IkiWiki::Plugin::subset;
-# Ikiwiki PageSpec cache plugin.
 # See doc/plugin/contrib/subset.mdwn for documentation.
-
+package IkiWiki::Plugin::subset;
 use warnings;
 use strict;
+=head1 NAME
+
+IkiWiki::Plugin::subset - define and remember an often-used PageSpec, a subset of pages
+
+=head1 VERSION
+
+This describes version B<1.20110610> of IkiWiki::Plugin::subset
+
+=cut
+
+our $VERSION = '1.20110610';
+
+=head1 PREREQUISITES
+
+    IkiWiki
+
+=head1 AUTHOR
+
+    Kathryn Andersen (RUBYKAT)
+    http://github.com/rubykat
+
+=head1 COPYRIGHT
+
+Copyright (c) 2009-2010 Kathryn Andersen
+
+This program is free software; you can redistribute it and/or
+modify it under the same terms as Perl itself.
+
+=cut
 use IkiWiki 3.00;
 
 my %OrigSubs = ();
