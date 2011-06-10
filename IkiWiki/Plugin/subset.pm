@@ -75,22 +75,12 @@ sub preprocess_subset (@) {
     }
 
     my $key = $params{name};
-    $pagestate{$params{page}}{subset}{name}{$key} = $params{pages};
-    $pagestate{$params{page}}{subset}{matches}{$key} = undef;
-    $pagestate{$params{page}}{subset}{sort}{$key} = $params{sort} if exists $params{sort};
-    {
-	no strict 'refs';
-	no warnings 'redefine';
-
-	my $subname = "IkiWiki::PageSpec::match_$key";
-	*{ $subname } = sub {
-	    my $path = shift;
-	    return IkiWiki::pagespec_match($path, $params{pages});
-	}
-    }
+    $wikistate{subset}{name}{$key} = $params{pages};
+    $wikistate{subset}{matches}{$key} = undef;
+    $wikistate{subset}{sort}{$key} = $params{sort} if exists $params{sort};
 
     #This is used to display what subsets are defined.
-    return sprintf(gettext("<b>%s()</b>: `%s`"),
+    return sprintf(gettext("<b>subset(%s)</b>: `%s`"),
 	$params{name}, $params{pages});
 }
 
@@ -103,33 +93,70 @@ sub subset_pagespec_match_list ($$;@) {
     my $pagespec=shift;
     my %params=@_;
 
+    # if there's a list, use it immediately
     if (exists $params{list})
     {
 	return $OrigSubs{pagespec_match_list}->($page, $pagespec, %params);
     }
-    elsif (exists $params{subset}
-	    and exists $pagestate{$config{subset_page}}{subset}{name}{$params{subset}})
+
+    my $subset_id = '';
+    # if "subset" is the first thing in the pagespec
+    if ($pagespec =~ /^subset\((\w+)\)\s+and\s+(.*)$/so)
     {
-	my @subset;
-	my $subset_spec = $params{subset};
+	$subset_id = $1;
+	$pagespec = $2;
+    }
+    elsif ($pagespec =~ /^subset\((\w+)\)\s*$/so)
+    {
+	$subset_id = $1;
+	$pagespec = '';
+    }
+    elsif (exists $params{subset}) # if there's a separate "subset" param
+    {
+	$subset_id = $params{subset};
 	delete $params{subset};
-	if (defined $pagestate{$config{subset_page}}{subset}{matches}{$subset_spec})
+    }
+
+    if ($subset_id and exists $wikistate{subset}{name}{$subset_id})
+    {
+	# Subset sorting:
+	# Since a subset is stored as an array, it has an order.
+	# If we don't want to have to keep on re-sorting the subset,
+	# we can define a default sort for it, sort it once,
+	# and only re-sort the results if the requested sort
+	# is different from the default sort.
+	
+	my @subset;
+	if (defined $wikistate{subset}{matches}{$subset_id})
 	{
-	    @subset = @{$pagestate{$config{subset_page}}{subset}{matches}{$subset_spec}};
+	    @subset = @{$wikistate{subset}{matches}{$subset_id}};
+
+	    # Don't re-sort the results if the requested sort
+	    # is the same as the default sort.
+	    if (exists $wikistate{subset}{sort}{$subset_id}
+		    and exists $params{sort}
+		    and $params{sort} eq $wikistate{subset}{sort}{$subset_id})
+	    {
+		delete $params{sort};
+	    }
 	}
 	else
 	{
 	    my $old_sort;
-	    if (exists $pagestate{$config{subset_page}}{subset}{sort}{$subset_spec})
+	    if (exists $wikistate{subset}{sort}{$subset_id})
 	    {
-		$old_sort = $params{sort};
-		$params{sort} = $pagestate{$config{subset_page}}{subset}{sort}{$subset_spec};
+		if ( exists $params{sort}
+			and $params{sort} ne $wikistate{subset}{sort}{$subset_id})
+		{
+		    $old_sort = $params{sort};
+		}
+		$params{sort} = $wikistate{subset}{sort}{$subset_id};
 	    }
 	    @subset = $OrigSubs{pagespec_match_list}->($page,
-		"${subset_spec}()",
+		"subset(${subset_id})",
 		deptype=>deptype('presence'),
 		%params);
-	    $pagestate{$config{subset_page}}{subset}{matches}{$subset_spec} = \@subset;
+	    $wikistate{subset}{matches}{$subset_id} = \@subset;
 	    if ($old_sort)
 	    {
 		$params{sort} = $old_sort;
@@ -139,11 +166,38 @@ sub subset_pagespec_match_list ($$;@) {
 		delete $params{sort};
 	    }
 	}
-	return $OrigSubs{pagespec_match_list}->($page, $pagespec, %params,
-	    list=>\@subset);
+	if ($pagespec)
+	{
+	    return $OrigSubs{pagespec_match_list}->($page, $pagespec, %params,
+		list=>\@subset);
+	}
+	else # empty pagespec means we just want the subset
+	{
+	    return @subset;
+	}
     }
 
     return $OrigSubs{pagespec_match_list}->($page, $pagespec, %params);
 } # subset_pagespec_match_list
+
+# ===============================================
+# PageSpec functions
+# ---------------------------
+
+package IkiWiki::PageSpec;
+
+sub match_subset ($$;@) {
+    my $page=shift;
+    my $subset=shift;
+
+    if (exists $IkiWiki::wikistate{subset}{name}{$subset})
+    {
+	return IkiWiki::pagespec_match($page, $IkiWiki::wikistate{subset}{name}{$subset});
+    }
+    else
+    {
+	return IkiWiki::FailReason->new("subset ($subset) not defined");
+    }
+} # match_subset
 
 1
