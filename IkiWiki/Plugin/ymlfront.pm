@@ -1,6 +1,4 @@
 #!/usr/bin/perl
-# YAML format for structured data
-# See plugins/contrib/ymlfront for documentation.
 package IkiWiki::Plugin::ymlfront;
 use warnings;
 use strict;
@@ -10,11 +8,18 @@ IkiWiki::Plugin::ymlfront - add YAML-format data to a page
 
 =head1 VERSION
 
-This describes version B<1.20110328> of IkiWiki::Plugin::ymlfront
+This describes version B<1.20110610> of IkiWiki::Plugin::ymlfront
 
 =cut
 
-our $VERSION = '1.20110328';
+our $VERSION = '1.20110610';
+
+=head1 DESCRIPTION
+
+This allows field-data to be defined in YAML format on a page.
+This is a back-end for the "field" plugin.
+
+See doc/plugins/contrib/ymlfront and ikiwiki/directive/ymlfront for docs.
 
 =head1 PREREQUISITES
 
@@ -29,7 +34,7 @@ our $VERSION = '1.20110328';
 
 =head1 COPYRIGHT
 
-Copyright (c) 2009 Kathryn Andersen
+Copyright (c) 2009-2011 Kathryn Andersen
 
 This program is free software; you can redistribute it and/or
 modify it under the same terms as Perl itself.
@@ -42,12 +47,12 @@ sub import {
 	hook(type => "checkconfig", id => "ymlfront", call => \&checkconfig);
 	hook(type => "filter", id => "ymlfront", call => \&filter, first=>1);
 	hook(type => "preprocess", id => "ymlfront", call => \&preprocess, scan=>1);
-	hook(type => "scan", id => "ymlfront", call => \&scan);
+    #hook(type => "scan", id => "ymlfront", call => \&scan);
 	hook(type => "checkcontent", id => "ymlfront", call => \&checkcontent);
 
 	IkiWiki::loadplugin('field');
 	IkiWiki::Plugin::field::field_register(id=>'ymlfront',
-					       call=>\&yml_get_value,
+					       all_values=>\&yml_get_values,
 					       first=>1);
 }
 
@@ -77,8 +82,8 @@ sub getsetup () {
 }
 
 sub checkconfig () {
-    eval q{use YAML::Any};
-    eval q{use YAML} if $@;
+    eval {use YAML::Any};
+    eval {use YAML} if $@;
     if ($@)
     {
 	return error ("ymlfront: failed to use YAML::Any or YAML");
@@ -97,7 +102,6 @@ sub checkconfig () {
     }
 } # checkconfig
 
-# scan gets called before filter
 sub scan (@) {
     my %params=@_;
     my $page = $params{page};
@@ -265,6 +269,26 @@ sub checkcontent {
 # ------------------------------------------------------------
 # Field functions
 # --------------------------------
+sub yml_get_values (@) {
+    my %params=@_;
+    my $page = $params{page};
+
+    my $page_file=$pagesources{$page} || return;
+    my $page_type=pagetype($page_file);
+    if (!defined $page_type)
+    {
+	return;
+    }
+    my $extracted_yml = extract_yml(%params);
+    if (defined $extracted_yml
+	and defined $extracted_yml->{yml})
+    {
+	my $parsed_yml = parse_yml(%params, data=>$extracted_yml->{yml});
+	return $parsed_yml;
+    }
+    return undef;
+} # yml_get_values
+
 sub yml_get_value ($$) {
     my $field_name = shift;
     my $page = shift;
@@ -345,7 +369,7 @@ sub extract_yml {
 	$yml_str =~ s/\{\{\$page\}\}/$page/sg;
 
 	my $ydata;
-	eval q{$ydata = Load($yml_str);};
+	eval {$ydata = Load($yml_str);};
 	if ($@)
 	{
 	    debug("ymlfront: Load of $page data failed: $@");
@@ -376,7 +400,7 @@ sub parse_yml {
 	$yml_str =~ s/\{\{\$page\}\}/$page/sg;
 
 	my $ydata;
-	eval q{$ydata = Load($yml_str);};
+	eval {$ydata = Load($yml_str);};
 	if ($@)
 	{
 	    debug("ymlfront parse: Load of $page data failed: $@");

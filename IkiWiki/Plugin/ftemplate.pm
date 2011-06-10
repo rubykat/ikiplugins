@@ -1,7 +1,4 @@
 #!/usr/bin/perl
-# Structured template plugin.
-# This uses the "fields" plugin to look for values.
-# See plugins/contrib/ftemplate and ikiwiki/directive/ftemplate for docs.
 package IkiWiki::Plugin::ftemplate;
 use strict;
 =head1 NAME
@@ -11,6 +8,13 @@ IkiWiki::Plugin::ftemplate - field-aware structured template plugin
 =head1 VERSION
 
 This describes version B<1.20100519> of IkiWiki::Plugin::ftemplate
+
+=head1 DESCRIPTION
+
+This uses the "field" plugin to look for values for the template,
+as well as the passed-in values.
+
+See doc/plugins/contrib/ftemplate and ikiwiki/directive/ftemplate for docs.
 
 =cut
 
@@ -90,18 +94,7 @@ sub preprocess (@) {
 
     $params{included}=($params{page} ne $params{destpage});
 
-    # The reason we check the template for field names is because we
-    # don't know what fields the registered plugins provide; and this is
-    # reasonable because for some plugins (e.g. a YAML data plugin) they
-    # have no way of knowing, ahead of time, what fields they might be
-    # able to provide.
-
-    IkiWiki::Plugin::field::field_set_template_values($template, $params{page},
-	 value_fn => sub {
-	    my $field = shift;
-	    my $page = shift;
-	    return ftemplate_get_value($field, $page, %params);
-	 },);
+    IkiWiki::Plugin::field::field_set_template_values($template, $params{page});
 
     # This needs to run even in scan mode, in order to process
     # links and other metadata includes via the template.
@@ -113,82 +106,5 @@ sub preprocess (@) {
 			       IkiWiki::filter($params{page}, $params{destpage},
 					       $output), $scan);
 }
-
-sub ftemplate_get_value ($$;%) {
-    my $field = shift;
-    my $page = shift;
-    my %params = @_;
-
-    my $use_page = $page;
-    my $real_fn = $field;
-    my $is_raw = 0;
-    my $page_type = pagetype($pagesources{$page});
-
-    if ($field =~ /^raw_(.*)/)
-    {
-	$real_fn = $1;
-	$is_raw = 1;
-    }
-
-    if (wantarray)
-    {
-	my @val_array = ();
-	if (exists $params{$real_fn}
-	    and defined $params{$real_fn})
-	{
-	    if (ref $params{$real_fn})
-	    {
-		@val_array = @{$params{$real_fn}};
-	    }
-	    else
-	    {
-		@val_array = ($params{$real_fn});
-	    }
-	}
-	else
-	{
-	    @val_array = IkiWiki::Plugin::field::field_get_value($real_fn, $page);
-	}
-	if (!$is_raw && $page_type)
-	{
-	    # HTMLize the values
-	    my @h_vals = ();
-	    foreach my $v (@val_array)
-	    {
-		if (defined $v and $v)
-		{
-		    my $hv = IkiWiki::htmlize($params{page}, $params{destpage},
-					      $page_type,
-					      $v);
-		    push @h_vals, $hv;
-		}
-	    }
-	    @val_array = @h_vals;
-	}
-	return @val_array;
-    }
-    else # simple value
-    {
-	my $value = ((exists $params{$real_fn}
-		      and defined $params{$real_fn})
-		     ? (ref $params{$real_fn}
-			? join(",", @{$params{$real_fn}})
-			: $params{$real_fn}
-		       )
-		     : ($use_page
-			? IkiWiki::Plugin::field::field_get_value($real_fn,
-								  $use_page)
-			: ''));
-	if (defined $value and $value)
-	{
-	    $value = IkiWiki::htmlize($params{page}, $params{destpage},
-				      $page_type,
-				      $value) unless ($is_raw ||
-						      !$page_type);
-	}
-	return $value;
-    }
-    return undef;
-} # ftemplate_get_value
 
 1;

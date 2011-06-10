@@ -1,20 +1,26 @@
 #!/usr/bin/perl
 # Ikiwiki field plugin.
-# See doc/plugin/contrib/field.mdwn for documentation.
 package IkiWiki::Plugin::field;
 use warnings;
 use strict;
 =head1 NAME
 
-IkiWiki::Plugin::field - front-end for per-page record fields.
+IkiWiki::Plugin::field - middle-end for per-page record fields.
 
 =head1 VERSION
 
-This describes version B<1.20110217> of IkiWiki::Plugin::field
+This describes version B<1.20110610> of IkiWiki::Plugin::field
 
 =cut
 
-our $VERSION = '1.20110217';
+our $VERSION = '1.20110610';
+
+=head1 DESCRIPTION
+
+Used by other plugins as an interface; treats each page as
+a record which can have multiple fields.
+
+See doc/plugin/contrib/field.mdwn for documentation.
 
 =head1 PREREQUISITES
 
@@ -27,7 +33,7 @@ our $VERSION = '1.20110217';
 
 =head1 COPYRIGHT
 
-Copyright (c) 2009-2010 Kathryn Andersen
+Copyright (c) 2009-2011 Kathryn Andersen
 
 This program is free software; you can redistribute it and/or
 modify it under the same terms as Perl itself.
@@ -52,15 +58,15 @@ my %Fields = (
 );
 my @FieldsLookupOrder = ();
 
-my %Cache = ();
+my %FieldCalcs = ();
 
-sub field_get_value ($$);
+sub field_get_value ($$;@);
 
 sub import {
 	hook(type => "getsetup", id => "field",  call => \&getsetup);
 	hook(type => "checkconfig", id => "field", call => \&checkconfig);
-	hook(type => "scan", id => "field", call => \&scan, last=>1);
 	hook(type => "preprocess", id => "field", call => \&preprocess, scan=>1);
+	hook(type => "scan", id => "field", call => \&scan, last=>1);
 	hook(type => "pagetemplate", id => "field", call => \&pagetemplate);
 }
 
@@ -120,41 +126,14 @@ sub checkconfig () {
 	    field_register(id=>$config{field_register});
 	}
     }
-    # also register the "field" plugin itself
-    field_register(id=>'field');
+    # also register the "field" directive
+    field_register(id=>'field_directive');
 
     if (!defined $config{field_allow_config})
     {
 	$config{field_allow_config} = 0;
     }
 } # checkconfig
-
-sub scan (@) {
-    my %params=@_;
-    my $page=$params{page};
-    my $content=$params{content};
-
-    # scan for tag fields
-    if ($config{field_tags})
-    {
-	foreach my $field (keys %{$config{field_tags}})
-	{
-	    my @values = field_get_value($field, $page);
-	    if (@values)
-	    {
-		foreach my $tag (@values)
-		{
-		    if ($tag)
-		    {
-			my $link = $config{field_tags}{$field} . '/'
-			. titlepage($tag);
-			add_link($page, $link, lc($field));
-		    }
-		}
-	    }
-	}
-    }
-} # scan
 
 sub preprocess (@) {
     my %params= @_;
@@ -199,11 +178,21 @@ sub preprocess (@) {
 				     $value)
 		    );
 	    }
-	    $pagestate{$params{page}}{field}{$key} = $value;
+	    $pagestate{$params{page}}{field_directive}{$key} = $value;
 	}
     }
     return '';
 }
+
+sub scan (@) {
+    my %params=@_;
+    my $page=$params{page};
+    my $content=$params{content};
+
+    remember_values(%params);
+    scan_for_tags(%params);
+} # scan
+
 
 sub pagetemplate (@) {
     my %params=@_;
@@ -224,9 +213,14 @@ sub field_register (%) {
 	error 'field_register requires id parameter';
 	return 0;
     }
-    if (exists $param{call} and !ref $param{call})
+    if (exists $param{all_values} and !ref $param{all_values})
     {
-	error 'field_register call parameter must be function';
+	error 'field_register all_values parameter must be function';
+	return 0;
+    }
+    if (exists $param{call} and !exists $param{all_values})
+    {
+	error 'field_register "call" is obsolete, use "all_values"';
 	return 0;
     }
 
@@ -257,195 +251,255 @@ sub field_register (%) {
     return 1;
 } # field_register
 
-sub field_get_value ($$) {
+sub field_register_calculation (%) {
+    my %param=@_;
+
+    foreach my $requires (qw(id call))
+    {
+	if (!exists $param{$requires})
+	{
+	    error sprintf("%s requires %s parameter",
+		'field_register_calculation', $requires);
+	    return 0;
+	}
+    }
+    if (exists $param{call} and !ref $param{call})
+    {
+	error 'field_register_calculation call parameter must be function';
+	return 0;
+    }
+
+    my $id = $param{id};
+    $FieldCalcs{$id} = \%param;
+
+} # field_register_calculation
+
+sub field_get_value ($$;@) {
     my $field_name = shift;
     my $page = shift;
+    my %params = @_;
 
-    # This will return the first value it finds
-    # where the value returned is not undefined.
-    # This will return an array of values if wantarray is true.
+    # This expects all values to have been remembered in the scan pass.
+    # Calculations on fields are given in dot notation.
+    # The actual field name must be the first part.
+    my @actions = split(/\./, lc($field_name));
 
-    # The reason why it checks every registered plugin rather than have
-    # plugins declare which fields they know about, is that it is quite
-    # possible that a plugin doesn't know, ahead of time, what fields
-    # will be available; for example, a YAML format plugin would return
-    # any field that happens to be defined in a YAML page file, which
-    # could be anything!
- 
-    # check the cache first
-    my $lc_field_name = lc($field_name);
-    if (wantarray)
-    {
-	if (exists $Cache{$page}{$lc_field_name}{array}
-	    and defined $Cache{$page}{$lc_field_name}{array})
-	{
-	    return @{$Cache{$page}{$lc_field_name}{array}};
-	}
-    }
-    else
-    {
-	if (exists $Cache{$page}{$lc_field_name}{scalar}
-	    and defined $Cache{$page}{$lc_field_name}{scalar})
-	{
-	    return $Cache{$page}{$lc_field_name}{scalar};
-	}
-    }
+    my $page_type = pagetype($pagesources{$page});
 
-    if (!@FieldsLookupOrder)
-    {
-	build_fields_lookup_order();
-    }
+    my $lc_field_name = shift @actions;
 
-    # Get either the scalar or the array value depending
-    # on what is requested - don't get both because it wastes time.
-    if (wantarray)
+    if (exists $params{$lc_field_name})
     {
-	my @array_value = undef;
-	foreach my $id (@FieldsLookupOrder)
+	my $value = $params{$lc_field_name};
+	if (@actions)
 	{
-	    # get the data from the pagestate hash if it's there
-	    if (exists $pagestate{$page}{$id}{$field_name})
-	    {
-		@array_value = (ref $pagestate{$page}{$id}{$field_name}
-				? @{$pagestate{$page}{$id}{$field_name}}
-				: ($pagestate{$page}{$id}{$field_name}));
-	    }
-	    elsif (exists $pagestate{$page}{$id}{$lc_field_name})
-	    {
-		@array_value = (ref $pagestate{$page}{$id}{$lc_field_name}
-				? @{$pagestate{$page}{$id}{$lc_field_name}}
-				: ($pagestate{$page}{$id}{$lc_field_name}));
-	    }
-	    elsif (exists $Fields{$id}{call})
-	    {
-		@array_value = $Fields{$id}{call}->($field_name, $page);
-	    }
-	    if (@array_value and $array_value[0])
-	    {
-		last;
-	    }
+	    $value = apply_calculations(value=>$value,
+		page=>$page,
+		field_name=>$lc_field_name,
+		actions=>\@actions);
 	}
-	if (!@array_value)
-	{
-	    @array_value = field_calculated_values($field_name, $page);
-	}
-	# cache the value
-	$Cache{$page}{$lc_field_name}{array} = \@array_value;
-	return @array_value;
-    }
-    else # scalar
-    {
-	my $value = undef;
-	foreach my $id (@FieldsLookupOrder)
-	{
-	    # get the data from the pagestate hash if it's there
-	    # but only if it's already a scalar
-	    if (exists $pagestate{$page}{$id}{$field_name}
-		and !ref $pagestate{$page}{$id}{$field_name})
-	    {
-		$value = $pagestate{$page}{$id}{$field_name};
-	    }
-	    elsif (exists $pagestate{$page}{$id}{$lc_field_name}
-		   and !ref $pagestate{$page}{$id}{$lc_field_name})
-	    {
-		$value = $pagestate{$page}{$id}{$lc_field_name};
-	    }
-	    elsif (exists $Fields{$id}{call})
-	    {
-		$value = $Fields{$id}{call}->($field_name, $page);
-	    }
-	    if (defined $value)
-	    {
-		last;
-	    }
-	}
-	if (!defined $value)
-	{
-	    $value = field_calculated_values($field_name, $page);
-	}
-	# cache the value
-	$Cache{$page}{$lc_field_name}{scalar} = $value;
 	return $value;
     }
-
+    elsif (exists $pagestate{$page}{field}{$lc_field_name})
+    {
+	my $value = $pagestate{$page}{field}{$lc_field_name};
+	if (@actions)
+	{
+	    $value = apply_calculations(value=>$value,
+		page=>$page,
+		field_name=>$lc_field_name,
+		actions=>\@actions);
+	}
+	return $value;
+    }
     return undef;
 } # field_get_value
 
-# set the values for the given HTML::Template template
 sub field_set_template_values ($$;@) {
     my $template = shift;
     my $page = shift;
     my %params = @_;
 
-    my $get_value_fn = (exists $params{value_fn}
-			? $params{value_fn}
-			: \&field_get_value);
+    my $ttype = ref $template;
 
-    # Find the parameter names in this template
-    # and see if you can find their values.
+    return field_set_html_template($template, $page, %params);
+} # field_set_template_values
 
-    # The reason we check the template for field names is because we
-    # don't know what fields the registered plugins provide; and this is
-    # reasonable because for some plugins (e.g. a YAML data plugin) they
-    # have no way of knowing, ahead of time, what fields they might be
-    # able to provide.
 
-    my @parameter_names = $template->param();
-    foreach my $field (@parameter_names)
+# ===============================================
+# Private Functions
+# ---------------------------
+
+# set the values for the given HTML::Template template
+sub field_set_html_template ($$;@) {
+    my $template = shift;
+    my $page = shift;
+    my %params = @_;
+
+    if (exists $pagestate{$page}{field})
     {
-	# Don't redefine if the field already has a value set.
-	next if ($template->param($field));
-
-	my $type = $template->query(name => $field);
-	if ($type eq 'LOOP' and $field =~ /_LOOP$/oi)
+	my @parameter_names = $template->param();
+	foreach my $field (@parameter_names)
 	{
-	    # Loop fields want arrays.
-	    # Figure out what field names to look for:
-	    # * names are from the enclosed loop fields
-	    my @loop_fields = $template->query(loop => $field);
-
-	    my @loop_vals = ();
-	    my %loop_field_arrays = ();
-	    foreach my $fn (@loop_fields)
-	    {
-		if ($fn !~ /^__/o) # not a special loop variable
-		{
-		    my @ival_array = $get_value_fn->($fn, $page);
-		    if (@ival_array)
-		    {
-			$loop_field_arrays{$fn} = \@ival_array;
-		    }
-		}
-	    }
-	    foreach my $fn (sort keys %loop_field_arrays)
-	    {
-		my $i = 0;
-		foreach my $v (@{$loop_field_arrays{$fn}})
-		{
-		    if (!defined $loop_vals[$i])
-		    {
-			$loop_vals[$i] = {};
-		    }
-		    $loop_vals[$i]{$fn} = $v;
-		    $i++;
-		}
-	    }
-	    $template->param($field => \@loop_vals);
-	}
-	else # not a loop field
-	{
-	    my $value = $get_value_fn->($field, $page);
+	    # Don't redefine if the field already has a value set.
+	    next if ($template->param($field));
+	    my $value = field_get_value($field, $page, %params);
 	    if (defined $value)
 	    {
 		$template->param($field => $value);
 	    }
 	}
     }
-} # field_set_template_values
 
-# ===============================================
-# Private Functions
-# ---------------------------
+} # field_set_html_template
+
+# set the values for the given HTML::Template::Pro template
+sub field_set_html_template_pro ($$;@) {
+    my $template = shift;
+    my $page = shift;
+    my %params = @_;
+
+    # Note that HTML::Template::Pro cannot query the template
+    # so we don't know what values are required for this template
+    # so we have to give them ALL
+    my %values = %{$pagestate{$page}{field}};
+    $template->param(%values);
+    $template->param(%params);
+
+    # Note that HTML::Template::Pro has expressions and functions, however.
+
+} # field_set_html_template_pro
+
+sub scan_for_tags (@) {
+    my %params=@_;
+    my $page=$params{page};
+    my $content=$params{content};
+
+    # scan for tag fields
+    if ($config{field_tags})
+    {
+	foreach my $field (keys %{$config{field_tags}})
+	{
+	    my @values = field_get_value($field, $page);
+	    if (@values)
+	    {
+		foreach my $tag (@values)
+		{
+		    if ($tag)
+		    {
+			my $link = $config{field_tags}{$field} . '/'
+			. titlepage($tag);
+			add_link($page, $link, lc($field));
+		    }
+		}
+	    }
+	}
+    }
+} # scan_for_tags
+
+sub remember_values (@) {
+    my %params=@_;
+    my $page=$params{page};
+    my $content=$params{content};
+
+    # get all the values for this page
+
+    if (!@FieldsLookupOrder)
+    {
+	build_fields_lookup_order();
+    }
+
+    my $page_type = pagetype($pagesources{$page});
+
+    my %values = ();
+    foreach my $id (@FieldsLookupOrder)
+    {
+	my %vals = ();
+	if (exists $Fields{$id}{all_values} and exists $pagestate{$page}{$id})
+	{
+	    # get both sets of values
+	    my $tvals = $Fields{$id}{all_values}->(%params);
+	    %vals = %{$tvals} if defined $tvals;
+	    foreach my $k (keys %{$pagestate{$page}{$id}})
+	    {
+		$vals{$k} = $pagestate{$page}{$id}{$k};
+	    }
+	}
+	elsif (exists $pagestate{$page}{$id})
+	{
+	    %vals = %{$pagestate{$page}{$id}};
+	}
+	elsif (exists $Fields{$id}{all_values})
+	{
+	    my $tvals = $Fields{$id}{all_values}->(%params);
+	    %vals = %{$tvals} if defined $tvals;
+	}
+	# Already-set values have priority
+	# Remember both scalar and loop values
+	# Keys are remembered in lower-case
+	foreach my $key (sort keys %vals)
+	{
+	    my $lc_key = lc($key);
+	    if (!exists $values{$lc_key})
+	    {
+		if (ref $vals{$key} eq 'ARRAY')
+		{
+		    $values{${lc_key}} = join(' ', @{$vals{$key}});
+		    $values{"${lc_key}_loop"} = [];
+		    foreach my $v (@{$vals{$key}})
+		    {
+			push @{$values{"${lc_key}_loop"}}, {$lc_key => $v};
+		    }
+		    # When HTML-izing an array, make it a list
+		    if ($page_type)
+		    {
+			$values{"${lc_key}_html"} = IkiWiki::htmlize($page, $page,
+			    $page_type,
+			"\n\n* " . join("\n* ", @{$vals{$key}}) . "\n");
+		    }
+		}
+		elsif (!ref $vals{$key})
+		{
+		    $values{$lc_key} = $vals{$key};
+		    if (defined $vals{$key})
+		    {
+			$values{"${lc_key}_loop"} = [{$lc_key => $vals{$key}}];
+			if ($page_type)
+			{
+			    $values{"${lc_key}_html"} =
+			    IkiWiki::htmlize($page, $page, $page_type, $vals{$key});
+			}
+		    }
+		}
+	    }
+	}
+    } # for all registered field plugins
+
+    $pagestate{$page}{field} = \%values;
+    field_add_calculated_values($page, $page_type);
+
+} # remember_values
+
+sub apply_calculations {
+    my %params=@_;
+
+    my $val = $params{value};
+    my @actions = @{$params{actions}};
+
+    foreach my $act (@actions)
+    {
+	if ($act ne 'array')
+	{
+	    if (exists $FieldCalcs{$act}{call})
+	    {
+		$val = $FieldCalcs{$act}{call}->(%params,
+		    id=>$act,
+		    value=>$val);
+	    }
+	}
+    }
+    return $val;
+} # apply_calculations
 
 # Calculate the lookup order
 # <module, >module, AZ
@@ -517,6 +571,94 @@ sub build_fields_lookup_order {
 } # build_fields_lookup_order
 
 # standard values deduced from other values
+# expects the values for the page to be in pagestate now
+sub field_add_calculated_values {
+    my $page = shift;
+    my $page_type = shift;
+
+    my @fields = (qw(title titlecaps page parent_page basename pagetitle));
+    foreach my $key (@fields)
+    {
+	if (!exists $pagestate{$page}{field}{$key})
+	{
+	    my $val = field_calculated_values($key, $page);
+	    if (ref $val eq 'ARRAY')
+	    {
+		$pagestate{$page}{field}{$key} = join(' ', @{$val});
+		$pagestate{$page}{field}{"${key}_loop"} = [];
+		foreach my $v (@{$val})
+		{
+		    push @{$pagestate{$page}{field}{"${key}_loop"}}, {$key => $v};
+		}
+		# When HTML-izing an array, make it a list
+		if ($page_type)
+		{
+		    $pagestate{$page}{field}{"${key}_html"} =
+		    IkiWiki::htmlize($page, $page,
+			$page_type,
+			"\n*" . join("\n* ", @{$val}));
+		}
+	    }
+	    elsif (!ref $val)
+	    {
+		$pagestate{$page}{field}{$key} = $val;
+		$pagestate{$page}{field}{"${key}_loop"} = [{$key=>$val}];
+		if ($val and $page_type)
+		{
+		    $pagestate{$page}{field}{"${key}_html"} =
+		    IkiWiki::htmlize($page, $page,
+			$page_type, $val);
+		}
+	    }
+	}
+
+    }
+    # tagpages
+    foreach my $key (keys %{$config{field_tags}})
+    {
+	my $lc_key = lc($key);
+	my $val = $pagestate{$page}{field}{$key};
+	if (ref $val eq 'ARRAY')
+	{
+	    my @array_value = ();
+	    foreach my $tag (@{$val})
+	    {
+		if ($tag)
+		{
+		    my $link = $config{field_tags}{$key} . '/' . $tag;
+		    push @array_value, $link;
+		}
+	    }
+	    $pagestate{$page}{field}{"${lc_key}-tagpage"} =
+	    join(' ', @array_value);
+	    $pagestate{$page}{field}{"${lc_key}_loop"} = [];
+	    foreach my $v (@array_value)
+	    {
+		push @{$pagestate{$page}{field}{"${lc_key}_loop"}}, {$lc_key => $v};
+	    }
+	}
+	elsif (defined $val)
+	{
+	    my $link = $config{field_tags}{$key} . '/' . $val;
+	    $pagestate{$page}{field}{"${lc_key}-tagpage"} = $link;
+	    $pagestate{$page}{field}{"${lc_key}_loop"} = [{$lc_key=>$link}];
+	}
+    }
+    # config - just remember the scalars
+    if ($config{field_allow_config})
+    {
+	foreach my $key (keys %config)
+	{
+	    my $lc_key = lc($key);
+	    if (!ref $config{$key})
+	    {
+		$pagestate{$page}{field}{"config-${lc_key}"} = $config{$key};
+	    }
+	}
+    }
+} # field_add_calculated_values
+
+# standard values deduced from other values
 sub field_calculated_values {
     my $field_name = shift;
     my $page = shift;
@@ -526,6 +668,10 @@ sub field_calculated_values {
     # Exception for titles
     # If the title hasn't been found, construct it
     if ($field_name eq 'title')
+    {
+	$value = pagetitle(IkiWiki::basename($page));
+    }
+    elsif ($field_name eq 'pagetitle')
     {
 	$value = pagetitle(IkiWiki::basename($page));
     }
@@ -557,44 +703,6 @@ sub field_calculated_values {
     {
 	$value = IkiWiki::basename($page);
     }
-    elsif ($config{field_allow_config}
-	   and $field_name =~ /^config-(.*)$/oi)
-    {
-	my $cfield = $1;
-	if (exists $config{$cfield})
-	{
-	    $value = $config{$cfield};
-	}
-    }
-    elsif ($field_name =~ /^(.*)-tagpage$/o)
-    {
-	my @array_value = undef;
-	my $real_fn = $1;
-	if (exists $config{field_tags}{$real_fn}
-	    and defined $config{field_tags}{$real_fn})
-	{
-	    my @values = field_get_value($real_fn, $page);
-	    if (@values)
-	    {
-		foreach my $tag (@values)
-		{
-		    if ($tag)
-		    {
-			my $link = $config{field_tags}{$real_fn} . '/' . $tag;
-			push @array_value, $link;
-		    }
-		}
-		if (wantarray)
-		{
-		    return @array_value;
-		}
-		else
-		{
-		    $value = join(",", @array_value) if $array_value[0];
-		}
-	    }
-	}
-    }
     return (wantarray ? ($value) : $value);
 } # field_calculated_values
 
@@ -609,7 +717,7 @@ sub match_a_field ($$) {
     # The field name is first; the rest is the match
     my $field_name;
     my $glob;
-    if ($wanted =~ /^(\w+)\s+(.*)$/o)
+    if ($wanted =~ /^(\w+)\s+(.+)$/o)
     {
 	$field_name = $1;
 	$glob = $2;
@@ -644,6 +752,7 @@ sub match_a_field ($$) {
 
 my %match_a_field_item_globs = ();
 
+use YAML::Any;
 # check against individual items of a field
 # (treat the field as an array)
 # page-to-check, wanted
@@ -654,7 +763,7 @@ sub match_a_field_item ($$) {
     # The field name is first; the rest is the match
     my $field_name;
     my $glob;
-    if ($wanted =~ /^(\w+)\s+(.*)$/o)
+    if ($wanted =~ /^(\w+)\s+(.+)$/o)
     {
 	$field_name = $1;
 	$glob = $2;
@@ -672,14 +781,14 @@ sub match_a_field_item ($$) {
     }
     my $regexp = $match_a_field_globs{$glob};
 
-    my @val_array = IkiWiki::Plugin::field::field_get_value($field_name, $page);
+    my $val_loop = IkiWiki::Plugin::field::field_get_value("${field_name}_loop", $page);
 
-    if (@val_array)
+    if ($val_loop)
     {
-	foreach my $val (@val_array)
+	foreach my $valhash (@{$val_loop})
 	{
-	    if (defined $val) {
-		if ($val=~$regexp) {
+	    if (defined $valhash) {
+		if ($valhash->{lc($field_name)} =~ $regexp) {
 		    return IkiWiki::SuccessReason->new("$regexp matches $field_name of $page", $page => $IkiWiki::DEPEND_CONTENT, "" => 1);
 		}
 	    }
@@ -784,7 +893,7 @@ sub cmp_field_natural {
     my $field = shift;
     error(gettext("sort=field requires a parameter")) unless defined $field;
 
-    eval q{use Sort::Naturally};
+    eval {use Sort::Naturally};
     error $@ if $@;
 
     my $left = IkiWiki::Plugin::field::field_get_value($field, $a);

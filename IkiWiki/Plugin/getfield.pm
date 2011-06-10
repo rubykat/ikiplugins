@@ -1,7 +1,4 @@
 #!/usr/bin/perl
-# Ikiwiki getfield plugin.
-# Substitute field values in the content of the page.
-# See plugin/contrib/getfield for documentation.
 package IkiWiki::Plugin::getfield;
 use strict;
 =head1 NAME
@@ -10,11 +7,18 @@ IkiWiki::Plugin::getfield - query the values of fields
 
 =head1 VERSION
 
-This describes version B<1.20101211> of IkiWiki::Plugin::getfield
+This describes version B<1.20110610> of IkiWiki::Plugin::getfield
 
 =cut
 
-our $VERSION = '1.20101211';
+our $VERSION = '1.20110610';
+
+=head1 DESCRIPTION
+
+Ikiwiki getfield plugin.
+Substitute field values in the content of the page.
+
+See plugins/contrib/getfield for documentation.
 
 =head1 PREREQUISITES
 
@@ -28,7 +32,7 @@ our $VERSION = '1.20101211';
 
 =head1 COPYRIGHT
 
-Copyright (c) 2009 Kathryn Andersen
+Copyright (c) 2009-2011 Kathryn Andersen
 
 This program is free software; you can redistribute it and/or
 modify it under the same terms as Perl itself.
