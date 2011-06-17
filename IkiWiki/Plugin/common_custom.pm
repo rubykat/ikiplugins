@@ -45,7 +45,7 @@ sub import {
     IkiWiki::loadplugin("field");
     IkiWiki::Plugin::field::field_register(id=>'common_custom',
 	all_values=>\&all_common_vars);
-    foreach my $id (qw(year month monthname))
+    foreach my $id (qw(year month monthname date datelong))
     {
 	IkiWiki::Plugin::field::field_register_calculation(
 	    id=>$id,
@@ -255,6 +255,15 @@ sub common_vars_calc (@) {
     if ($calc_id eq 'a')
     {
 	$value = uc(substr($value, 0, 1));
+    }
+    elsif ($calc_id eq 'datelong')
+    {
+	$value = IkiWiki::date_3339($value);
+    }
+    elsif ($calc_id eq 'date')
+    {
+	$value = IkiWiki::date_3339($value);
+	$value =~ s/T.*$//;
     }
     elsif ($calc_id eq 'year')
     {
