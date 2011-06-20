@@ -160,7 +160,6 @@ sub preprocess (@) {
     }
 
     if (!$params{trail}
-	    and !$params{pagenames}
 	    and !$params{nosort})
     {
 	if ($config{pmap_sort_naturally})
