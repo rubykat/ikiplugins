@@ -78,11 +78,10 @@ sub scan (@) {
     my $page=$params{page};
 
     my $page_file=$pagesources{$page};
+    return unless $page_file;
     my $page_type=pagetype($page_file);
-    if (!defined $page_type)
-    {
-	return;
-    }
+    return unless defined $page_type;
+
     if ($page_type =~ /x?html?/o)
     {
 	# scan for internal links
@@ -108,11 +107,10 @@ sub scan_meta (@) {
     my $page=$params{page};
 
     my $page_file=$pagesources{$page};
+    return undef unless $page_file;
     my $page_type=pagetype($page_file);
-    if (!defined $page_type)
-    {
-	return undef;
-    }
+    return undef unless defined $page_type;
+
     # scan for titles and descriptions
     my %meta = ();
     if ($page_type =~ /x?html?/o)
@@ -142,8 +140,11 @@ sub filter (@) {
     my %params=@_;
     my $page = $params{page};
 
-    my $page_file=$pagesources{$page} || return $params{content};
+    my $page_file=$pagesources{$page};
+    return $params{content} unless $page_file;
     my $page_type=pagetype($page_file);
+    return $params{content} unless defined $page_type;
+
     if (!defined $page_type || $page_type !~ /x?html?/o)
     {
 	return $params{content};

@@ -65,7 +65,7 @@ sub linkify (@) {
 	my $page=$params{page};
 	my $destpage=$params{destpage};
 
-	my $page_file=$pagesources{$page};
+	my $page_file=$pagesources{$page} || return $params{content};
 	my $page_type=pagetype($page_file);
 	if (!defined $page_type
 	    or $page_type eq 'pmwiki')

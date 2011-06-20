@@ -69,7 +69,7 @@ sub getsetup () {
     anypar_pages => {
 	type => "hash",
 	example => "anypar_pages => {'nav_side1.tmpl' => '* and !*.* and !*/*/*'}",
-	description => "which templates to apply to which pages",
+	description => "pagespec showing which templates to apply to which pages",
 	safe => 0,
 	rebuild => 0,
     },
@@ -88,7 +88,7 @@ sub pagetemplate (@) {
     my $page=$params{page};
     my $template=$params{template};
 
-    my $page_file = $pagesources{$params{page}};
+    my $page_file = $pagesources{$params{page}} || return;
     my $page_type=pagetype($page_file);
     if ($page_type)
     {

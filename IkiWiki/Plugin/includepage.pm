@@ -93,7 +93,7 @@ sub get_included_content ($$) {
 	return $included_content{$page};
     }
 
-    my $file=$pagesources{$page};
+    my $file=$pagesources{$page} || return '';
     my $type=pagetype($file);
     my $ret="";
     if (defined $type) {

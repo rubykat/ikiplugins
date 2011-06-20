@@ -36,12 +36,12 @@ sub sanitize (@) {
     my $destpage=$params{destpage};
 
     my $page_file=$pagesources{$page};
+    return $params{content} unless $page_file;
     my $page_type=pagetype($page_file);
-    if (defined $page_type)
-    {
-	# substitute mailto: links
-	$params{content} =~ s/<a[^>]+href\s*=\s*['"]mailto:([^'"]+)['"][^>]*>([^<]+)<\/a>/process_mailto($1,$2,$page,$destpage)/eg;
-    }
+    return $params{content} unless defined $page_type;
+
+    # substitute mailto: links
+    $params{content} =~ s/<a[^>]+href\s*=\s*['"]mailto:([^'"]+)['"][^>]*>([^<]+)<\/a>/process_mailto($1,$2,$page,$destpage)/eg;
 
     return $params{content};
 }
