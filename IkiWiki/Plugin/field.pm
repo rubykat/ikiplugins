@@ -596,6 +596,10 @@ sub field_add_standard_values {
     {
 	foreach my $key (keys %config)
 	{
+	    if ($key =~ /^_/) # private
+	    {
+		next;
+	    }
 	    my $lc_key = lc($key);
 	    if (!ref $config{$key})
 	    {
@@ -734,6 +738,10 @@ sub field_calculated_values {
 	if ($page =~ m{^(.*)/[-\.\w]+$}o)
 	{
 	    $value = $1;
+	}
+	else # top-level page
+	{
+	    $value = 'index';
 	}
     }
     elsif ($field_name eq 'basename')
