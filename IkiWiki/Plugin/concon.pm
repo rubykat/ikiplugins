@@ -78,49 +78,70 @@ sub getsetup () {
 			safe => 0,
 			rebuild => 0,
 		},
+		concon_str => {
+			type => "string",
+			example => "<Page foo>local_css = foo.css</Page>",
+			description => "set the configuration options directly here",
+			safe => 0,
+			rebuild => 0,
+		},
 }
 
 sub checkconfig () {
-    if (!exists $config{concon_file}
-	or !defined $config{concon_file})
+    if (!$config{concon_file}
+	    and !$config{concon_str})
     {
-	error("$config{concon_file} not defined");
+	error("concon: must define either concon_file or concon_str");
 	return 0;
     }
-    if (exists $config{concon_file}
+    if ($config{concon_file}
 	and !-f $config{concon_file})
     {
 	error("$config{concon_file} not found");
 	return 0;
     }
-    $ConfObj = Config::Context->new
-	(
-	 file => $config{concon_file},
-	 driver => 'ConfigGeneral',
-	 match_sections => [
-	 {
-	 name          => 'Page',
-	 section_type  => 'page',
-	 match_type    => 'path',
-	 },
-	 {
-	 name          => 'PageMatch',
-	 section_type  => 'page',
-	 match_type    => 'regex',
-	 },
-	 {
-	 name          => 'File',
-	 section_type  => 'file',
-	 match_type    => 'path',
-	 },
-	 {
-	 name          => 'FileMatch',
-	 section_type  => 'file',
-	 match_type    => 'regex',
-	 },
-	 ],
+    my %cc_opts = (
+	driver => 'ConfigGeneral',
+	match_sections => [
+	    {
+		name          => 'Page',
+		section_type  => 'page',
+		match_type    => 'path',
+	    },
+	    {
+		name          => 'PageMatch',
+		section_type  => 'page',
+		match_type    => 'regex',
+	    },
+	    {
+		name          => 'File',
+		section_type  => 'file',
+		match_type    => 'path',
+	    },
+	    {
+		name          => 'FileMatch',
+		section_type  => 'file',
+		match_type    => 'regex',
+	    },
+	],
 
+    );
+    if ($config{concon_file})
+    {
+	$ConfObj = Config::Context->new
+	(
+	    file => $config{concon_file},
+	    %cc_opts
 	);
+    }
+    else
+    {
+	$ConfObj = Config::Context->new
+	(
+	    string => $config{concon_str},
+	    %cc_opts
+	);
+    }
 
     return 1;
 }
