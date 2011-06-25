@@ -42,6 +42,13 @@ sub getsetup () {
 			safe => 0,
 			rebuild => undef,
 		},
+		handytoc_jq_js => {
+			type => "string",
+			example => "jquery.min.js",
+			description => "the location of the JQuery JavaScript file",
+			safe => 0,
+			rebuild => undef,
+		},
 		handytoc_defaults => {
 			type => "hash",
 			example => "handytoc_defaults => { levels => 1 }",
@@ -75,6 +82,19 @@ sub checkconfig () {
     {
 	$config{handytoc_placeafter} = '</h1>';
     }
+    if ($config{handytoc_css} !~ /^(http|\/)/) # relative
+    {
+	$config{_handytoc_css_relative} = 1;
+    }
+    if ($config{handytoc_js} !~ /^(http|\/)/) # relative
+    {
+	$config{_handytoc_js_relative} = 1;
+    }
+    if (exists $config{handytoc_jq_js}
+	    and $config{handytoc_js} !~ /^(http|\/)/) # relative
+    {
+	$config{_handytoc_jq_js_relative} = 1;
+    }
 }
 
 my %tocpages;
@@ -106,7 +126,11 @@ sub format (@) {
     }
     # ------------------------------
     # Add the CSS link after the title
-    $content =~ s#(</title>)#${1}\n<link rel="stylesheet" href="$config{handytoc_css}" type="text/css" />#i;
+    my $baseurl = IkiWiki::baseurl($page);
+    my $handytoc_css = ($config{_handytoc_css_relative}
+	? $baseurl . $config{handytoc_css}
+	: $config{handytoc_css});
+    $content =~ s#(</title>)#${1}\n<link rel="stylesheet" href="${handytoc_css}" type="text/css" />#i;
 
     # ------------------------------
     # Add the TOC div if it isn't there
@@ -147,8 +171,22 @@ sub format (@) {
     }
     my $js_args = join(', ', @js_args);
 
-    my $scripting =<<EOT;
-<script type='text/javascript' src='$config{handytoc_js}'></script>
+    my $scripting = '';
+    if (exists $config{handytoc_jq_js})
+    {
+	my $jq_js = ($config{_handytoc_jq_js_relative}
+	    ? $baseurl . $config{handytoc_jq_js}
+	    : $config{handytoc_jq_js});
+	$scripting =<<EOT;
+<script type='text/javascript' src='$jq_js'></script>
+EOT
+    }
+    my $handytoc_js = ($config{_handytoc_js_relative}
+	? $baseurl . $config{handytoc_js}
+	: $config{handytoc_js});
+
+    $scripting .=<<EOT;
+<script type='text/javascript' src='$handytoc_js'></script>
 <script type="text/javascript">
 <!--
 \$(document).ready(function(){HandyToc.setup({$js_args});});
