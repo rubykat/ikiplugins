@@ -349,6 +349,10 @@ sub below_me {
     # Note that this does NOT take account of underlays.
     my $srcdir = $config{srcdir};
     my $page_dir = $srcdir . '/' . $page;
+    if ($page eq 'index')
+    {
+	$page_dir = $srcdir;
+    }
     if (-d $page_dir) # there is a page directory
     {
 	my @files = <${page_dir}/*>;
@@ -360,7 +364,8 @@ sub below_me {
 		my $p = $1;
 		if (pagetype($p))
 		{
-		    $pages{pagename($p)} = 1;
+		    my $pn = pagename($p);
+		    $pages{$pn} = 1 unless $pn eq $page;
 		}
 		else
 		{
