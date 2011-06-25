@@ -226,9 +226,8 @@ sub preprocess (@) {
 	{
 	    $max_depth = $pd;
 	}
-	my $urlto = IkiWiki::urlto($page, $destpage, 1);
-	# strip off leading http://site stuff
-	$urlto =~ s!https?://[^/]+!!o;
+	my $urlto = IkiWiki::urlto($page, $destpage);
+	$urlto =~ s!^\.\/!!o; # remove needless ./
 	$urlto =~ s!^\s+!!o;
 	$urlto =~ s!\s+$!!o;
 	push @link_list, $urlto;
@@ -266,10 +265,9 @@ sub preprocess (@) {
     } 
 
     # Note the current URL
-    my $current_url = IkiWiki::urlto($destpage, $destpage, 1);
-    # strip off leading http://site stuff
-    $current_url =~ s!https?://[^/]+!!o;
+    my $current_url = IkiWiki::urlto($destpage, $destpage);
     $current_url =~ s!//!/!go;
+    $current_url =~ s!^\.\/!!o; # remove needless ./
     $current_url =~ s!^\s+!!o;
     $current_url =~ s!\s+$!!o;
 
