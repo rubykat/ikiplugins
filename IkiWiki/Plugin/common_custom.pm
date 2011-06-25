@@ -35,6 +35,8 @@ modify it under the same terms as Perl itself.
 =cut
 use IkiWiki 3.00;
 use File::Basename;
+use File::Spec;
+use Sort::Naturally;
 
 my %OrigSubs = ();
 
@@ -177,18 +179,12 @@ sub all_common_vars ($$) {
     $values{pageterm} = $term;
 
     my $namespaced = $basename;
+    $namespaced =~ s/\.\w+$//;
     $namespaced =~ s#_# #g;
     $namespaced =~ s#-# #g;
     $namespaced =~ s/([-\w]+)/\u\L$1/g;
     $values{namespaced} = $namespaced;
     
-    $namespaced = $basename;
-    $namespaced =~ s/\.\w+$//;
-    $namespaced =~ s#_# #g;
-    $namespaced =~ s#-# #g;
-    $namespaced =~ s/([-\w]+)/\u\L$1/g;
-    $values{namespaced_no_ext} = $namespaced;
-
     if (not exists $pagestate{$page}{meta}{title})
     {
 	my $title = $basename;
@@ -196,6 +192,7 @@ sub all_common_vars ($$) {
 	$title =~ s#-# #g;
 	$title =~ s/([-\w]+)/\u\L$1/g;
 	$values{title} = $title;
+	$pagestate{$page}{meta}{title} = $title;
     }
 
     $values{name_a} = uc(substr($basename, 0, 1));
@@ -207,11 +204,11 @@ sub all_common_vars ($$) {
     if (exists $config{local_css}
 	    and defined $config{local_css})
     {
-	foreach my $ps (sort keys %{$config{local_css}})
+	foreach my $re (sort keys %{$config{local_css}})
 	{
-	    if (pagespec_match($page, $ps))
+	    if ($page =~ /$re/i)
 	    {
-		$values{local_css} = $config{local_css}{$ps};
+		$values{local_css} = $config{local_css}{$re};
 		last;
 	    }
 	}
@@ -220,11 +217,11 @@ sub all_common_vars ($$) {
     if (exists $config{local_css2}
 	    and defined $config{local_css2})
     {
-	foreach my $ps (sort keys %{$config{local_css2}})
+	foreach my $re (sort keys %{$config{local_css2}})
 	{
-	    if (pagespec_match($page, $ps))
+	    if ($page =~ /$re/i)
 	    {
-		$values{local_css2} = $config{local_css2}{$ps};
+		$values{local_css2} = $config{local_css2}{$re};
 		last;
 	    }
 	}
@@ -240,6 +237,8 @@ sub all_common_vars ($$) {
 	my $ctime = IkiWiki::date_3339($IkiWiki::pagectime{$page});
 	$values{plain_ctime} = $ctime;
     }
+
+    my $below_me = below_me($page, \%values);
 
     return \%values;
 } # all_common_vars
@@ -340,6 +339,40 @@ sub common_vars_calc (@) {
     }
     return undef;
 } # common_vars_calc
+
+sub below_me {
+    my $page = shift;
+    my $values = shift;
+
+    # This figures out what is "below" this page;
+    # the files in the directory associated with this page.
+    # Note that this does NOT take account of underlays.
+    my $srcdir = $config{srcdir};
+    my $page_dir = $srcdir . '/' . $page;
+    if (-d $page_dir) # there is a page directory
+    {
+	my @files = <${page_dir}/*>;
+	my %pages = ();
+	foreach my $file (@files)
+	{
+	    if ($file =~ m!$page_dir/(.*)!)
+	    {
+		my $p = $1;
+		if (pagetype($p))
+		{
+		    $pages{pagename($p)} = 1;
+		}
+		else
+		{
+		    $pages{$p} = 1;
+		}
+	    }
+	}
+	my @all_pages = (nsort(keys %pages));
+	$values->{below_me} = \@all_pages;
+    }
+    return undef;
+} # below_me
 
 # ===============================================
 # PageSpec functions
