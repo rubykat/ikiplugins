@@ -631,17 +631,20 @@ sub field_add_calculated_values {
 	    }
 	    $pagestate{$page}{field}{"${lc_key}-tagpage"} =
 	    join(' ', @array_value);
-	    $pagestate{$page}{field}{"${lc_key}_loop"} = [];
-	    foreach my $v (@array_value)
+	    $pagestate{$page}{field}{"${lc_key}-tagpage_loop"} = [];
+	    for (my $i=0; $i < @array_value; $i++)
 	    {
-		push @{$pagestate{$page}{field}{"${lc_key}_loop"}}, {$lc_key => $v};
+		push @{$pagestate{$page}{field}{"${lc_key}-tagpage_loop"}}, {$lc_key => $array_value[$i]};
+		$pagestate{$page}{field}{"${lc_key}_loop"}->[$i]->{"${lc_key}-tagpage"} = $array_value[$i];
 	    }
+	    
 	}
 	elsif (defined $val)
 	{
 	    my $link = $config{field_tags}{$key} . '/' . $val;
 	    $pagestate{$page}{field}{"${lc_key}-tagpage"} = $link;
-	    $pagestate{$page}{field}{"${lc_key}_loop"} = [{$lc_key=>$link}];
+	    $pagestate{$page}{field}{"${lc_key}-tagpage_loop"} = [{$lc_key=>$link}];
+	    $pagestate{$page}{field}{"${lc_key}_loop"}->[0]->{"${lc_key}-tagpage"} = $link;
 	}
     }
     # config - just remember the scalars
