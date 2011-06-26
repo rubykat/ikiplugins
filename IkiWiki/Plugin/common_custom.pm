@@ -167,8 +167,8 @@ sub my_htmllink ($$$;@) {
 # field functions
 #-------------------------------------------------------
 sub all_common_vars ($$) {
-    my $field_name = shift;
-    my $page = shift;
+    my %params = @_;
+    my $page = $params{page};
 
     my %values = ();
     my $basename = pagetitle(basename($page));
@@ -238,7 +238,7 @@ sub all_common_vars ($$) {
 	$values{plain_ctime} = $ctime;
     }
 
-    my $below_me = below_me($page, \%values);
+    below_me($page, \%values);
 
     return \%values;
 } # all_common_vars
@@ -356,25 +356,41 @@ sub below_me {
     if (-d $page_dir) # there is a page directory
     {
 	my @files = <${page_dir}/*>;
-	my %pages = ();
+	my %pagenames = ();
+	my %filenames = ();
 	foreach my $file (@files)
 	{
-	    if ($file =~ m!$page_dir/(.*)!)
+	    if ($file =~ m!$srcdir/(.*)!)
 	    {
 		my $p = $1;
 		if (pagetype($p))
 		{
 		    my $pn = pagename($p);
-		    $pages{$pn} = 1 unless $pn eq $page;
+		    $pagenames{$pn} = 1 unless $pn eq $page;
 		}
 		else
 		{
-		    $pages{$p} = 1;
+		    $filenames{$p} = 1;
 		}
 	    }
 	}
-	my @all_pages = (nsort(keys %pages));
-	$values->{below_me} = \@all_pages;
+	if (%pagenames and %filenames)
+	{
+	    my @all_pages = (nsort(keys %pagenames));
+	    $values->{pages_below_me} = \@all_pages if @all_pages;
+	    my @all_files = (nsort((keys %filenames), @all_pages));
+	    $values->{files_below_me} = \@all_files;
+	}
+	elsif (%pagenames)
+	{
+	    my @all_pages = (nsort(keys %pagenames));
+	    $values->{pages_below_me} = \@all_pages if @all_pages;
+	}
+	elsif (%filenames)
+	{
+	    my @all_files = (nsort(keys %filenames));
+	    $values->{files_below_me} = \@all_files;
+	}
     }
     return undef;
 } # below_me
