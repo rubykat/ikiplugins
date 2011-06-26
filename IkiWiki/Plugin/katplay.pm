@@ -76,6 +76,8 @@ sub import {
     IkiWiki::loadplugin("field");
     IkiWiki::Plugin::field::field_register(id=>'katplay',
 	all_values=>\&katplay_vars);
+    IkiWiki::Plugin::field::field_register(id=>'katplay2',
+	all_values=>\&katplay_late_vars, last=>1);
 
 }
 
@@ -99,9 +101,40 @@ sub katplay_vars (@) {
 
     my %values = ();
     $values{navbar} = do_navbar($page);
-    #$values{navbar2} = do_navbar2($page);
     return \%values;
 } # katplay_vars
+
+# these vars depend on other values
+sub katplay_late_vars (@) {
+    my %params=@_;
+    my $page = $params{page};
+
+    my %values = ();
+
+    my $timestamp = IkiWiki::Plugin::field::field_get_value('timestamp', $page);
+    my $ctime = $IkiWiki::pagectime{$page};
+    if ($timestamp and $timestamp ne $ctime)
+    {
+	$IkiWiki::pagectime{$page}=$timestamp;
+	$ctime=$timestamp;
+    }
+    my $longdate = IkiWiki::date_3339($ctime);
+    $values{datelong} = $longdate;
+    $values{date} = $longdate;
+    $values{date} =~ s/T.*$//;
+    if ($values{date} =~ /^(\d{4})-/)
+    {
+	$values{year} = $1;
+    }
+    if ($values{date} =~ /^\d{4}-(\d{2})/)
+    {
+	$values{month} = $1;
+    }
+    $values{monthname} = IkiWiki::Plugin::common_custom::common_vars_calc(page=>$page,
+	value=>$values{month}, id=>'monthname');
+
+    return \%values;
+} # katplay_late_vars
 
 sub do_navbar ($) {
     my $page = shift;
