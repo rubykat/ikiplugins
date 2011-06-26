@@ -142,6 +142,15 @@ sub preprocess (@) {
 		add_depends($dest_page, $mp, $deptype);
 	    }
 	}
+	# Because we used pagenames, we have to sort the pages ourselves.
+	# This code is cribbed from pagespec_match_list
+	if ($params{sort})
+	{
+	    my $sort=IkiWiki::sortspec_translate($params{sort},
+						 $params{reverse});
+	    @matching_pages=IkiWiki::SortSpec::sort_pages($sort,
+							  @matching_pages);
+	}
     }
     # "trail" means "all the pages linked to from a given page"
     # which is a bit looser than the PmWiki definition
@@ -198,6 +207,7 @@ sub preprocess (@) {
     {
 	@matching_pages = pagespec_match_list($params{destpage}, $pages,
 					      %params,
+					      num=>$params{count},
 					      deptype => $deptype);
     }
 
