@@ -191,6 +191,7 @@ sub subset_pagespec_match_list ($$;@) {
 	$subset_id = $1;
 	$pagespec = $2;
     }
+    # or if "subset" is the only thing in the pagespec
     elsif ($pagespec =~ /^subset\((\w+)\)\s*$/so)
     {
 	$subset_id = $1;
@@ -228,6 +229,7 @@ sub subset_pagespec_match_list ($$;@) {
 	else
 	{
 	    my $old_sort;
+	    my $old_num;
 	    if (exists $wikistate{subset}{sort}{$subset_id})
 	    {
 		if ( exists $params{sort}
@@ -236,6 +238,11 @@ sub subset_pagespec_match_list ($$;@) {
 		    $old_sort = $params{sort};
 		}
 		$params{sort} = $wikistate{subset}{sort}{$subset_id};
+	    }
+	    if (exists $params{num} and $params{num})
+	    {
+		$old_num = $params{num};
+		delete $params{num};
 	    }
 	    @subset = $OrigSubs{pagespec_match_list}->($page,
 		"subset(${subset_id})",
@@ -255,6 +262,10 @@ sub subset_pagespec_match_list ($$;@) {
 	    {
 		delete $params{sort};
 	    }
+	    if ($old_num)
+	    {
+		$params{num} = $old_num;
+	    }
 	}
 	if ($pagespec)
 	{
@@ -263,7 +274,19 @@ sub subset_pagespec_match_list ($$;@) {
 	}
 	else # empty pagespec means we just want the subset
 	{
-	    return @subset;
+	    my @matching_pages = @subset;
+	    if ($params{sort}) # we need to sort it, though!
+	    {
+		my $sort=IkiWiki::sortspec_translate($params{sort},
+		    $params{reverse});
+		@matching_pages=IkiWiki::SortSpec::sort_pages($sort,
+		    @subset);
+	    }
+	    if ($params{num})
+	    {
+		@matching_pages = splice(@matching_pages, 0, $params{num});
+	    }
+	    return @matching_pages;
 	}
     }
 
