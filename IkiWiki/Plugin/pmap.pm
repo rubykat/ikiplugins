@@ -226,10 +226,22 @@ sub preprocess (@) {
 	{
 	    $max_depth = $pd;
 	}
-	my $urlto = IkiWiki::urlto($page, $destpage);
-	$urlto =~ s!^\.\/!!o; # remove needless ./
-	$urlto =~ s!^\s+!!o;
-	$urlto =~ s!\s+$!!o;
+	my $urlto;
+	if ($config{usedirs})
+	{
+	    $urlto = IkiWiki::urlto($page, $destpage, 1);
+	    # strip off leading http://site stuff
+	    $urlto =~ s!https?://[^/]+!!o;
+	    $urlto =~ s!^\s+!!o;
+	    $urlto =~ s!\s+$!!o;
+	}
+	else
+	{
+	    $urlto = IkiWiki::urlto($page, $destpage);
+	    $urlto =~ s!^\.\/!!o; # remove needless ./
+	    $urlto =~ s!^\s+!!o;
+	    $urlto =~ s!\s+$!!o;
+	}
 	push @link_list, $urlto;
 
 	if (defined $show
@@ -265,11 +277,24 @@ sub preprocess (@) {
     } 
 
     # Note the current URL
-    my $current_url = IkiWiki::urlto($destpage, $destpage);
-    $current_url =~ s!//!/!go;
-    $current_url =~ s!^\.\/!!o; # remove needless ./
-    $current_url =~ s!^\s+!!o;
-    $current_url =~ s!\s+$!!o;
+    my $current_url;
+    if ($config{usedirs})
+    {
+	$current_url = IkiWiki::urlto($destpage, $destpage, 1);
+	# strip off leading http://site stuff
+	$current_url =~ s!https?://[^/]+!!o;
+	$current_url =~ s!//!/!go;
+	$current_url =~ s!^\s+!!o;
+	$current_url =~ s!\s+$!!o;
+    }
+    else
+    {
+	$current_url = IkiWiki::urlto($destpage, $destpage);
+	$current_url =~ s!//!/!go;
+	$current_url =~ s!^\.\/!!o; # remove needless ./
+	$current_url =~ s!^\s+!!o;
+	$current_url =~ s!\s+$!!o;
+    }
 
     # if all the pages are at the same depth, and the map_type is
     # not set, then set the map_type to 'list'
