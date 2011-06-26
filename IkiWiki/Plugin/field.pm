@@ -41,6 +41,7 @@ modify it under the same terms as Perl itself.
 =cut
 
 use IkiWiki 3.00;
+use Storable qw(dclone);
 
 my $FieldO;
 
@@ -329,7 +330,7 @@ sub field_set_template_values ($$;@) {
 
     my $ttype = ref $template;
 
-    return field_set_html_template($template, $page, %params);
+    return set_html_template($template, $page, %params);
 } # field_set_template_values
 
 
@@ -338,7 +339,7 @@ sub field_set_template_values ($$;@) {
 # ---------------------------
 
 # set the values for the given HTML::Template template
-sub field_set_html_template ($$;@) {
+sub set_html_template ($$;@) {
     my $template = shift;
     my $page = shift;
     my %params = @_;
@@ -366,10 +367,10 @@ sub field_set_html_template ($$;@) {
 	}
     }
 
-} # field_set_html_template
+} # set_html_template
 
 # set the values for the given HTML::Template::Pro template
-sub field_set_html_template_pro ($$;@) {
+sub set_html_template_pro ($$;@) {
     my $template = shift;
     my $page = shift;
     my %params = @_;
@@ -383,7 +384,7 @@ sub field_set_html_template_pro ($$;@) {
 
     # Note that HTML::Template::Pro has expressions and functions, however.
 
-} # field_set_html_template_pro
+} # set_html_template_pro
 
 sub scan_for_tags (@) {
     my %params=@_;
@@ -429,7 +430,7 @@ sub remember_values (@) {
     my $page_type = pagetype($pagesource);
 
     # These are standard values such as parent_page etc.
-    field_add_standard_values($page, $page_type);
+    add_standard_values($page, $page_type);
 
     my %values = $FieldO->get_values($page);
     foreach my $id (@FieldsLookupOrder)
@@ -462,7 +463,7 @@ sub remember_values (@) {
 	    my $lc_key = lc($key);
 	    if (!exists $values{$lc_key})
 	    {
-		field_format_values(
+		format_values(
 		    values => \%values,
 		    field=>$lc_key,
 		    value=> $vals{$key},
@@ -477,8 +478,7 @@ sub remember_values (@) {
 
     } # for all registered field plugins
 
-    field_add_calculated_values($page, $page_type);
-
+    add_calculated_values($page, $page_type);
 } # remember_values
 
 sub apply_calculations {
@@ -573,7 +573,7 @@ sub build_fields_lookup_order {
 
 # Standard values that are always set
 # Expects the values for the page NOT to have been figured yet.
-sub field_add_standard_values {
+sub add_standard_values {
     my $page = shift;
     my $page_type = shift;
 
@@ -583,8 +583,8 @@ sub field_add_standard_values {
     {
 	if (!$values{$key})
 	{
-	    my $val = field_calculated_values($key, $page);
-	    field_format_values(values=>\%values,
+	    my $val = calculated_values($key, $page);
+	    format_values(values=>\%values,
 	    field=>$key,
 	    value=>$val,
 	    page_type=>$page_type,
@@ -601,18 +601,18 @@ sub field_add_standard_values {
 		next;
 	    }
 	    my $lc_key = lc($key);
-	    if (!ref $config{$key})
+	    if (!ref $config{$key} and defined $config{$key} and length $config{$key})
 	    {
 		$values{"config-${lc_key}"} = $config{$key};
 	    }
 	}
     }
     $FieldO->set_values($page, %values);
-} # field_add_standard_values
+} # add_standard_values
 
 # standard values deduced from other values
 # expects the values for the page to be set now
-sub field_add_calculated_values {
+sub add_calculated_values {
     my $page = shift;
     my $page_type = shift;
 
@@ -622,8 +622,8 @@ sub field_add_calculated_values {
     {
 	if (!$values{$key})
 	{
-	    my $val = field_calculated_values($key, $page);
-	    field_format_values(values=>\%values,
+	    my $val = calculated_values($key, $page);
+	    format_values(values=>\%values,
 	    field=>$key,
 	    value=>$val,
 	    page_type=>$page_type,
@@ -653,11 +653,11 @@ sub field_add_calculated_values {
 	}
     }
     $FieldO->set_values($page, %values);
-} # field_add_calculated_values
+} # add_calculated_values
 
 # Add values in additional formats
 # For example, _loop and _html
-sub field_format_values {
+sub format_values {
     my %params = @_;
 
     my $values = $params{values};
@@ -696,10 +696,10 @@ sub field_format_values {
 	}
     }
     return $values;
-} # field_format_values
+} # format_values
 
 # standard values deduced from other values
-sub field_calculated_values {
+sub calculated_values {
     my $field_name = shift;
     my $page = shift;
 
@@ -749,7 +749,7 @@ sub field_calculated_values {
 	$value = IkiWiki::basename($page);
     }
     return (wantarray ? ($value) : $value);
-} # field_calculated_values
+} # calculated_values
 
 my %match_a_field_globs = ();
 
