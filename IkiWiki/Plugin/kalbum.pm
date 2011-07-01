@@ -144,112 +144,13 @@ sub preprocess (@) {
     my $page = $params{page};
 
     my $scanning=! defined wantarray;
-    my $size = ($params{size} ? $params{size} : "100x100");
-
-    # process captions and thumbnails
-    if ($params{image})
-    {
-	if ($params{caption})
-	{
-	    if ($scanning)
-	    {
-		$pagestate{$params{image}}{kalbum}{caption} = $params{caption};
-	    }
-	}
-	if ($params{thumbnail})
-	{
-	    make_thumbnail(%params,
-			   item=>$params{image},
-			   size=>$size,
-			   scanning=>$scanning);
-	}
-	return '';
-    }
-
-    my $pagespec = ($params{pages}
-		    ? $params{pages}
-		    : "${page}/* and !${page}/*/*"
-		   );
     if ($scanning)
     {
-	$size =~ /(\d+)x(\d+)/;
-	my $thumb_width = $1;
-	my $thumb_height = $2;
-	$pagestate{$page}{kalbum}{thumb_width} = $thumb_width;
-	$pagestate{$page}{kalbum}{thumb_height} = $thumb_height;
+	return preprocess_scan(%params);
     }
-
-    my $deptype=deptype('presence');
-    my @items =
-	pagespec_match_list($page, $pagespec,
-			    location=>$page,
-			    deptype => $deptype,
-			    sort=>$params{sort},
-			   );
-    foreach my $item (@items)
+    else
     {
-	make_thumbnail(%params,
-		       size=>$size,
-		       scanning=>$scanning,
-		       item=>$item);
-
-	# Force the field plugin to apply to the images too
-	if ($scanning and !is_page($item))
-	{
-	    IkiWiki::Plugin::field::scan(%params,
-		page=>$item,
-		destpage=>$item,
-		content=>'');
-	    # remember them separately
-	    $pagestate{$item}{kalbum} = $pagestate{$item}{field};
-	}
-    }
-
-    if (!$scanning)
-    {
-	my $start = 0;
-	my $stop = $#items;
-	for (my $i=$start; $i <= $stop and $i < @items; $i++)
-	{
-	    my $item = $items[$i];
-	    my $prev_item = ($i > 0
-		? $items[$i-1]
-		: $items[$stop]);
-	    my $next_item = ($i < $#items
-		? $items[$i+1]
-		: $items[$start]);
-	    my $first = ($i == $start);
-	    my $last = ($i == ($stop - 1));
-	    make_image_page(%params,
-		image=>$item,
-		album=>$page,
-		prev_item=>$prev_item,
-		prev_page_url=>kalbum_get_value('img_page_url', $prev_item),
-		prev_thumb_url=>kalbum_get_value('thumb_url', $prev_item),
-		next_item=>$next_item,
-		next_page_url=>kalbum_get_value('img_page_url', $next_item),
-		next_thumb_url=>kalbum_get_value('thumb_url', $next_item),
-		first=>$first,
-		last=>$last,
-	    );
-	}
-
-	my $out = '';
-	if (@items)
-	{
-	    my $basename = IkiWiki::basename($page);
-	    $out .= make_index_pages(%params,
-		template=>($params{album_template}
-		    ? $params{album_template}
-		    : "kalbum"),
-		report_id=>($params{report_id}
-		    ? $params{report_id}
-		    : $basename),
-		albumdesc=>$params{albumdesc},
-		items => \@items,
-	    );
-	}
-	return $out;
+	return preprocess_do(%params);
     }
 } # preprocess
 
@@ -373,8 +274,8 @@ sub format (@) {
     {
 	return $params{content};
     }
-    if (!exists $pagestate{$page}{kalbum}{thumb_width}
-	or !defined $pagestate{$page}{kalbum}{thumb_width})
+    if (!exists $pagestate{$page}{kalbum}{size}
+	or !defined $pagestate{$page}{kalbum}{size})
     {
 	# not an album page
 	return $params{content};
@@ -392,6 +293,130 @@ sub format (@) {
 #------------------------------------------------------------------
 # Private Functions
 #------------------------------------------------------------------
+
+sub preprocess_scan (@) {
+    my %params=@_;
+    my $page = $params{page};
+
+    my $size = ($params{size} ? $params{size} : "100x100");
+
+    $pagestate{$page}{kalbum}{size} = $size;
+    # process captions and thumbnails
+    if ($params{image})
+    {
+	if ($params{caption})
+	{
+	    $pagestate{$params{image}}{kalbum}{caption} = $params{caption};
+	}
+	if ($params{thumbnail})
+	{
+	    calculate_image_data(%params,
+			   item=>$params{image},
+			   size=>$size);
+	}
+	return '';
+    }
+
+    # Is album definition
+    my $pagespec = ($params{pages}
+		    ? $params{pages}
+		    : "${page}/* and !${page}/*/*"
+		   );
+    $pagespec =~ s/{{\$page}}/$page/g;
+
+    my $deptype=deptype('presence');
+
+    my @items =
+    pagespec_match_list($page, $pagespec,
+	location=>$page,
+	deptype => $deptype,
+    );
+    foreach my $item (@items)
+    {
+	calculate_image_data(%params,
+		       size=>$size,
+		       item=>$item);
+    }
+} # preprocess_scan
+
+sub preprocess_do (@) {
+    my %params=@_;
+    my $page = $params{page};
+
+    # the "image" info is only checked when scanning
+    if ($params{image})
+    {
+	return '';
+    }
+    my $size = ($params{size} ? $params{size} : "100x100");
+    my $pagespec = ($params{pages}
+		    ? $params{pages}
+		    : "${page}/* and !${page}/*/*"
+		   );
+    my $deptype=deptype('presence');
+
+    my @items =
+    pagespec_match_list($page, $pagespec,
+	location=>$page,
+	deptype => $deptype,
+    );
+
+    eval {use Sort::Naturally};
+    if ($@)
+    {
+	@items = sort(@items);
+    }
+    else
+    {
+	@items = nsort(@items);
+    }
+    my $start = 0;
+    my $stop = $#items;
+    for (my $i=$start; $i <= $stop and $i < @items; $i++)
+    {
+	my $item = $items[$i];
+	my $prev_item = ($i > 0
+	    ? $items[$i-1]
+	    : $items[$stop]);
+	my $next_item = ($i < $#items
+	    ? $items[$i+1]
+	    : $items[$start]);
+	my $first = ($i == $start);
+	my $last = ($i == $stop);
+	make_thumbnail(%params,
+		       size=>$size,
+		       item=>$item);
+	make_image_page(%params,
+	    image=>$item,
+	    album=>$page,
+	    prev_item=>$prev_item,
+	    prev_page_url=>img_page_url($prev_item),
+	    prev_thumb_url=>kalbum_get_value('thumb_url', $prev_item),
+	    next_item=>$next_item,
+	    next_page_url=>img_page_url($next_item),
+	    next_thumb_url=>kalbum_get_value('thumb_url', $next_item),
+	    first=>$first,
+	    last=>$last,
+	);
+    }
+
+    my $out = '';
+    if (@items)
+    {
+	my $basename = IkiWiki::basename($page);
+	$out .= make_index_pages(%params,
+	    template=>($params{album_template}
+		? $params{album_template}
+		: "kalbum"),
+	    report_id=>($params{report_id}
+		? $params{report_id}
+		: $basename),
+	    albumdesc=>$params{albumdesc},
+	    items => \@items,
+	);
+    }
+    return $out;
+} # preprocess_do
 
 sub make_image_page {
     my %params=@_;
@@ -421,6 +446,7 @@ sub create_image_page {
 
     my $is_image = ($image =~ $config{kalbum_image_regexp});
     my $img_basename = IkiWiki::basename($image);
+    my $album_basename = IkiWiki::basename($params{album});
     my $id = ($params{image_template}
 	? $params{image_template}
 	: "kalbum_image"),
@@ -455,9 +481,9 @@ sub create_image_page {
 	$params{page},
 	%params,
 	%itemvals,
-	album=>$params{page},
 	image=>$image,
 	image_basename=>$img_basename,
+	album_basename=>$album_basename,
 	is_image=>$is_image,
     );
     my $pout = $template->output;
@@ -569,17 +595,30 @@ sub make_single_index {
     {
 	my $item = $items[$i];
 	my $first = ($i == $start);
-	my $last = ($i == ($stop - 1));
+	my $last = ($i == $stop or $i == $#items);
 	my %itemvals = %{$pagestate{$item}{kalbum}};
+
 	$template->clear_params();
 	IkiWiki::Plugin::field::field_set_template_values($template,
-	    $params{page},
+	    $item,
 	    %params,
-	    %itemvals,
-	    image=>$item,
-	    first=>$first,
-	    last=>$last,
 	);
+	$template->param(image=>$item);
+	$template->param(first=>$first);
+	$template->param(last=>$last);
+	$template->param(album=>$params{page});
+	$template->param(%itemvals);
+
+	if (defined $pagestate{$item}{kalbum}{thumb_link})
+	{
+	    my $thumb_url=urlto($pagestate{$item}{kalbum}{thumb_link}, $params{page});
+	    if ($config{usedirs})
+	    {
+		$thumb_url =~ s!/$!!;
+	    }
+	    $template->param(thumb_url=>$thumb_url);
+	}
+
 	$out .= $template->output;
     }
     $out = IkiWiki::linkify($params{page}, $params{page}, $out) if $out;
@@ -660,15 +699,112 @@ EOT
     return $first_page_out;
 } # multi_page_report
 
+sub calculate_image_data {
+    my %params=@_;
+    my $item = $params{item};
+    my $size = $params{size};
+
+    my $is_page = is_page($item);
+    my $is_image = ($item =~ $config{kalbum_image_regexp});
+
+    my $thumb_name = '';
+    my $thumb_src = '';
+    my $outfile = '';
+    my $thumb_link = '';
+    my $thumb_url = '';
+    my $basename = IkiWiki::basename($item);
+
+    # figure out the data for the thumbnail and remember it
+    add_link($params{page}, $item);
+    add_depends($params{page}, $item);
+
+    $pagestate{$item}{kalbum}{image_basename} = $basename;
+
+    # Find the name for the thumbnail
+    if ($is_page)
+    {
+	$thumb_name = "${basename}_${size}.jpg";
+    }
+    else
+    {
+	if ($basename =~ /(.*)\.\w+$/)
+	{
+	    $thumb_name = "${1}_${size}.jpg";
+	}
+	else
+	{
+	    $thumb_name = "${basename}_${size}.jpg";
+	}
+    }
+    $pagestate{$item}{kalbum}{thumb_name} = $thumb_name;
+
+    # Find the source file for the thumbnail.
+    # This can be a specified thumbnail image,
+    # the image itself if the item is an image,
+    # a generic "folder" thumbnail if the item is a page,
+    # or a generic "other" thumbnail if the item is neither an image nor a page.
+    if ($params{thumbnail})
+    {
+	$thumb_src = srcfile($params{thumbnail}, 1);
+    }
+    elsif ($is_page)
+    {
+	if ($config{kalbum_thumb_folder})
+	{
+	    $thumb_src = srcfile($config{kalbum_thumb_folder}, 1);
+	    if (! defined $thumb_src) {
+		# not an error, but we aren't going to be making a thumbnail
+		return;
+	    }
+	}
+    }
+    elsif ($is_image)
+    {
+	$thumb_src = srcfile($item, 1);
+    }
+    else
+    {
+	$thumb_src = srcfile($config{kalbum_thumb_other}, 1);
+	if (! defined $thumb_src) {
+	    # not an error, but we aren't going to be making a thumbnail
+	    return;
+	}
+    }
+    $pagestate{$item}{kalbum}{thumb_src} = $thumb_src;
+
+    # Figure out what directory the thumbnail will go into
+    my $dir;
+    if ($params{is_dir} or is_page($item))
+    {
+	$dir = $item;
+    }
+    else
+    {
+	$item =~ m{(.*)/\w+\.\w+$};
+	$dir = $1;
+    }
+    $outfile = "$config{destdir}/$dir/tn/$thumb_name";
+    $thumb_link = "$dir/tn/$thumb_name";
+    $pagestate{$item}{kalbum}{outfile} = $outfile;
+    $pagestate{$item}{kalbum}{thumb_link} = $thumb_link;
+    $pagestate{$item}{kalbum}{render_thumb} = $thumb_link;
+
+    my $vals = kalbum_get_values(%params, page=>$item);
+    while (my ($key, $value) = each %{$vals})
+    {
+	$pagestate{$item}{kalbum}{$key} = $value;
+    }
+
+} # calculate_image_data
+
 sub make_thumbnail {
     my %params=@_;
     my $item = $params{item};
     my $size = $params{size};
 
-    # if we are not scanning, and we don't have a thumb_src
+    # if we don't have a thumb_src
     # then we aren't going to be making a thumbnail - bye!
-    if (!$params{scanning}
-	and !exists $pagestate{$item}{kalbum}{thumb_src})
+    if (!exists $pagestate{$item}{kalbum}{thumb_src})
     {
 	return;
     }
@@ -683,98 +819,13 @@ sub make_thumbnail {
     my $thumb_url = '';
     my $basename = IkiWiki::basename($item);
 
-    # if we are scanning, figure out the data for the thumbnail and remember it
-    if ($params{scanning})
-    {
-	add_link($params{page}, $item);
-	add_depends($params{page}, $item);
-
-	$pagestate{$item}{kalbum}{image_basename} = $basename;
-
-	# Find the name for the thumbnail
-	if ($is_page)
-	{
-	    $thumb_name = "${basename}_${size}.jpg";
-	}
-	else
-	{
-	    if ($basename =~ /(.*)\.\w+$/)
-	    {
-		$thumb_name = "${1}_${size}.jpg";
-	    }
-	    else
-	    {
-		$thumb_name = "${basename}_${size}.jpg";
-	    }
-	}
-	$pagestate{$item}{kalbum}{thumb_name} = $thumb_name;
-
-	# Find the source file for the thumbnail.
-	# This can be a specified thumbnail image,
-	# the image itself it the item is an image,
-	# a generic "folder" thumbnail if the item is a page,
-	# or a generic "other" thumbnail if the item is neither an image nor a page.
-	if ($params{thumbnail})
-	{
-	    $thumb_src = srcfile($params{thumbnail}, 1);
-	}
-	elsif ($is_page)
-	{
-	    if ($config{kalbum_thumb_folder})
-	    {
-		$thumb_src = srcfile($config{kalbum_thumb_folder}, 1);
-		if (! defined $thumb_src) {
-		    # not an error, but we aren't going to be making a thumbnail
-		    return;
-		}
-	    }
-	}
-	elsif ($is_image)
-	{
-	    $thumb_src = srcfile($item, 1);
-	}
-	else
-	{
-	    $thumb_src = srcfile($config{kalbum_thumb_other}, 1);
-	    if (! defined $thumb_src) {
-		# not an error, but we aren't going to be making a thumbnail
-		return;
-	    }
-	}
-	$pagestate{$item}{kalbum}{thumb_src} = $thumb_src;
-
-	# Figure out what directory the thumbnail will go into
-	my $dir;
-	if ($params{is_dir} or is_page($item))
-	{
-	    $dir = $item;
-	}
-	else
-	{
-	    $item =~ m{(.*)/\w+\.\w+$};
-	    $dir = $1;
-	}
-	$outfile = "$config{destdir}/$dir/tn/$thumb_name";
-	$thumb_link = "$dir/tn/$thumb_name";
-	$pagestate{$item}{kalbum}{outfile} = $outfile;
-	$pagestate{$item}{kalbum}{thumb_link} = $thumb_link;
-	$pagestate{$item}{kalbum}{render_thumb} = $thumb_link;
-
-	$thumb_url=urlto($thumb_link, 'index', 1);
-	$pagestate{$item}{kalbum}{thumb_url} = $thumb_url;
-
-	# if we are scanning, return before we write file
-	return;
-    }
-    
-    # We are NOT scanning. Make the thumbnail.
     $thumb_name = $pagestate{$item}{kalbum}{thumb_name};
     $thumb_src = $pagestate{$item}{kalbum}{thumb_src};
     $outfile = $pagestate{$item}{kalbum}{outfile};
     $thumb_link = $pagestate{$item}{kalbum}{thumb_link};
     $thumb_url = $pagestate{$item}{kalbum}{thumb_url};
     will_render($params{page}, $pagestate{$item}{kalbum}{render_thumb})
-    if $pagestate{$item}{kalbum}{render_thumb};
+	if $pagestate{$item}{kalbum}{render_thumb};
 
     if ($params{preview})
     {
@@ -831,22 +882,31 @@ sub kalbum_get_values (@) {
     return \%values;
 } # kalbum_get_values
 
+sub img_page_url ($;$) {
+    my $page = shift;
+    my $from_page = shift;
+
+    return undef unless defined $page;
+    my $url = IkiWiki::urlto($page,$from_page);
+    if ($url =~ /(.*)\.\w+$/)
+    {
+	my $val = "${1}.$config{htmlext}";
+	return $val;
+    }
+    else
+    {
+	return $url;
+    }
+    return undef;
+} # img_page_url
+
 sub kalbum_get_value ($$) {
     my $field_name = shift;
     my $page = shift;
 
     if ($field_name eq 'img_page_url')
     {
-	my $url = IkiWiki::urlto($page, 'index', 1);
-	if ($url =~ /(.*)\.\w+$/)
-	{
-	    my $val = "${1}.$config{htmlext}";
-	    return $val;
-	}
-	else
-	{
-	    return $url;
-	}
+	return img_page_url($page,undef);
     }
     elsif ($field_name eq 'short_caption')
     {
@@ -963,8 +1023,10 @@ sub include_styles ($;$) {
     my $page=shift;
     my $absolute=shift;
 	
-    my $thumb_width = $pagestate{$page}{kalbum}{thumb_width};
-    my $thumb_height = $pagestate{$page}{kalbum}{thumb_height};
+    my $size = $pagestate{$page}{kalbum}{size};
+    $size =~ /(\d+)x(\d+)/;
+    my $thumb_width = $1;
+    my $thumb_height = $2;
     my $item_width = $thumb_width + 50;
     my $item_height = $thumb_height + 70;
     my $max_thumb_height = $thumb_height + 10;
@@ -990,13 +1052,6 @@ sub include_styles ($;$) {
 .thumb {
     overflow: hidden;
     max-height: ${max_thumb_height}px;
-}
-.images:after, .dirs:after {
-    content: ".";
-    display: block;
-    height: 0;
-    clear: both;
-    visibility: hidden;
 }
 </style>
 EOT
