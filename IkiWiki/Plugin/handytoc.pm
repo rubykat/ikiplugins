@@ -12,6 +12,7 @@ sub import {
 	hook(type => "checkconfig", id => "handytoc", call => \&checkconfig);
 	hook(type => "preprocess", id => "handytoc", call => \&preprocess);
 	hook(type => "format", id => "handytoc", call => \&format);
+	hook(type => "pagetemplate", id => "handytoc", call => \&pagetemplate);
 }
 
 sub getsetup () {
@@ -125,14 +126,6 @@ sub format (@) {
 	return $content;
     }
     # ------------------------------
-    # Add the CSS link after the title
-    my $baseurl = IkiWiki::baseurl($page);
-    my $handytoc_css = ($config{_handytoc_css_relative}
-	? $baseurl . $config{handytoc_css}
-	: $config{handytoc_css});
-    $content =~ s#(</title>)#${1}\n<link rel="stylesheet" href="${handytoc_css}" type="text/css" />#i;
-
-    # ------------------------------
     # Add the TOC div if it isn't there
     # Place it after the first H1
     if ($content !~ /<div id="htoc"/o)
@@ -144,9 +137,48 @@ sub format (@) {
 	$content =~ s#($config{handytoc_placeafter})#${1}\n${div}#i;
     }
 
-    # ------------------------------
-    # Add the javascript
+    return $content;
+}
 
+sub pagetemplate (@) {
+    my %params=@_;
+    my $page=$params{page};
+    my $template=$params{template};
+
+    if (!pagespec_match($page, $config{handytoc_pages}))
+    {
+	return;
+    }
+    my $page_file = $pagesources{$params{page}} || return;
+    my $page_type=pagetype($page_file);
+    if ($page_type)
+    {
+	# Add the CSS link after the title
+	my $baseurl = IkiWiki::baseurl($page);
+	my $handytoc_css = ($config{_handytoc_css_relative}
+	    ? $baseurl . $config{handytoc_css}
+	    : $config{handytoc_css});
+	$template->param(handytoc_css=>$handytoc_css);
+	if (exists $config{handytoc_jq_js})
+	{
+	    my $jq_js = ($config{_handytoc_jq_js_relative}
+		? $baseurl . $config{handytoc_jq_js}
+		: $config{handytoc_jq_js});
+	    $template->param(jquery_js=>$jq_js);
+	}
+	my $handytoc_js = render_js(%params);
+	$template->param(handytoc_js=>$handytoc_js);
+    }
+} # pagetemplate
+
+# ------------------------------------------------------------
+# Private Functions
+# ----------------------------
+sub render_js {
+    my %params=@_;
+    my $page=$params{page};
+
+    my $baseurl = IkiWiki::baseurl($page);
     my @legal_args = qw(start levels ignoreh1 ignore_first_h1 ignore_only_one look_in_id);
     my %toc_args = ();
     foreach my $key (@legal_args)
@@ -172,15 +204,6 @@ sub format (@) {
     my $js_args = join(', ', @js_args);
 
     my $scripting = '';
-    if (exists $config{handytoc_jq_js})
-    {
-	my $jq_js = ($config{_handytoc_jq_js_relative}
-	    ? $baseurl . $config{handytoc_jq_js}
-	    : $config{handytoc_jq_js});
-	$scripting =<<EOT;
-<script type='text/javascript' src='$jq_js'></script>
-EOT
-    }
     my $handytoc_js = ($config{_handytoc_js_relative}
 	? $baseurl . $config{handytoc_js}
 	: $config{handytoc_js});
@@ -193,9 +216,7 @@ EOT
 //-->
 </script>
 EOT
-    $content =~ s/(<\/head>)/${scripting}${1}/i;
-
-    return $content;
-}
+    return $scripting;
+} # render_js
 
 1
