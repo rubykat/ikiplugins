@@ -62,14 +62,16 @@ my %Fields = (
 my @FieldsLookupOrder = ();
 
 my %FieldCalcs = ();
+my %FieldsEarly = ();
 
 sub field_get_value ($$;@);
 
 sub import {
 	hook(type => "getsetup", id => "field",  call => \&getsetup);
 	hook(type => "checkconfig", id => "field", call => \&checkconfig);
+	hook(type => "needsbuild", id => "field", call => \&needsbuild);
 	hook(type => "preprocess", id => "field", call => \&preprocess, scan=>1);
-	hook(type => "scan", id => "field", call => \&scan, last=>1);
+	hook(type => "scan", id => "field", call => \&scan_last, last=>1);
 	hook(type => "pagetemplate", id => "field", call => \&pagetemplate);
 }
 
@@ -190,14 +192,23 @@ sub preprocess (@) {
     return '';
 }
 
-sub scan (@) {
+sub needsbuild ($;$) {
+    my $needsbuild = shift;
+    my $deleted = shift;
+
+    remember_early_values($needsbuild, $deleted);
+
+    return $needsbuild;
+} # needsbuild
+
+sub scan_last (@) {
     my %params=@_;
     my $page=$params{page};
     my $content=$params{content};
 
     remember_values(%params);
     scan_for_tags(%params);
-} # scan
+} # scan_last
 
 
 sub pagetemplate (@) {
@@ -207,6 +218,16 @@ sub pagetemplate (@) {
 
     field_set_template_values($template, $page);
 } # pagetemplate
+
+sub deleted (@) {
+    my @files=@_;
+
+    foreach my $file (@files)
+    {
+	my $page=pagename($file);
+	FieldO->clear_page($page);
+    }
+} # deleted
 
 # ===============================================
 # Field interface
@@ -256,6 +277,27 @@ sub field_register (%) {
     add_lookup_order($id, $when);
     return 1;
 } # field_register
+
+# Register field-making that doesn't require
+# knowing the content of a page
+sub field_register_precontent (%) {
+    my %param=@_;
+    if (!exists $param{id})
+    {
+	error 'field_register_precontent requires id parameter';
+	return 0;
+    }
+    if (exists $param{call} and !ref $param{call})
+    {
+	error 'field_register_precontent call parameter must be function';
+	return 0;
+    }
+
+    my $id = $param{id};
+    $FieldsEarly{$id} = \%param;
+
+    return 1;
+} # field_register_precontent
 
 sub field_register_calculation (%) {
     my %param=@_;
@@ -413,6 +455,52 @@ sub scan_for_tags (@) {
     }
 } # scan_for_tags
 
+sub remember_early_values ($;$) {
+    my $needsbuild = shift;
+    my $deleted = shift;
+
+    # These are standard values such as parent_page etc.
+    foreach my $file (@{$needsbuild})
+    {
+	my $page=pagename($file);
+	my $page_type = pagetype($file);
+	add_standard_values($page, $page_type);
+    }
+
+    my %all_values = ();
+    foreach my $id (sort keys %FieldsEarly)
+    {
+	my $tvals = $FieldsEarly{$id}{call}->($needsbuild, $deleted);
+
+	foreach my $pn (keys %{$tvals})
+	{
+	    $all_values{$pn} = {};
+	    foreach my $key (keys %{$tvals->{$pn}})
+	    {
+		my $lc_key = lc($key);
+		$all_values{$pn}->{$lc_key} = $tvals->{$pn}->{$key};
+	    }
+	}
+
+    } # for pre-content field plugins
+
+    # now go through each page and add the new values
+    foreach my $page (keys %all_values)
+    {
+	my %values = $FieldO->get_values($page);
+	while (my ($key, $value) = each %{$all_values{$page}})
+	{
+	    format_values(
+		values => \%values,
+		field=>$key,
+		value=> $value,
+		page=>$page);
+	}
+	$FieldO->set_values($page, %values);
+    }
+
+} # remember_early_values
+
 sub remember_values (@) {
     my %params=@_;
     my $page=$params{page};
@@ -428,9 +516,6 @@ sub remember_values (@) {
     my $pagesource = $pagesources{$page};
     return undef unless $pagesource;
     my $page_type = pagetype($pagesource);
-
-    # These are standard values such as parent_page etc.
-    add_standard_values($page, $page_type);
 
     my %values = $FieldO->get_values($page);
     foreach my $id (@FieldsLookupOrder)
@@ -884,6 +969,15 @@ sub set_values {
 
     return scalar %values;
 } # set_values
+
+# delete all values for page
+sub clear_page {
+    my ($self, $page) = @_;
+
+    return 0 unless defined $page;
+    return 0 unless exists $IkiWiki::pagestate{$page}{field};
+    delete $IkiWiki::pagestate{$page}{field};
+} # clear_page
 
 sub list_fields {
     my ( $self, $page) = @_;
