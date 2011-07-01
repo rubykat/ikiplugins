@@ -40,8 +40,7 @@ sub import {
     hook(type => "getsetup", id => "subset", call => \&getsetup);
     hook(type => "checkconfig", id => "subset", call => \&checkconfig);
     hook(type => "preprocess", id => "subset", call => \&preprocess_subset);
-    hook(type => "delete", id => "navdb", call => \&delete);
-    hook(type => "change", id => "navdb", call => \&change);
+#hook(type => "needsbuild", id => "subset", call => \&needsbuild);
 
     $OrigSubs{pagespec_match_list} = \&pagespec_match_list;
     inject(name => 'IkiWiki::pagespec_match_list', call => \&subset_pagespec_match_list);
@@ -104,74 +103,84 @@ sub preprocess_subset (@) {
     }
 
     my $key = $params{name};
-    $wikistate{subset}{name}{$key} = $params{pages};
-    $wikistate{subset}{match_list}{$key} = undef;
-    $wikistate{subset}{match_hash}{$key} = undef;
-    $wikistate{subset}{sort}{$key} = $params{sort} if exists $params{sort};
+    $pagestate{$config{subset_page}}{subset}{name}{$key} = $params{pages};
+    $pagestate{$config{subset_page}}{subset}{match_list}{$key} = undef;
+    $pagestate{$config{subset_page}}{subset}{match_hash}{$key} = undef;
+    $pagestate{$config{subset_page}}{subset}{sort}{$key} = $params{sort} if exists $params{sort};
 
     #This is used to display what subsets are defined.
     return sprintf(gettext("<b>subset(%s)</b>: `%s`"),
 	$params{name}, $params{pages});
 } # preprocess_subset
 
-sub delete (@) {
-    my @files=@_;
+sub needsbuild ($;$) {
+    my $needsbuild = shift;
+    my $deleted = shift;
 
-    if (!exists $wikistate{subset})
-    {
-	return;
-    }
-    my @subsets = (keys %{$wikistate{subset}{name}});
+    changed(@{$needsbuild});
+    deleted(@{$deleted});
 
-    # clear the subsets associated with these pages
-    foreach my $subset (@subsets)
-    {
-	if (defined $wikistate{subset}{match_hash}{$subset})
-	{
-	    foreach my $file (@files)
-	    {
-		my $page=pagename($file);
-		if ($wikistate{subset}{match_hash}{$subset}{$page})
-		{
-		    $wikistate{subset}{match_hash}{$subset} = undef;
-		    $wikistate{subset}{match_list}{$subset} = undef;
-		    last;
-		}
-	    }
-	}
-    }
-} # delete
-
-sub change (@) {
-    my @files=@_;
-    if (!exists $wikistate{subset})
-    {
-	return;
-    }
-    my @subsets = (keys %{$wikistate{subset}{name}});
-
-    # clear the subsets associated with these pages
-    foreach my $subset (@subsets)
-    {
-	if (defined $wikistate{subset}{match_hash}{$subset})
-	{
-	    foreach my $file (@files)
-	    {
-		my $page=pagename($file);
-		if ($wikistate{subset}{match_hash}{$subset}{$page})
-		{
-		    $wikistate{subset}{match_hash}{$subset} = undef;
-		    $wikistate{subset}{match_list}{$subset} = undef;
-		    last;
-		}
-	    }
-	}
-    }
-} # change
+    return $needsbuild;
+} # needsbuild
 
 # ===============================================
 # Private Functions
 # ---------------------------
+
+sub deleted (@) {
+    my @files=@_;
+
+    if (!exists $pagestate{$config{subset_page}}{subset})
+    {
+	return;
+    }
+    my @subsets = (keys %{$pagestate{$config{subset_page}}{subset}{name}});
+
+    # clear the subsets associated with these pages
+    foreach my $subset (@subsets)
+    {
+	if (defined $pagestate{$config{subset_page}}{subset}{match_hash}{$subset})
+	{
+	    foreach my $file (@files)
+	    {
+		my $page=pagename($file);
+		if ($pagestate{$config{subset_page}}{subset}{match_hash}{$subset}{$page})
+		{
+		    $pagestate{$config{subset_page}}{subset}{match_hash}{$subset} = undef;
+		    $pagestate{$config{subset_page}}{subset}{match_list}{$subset} = undef;
+		    last;
+		}
+	    }
+	}
+    }
+} # deleted
+
+sub changed (@) {
+    my @files=@_;
+    if (!exists $pagestate{$config{subset_page}}{subset})
+    {
+	return;
+    }
+    my @subsets = (keys %{$pagestate{$config{subset_page}}{subset}{name}});
+
+    # clear the subsets associated with these pages
+    foreach my $subset (@subsets)
+    {
+	if (defined $pagestate{$config{subset_page}}{subset}{match_hash}{$subset})
+	{
+	    foreach my $file (@files)
+	    {
+		my $page=pagename($file);
+		if ($pagestate{$config{subset_page}}{subset}{match_hash}{$subset}{$page})
+		{
+		    $pagestate{$config{subset_page}}{subset}{match_hash}{$subset} = undef;
+		    $pagestate{$config{subset_page}}{subset}{match_list}{$subset} = undef;
+		    last;
+		}
+	    }
+	}
+    }
+} # changed
 
 sub subset_pagespec_match_list ($$;@) {
     my $page=shift;
@@ -203,7 +212,7 @@ sub subset_pagespec_match_list ($$;@) {
 	delete $params{subset};
     }
 
-    if ($subset_id and exists $wikistate{subset}{name}{$subset_id})
+    if ($subset_id and exists $pagestate{$config{subset_page}}{subset}{name}{$subset_id})
     {
 	# Subset sorting:
 	# Since a subset is stored as an array, it has an order.
@@ -213,15 +222,15 @@ sub subset_pagespec_match_list ($$;@) {
 	# is different from the default sort.
 	
 	my @subset;
-	if (defined $wikistate{subset}{match_list}{$subset_id})
+	if (defined $pagestate{$config{subset_page}}{subset}{match_list}{$subset_id})
 	{
-	    @subset = @{$wikistate{subset}{match_list}{$subset_id}};
+	    @subset = @{$pagestate{$config{subset_page}}{subset}{match_list}{$subset_id}};
 
 	    # Don't re-sort the results if the requested sort
 	    # is the same as the default sort.
-	    if (exists $wikistate{subset}{sort}{$subset_id}
+	    if (exists $pagestate{$config{subset_page}}{subset}{sort}{$subset_id}
 		    and exists $params{sort}
-		    and $params{sort} eq $wikistate{subset}{sort}{$subset_id})
+		    and $params{sort} eq $pagestate{$config{subset_page}}{subset}{sort}{$subset_id})
 	    {
 		delete $params{sort};
 	    }
@@ -230,29 +239,29 @@ sub subset_pagespec_match_list ($$;@) {
 	{
 	    my $old_sort;
 	    my $old_num;
-	    if (exists $wikistate{subset}{sort}{$subset_id})
+	    if (exists $pagestate{$config{subset_page}}{subset}{sort}{$subset_id})
 	    {
 		if ( exists $params{sort}
-			and $params{sort} ne $wikistate{subset}{sort}{$subset_id})
+			and $params{sort} ne $pagestate{$config{subset_page}}{subset}{sort}{$subset_id})
 		{
 		    $old_sort = $params{sort};
 		}
-		$params{sort} = $wikistate{subset}{sort}{$subset_id};
+		$params{sort} = $pagestate{$config{subset_page}}{subset}{sort}{$subset_id};
 	    }
 	    if (exists $params{num} and $params{num})
 	    {
 		$old_num = $params{num};
 		delete $params{num};
 	    }
-	    @subset = $OrigSubs{pagespec_match_list}->($page,
+	    @subset = $OrigSubs{pagespec_match_list}->($config{subset_page},
 		"subset(${subset_id})",
 		deptype=>deptype('presence'),
 		%params);
-	    $wikistate{subset}{match_list}{$subset_id} = \@subset;
+	    $pagestate{$config{subset_page}}{subset}{match_list}{$subset_id} = \@subset;
 	    # remember in a hash also
 	    foreach my $k (@subset)
 	    {
-		$wikistate{subset}{match_hash}{$subset_id}{$k} = 1;
+		$pagestate{$config{subset_page}}{subset}{match_hash}{$subset_id}{$k} = 1;
 	    }
 	    if ($old_sort)
 	    {
@@ -303,12 +312,12 @@ sub match_subset ($$;@) {
     my $page=shift;
     my $subset=shift;
 
-    if (exists $IkiWiki::wikistate{subset}{name}{$subset})
+    if (exists $IkiWiki::pagestate{$IkiWiki::config{subset_page}}{subset}{name}{$subset})
     {
-	if (defined $IkiWiki::wikistate{subset}{match_hash}{$subset})
+	if (defined $IkiWiki::pagestate{$IkiWiki::config{subset_page}}{subset}{match_hash}{$subset})
 	{
 	    # if it's in the hash, it matches; if it isn't it doesn't
-	    if ($IkiWiki::wikistate{subset}{match_hash}{$subset}{$page})
+	    if ($IkiWiki::pagestate{$IkiWiki::config{subset_page}}{subset}{match_hash}{$subset}{$page})
 	    {
 		return IkiWiki::SuccessReason->new("$page in subset $subset");
 	    }
@@ -319,7 +328,7 @@ sub match_subset ($$;@) {
 	}
 	else
 	{
-	    return IkiWiki::pagespec_match($page, $IkiWiki::wikistate{subset}{name}{$subset});
+	    return IkiWiki::pagespec_match($page, $IkiWiki::pagestate{$IkiWiki::config{subset_page}}{subset}{name}{$subset});
 	}
     }
     else
