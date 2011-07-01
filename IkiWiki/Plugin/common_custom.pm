@@ -238,8 +238,6 @@ sub all_common_vars ($$) {
 	$values{plain_ctime} = $ctime;
     }
 
-    below_me($page, \%values);
-
     return \%values;
 } # all_common_vars
 
@@ -339,61 +337,6 @@ sub common_vars_calc (@) {
     }
     return undef;
 } # common_vars_calc
-
-sub below_me {
-    my $page = shift;
-    my $values = shift;
-
-    # This figures out what is "below" this page;
-    # the files in the directory associated with this page.
-    # Note that this does NOT take account of underlays.
-    my $srcdir = $config{srcdir};
-    my $page_dir = $srcdir . '/' . $page;
-    if ($page eq 'index')
-    {
-	$page_dir = $srcdir;
-    }
-    if (-d $page_dir) # there is a page directory
-    {
-	my @files = <${page_dir}/*>;
-	my %pagenames = ();
-	my %filenames = ();
-	foreach my $file (@files)
-	{
-	    if ($file =~ m!$srcdir/(.*)!)
-	    {
-		my $p = $1;
-		if (pagetype($p))
-		{
-		    my $pn = pagename($p);
-		    $pagenames{$pn} = 1 unless $pn eq $page;
-		}
-		else
-		{
-		    $filenames{$p} = 1;
-		}
-	    }
-	}
-	if (%pagenames and %filenames)
-	{
-	    my @all_pages = (nsort(keys %pagenames));
-	    $values->{pages_below_me} = \@all_pages if @all_pages;
-	    my @all_files = (nsort((keys %filenames), @all_pages));
-	    $values->{files_below_me} = \@all_files;
-	}
-	elsif (%pagenames)
-	{
-	    my @all_pages = (nsort(keys %pagenames));
-	    $values->{pages_below_me} = \@all_pages if @all_pages;
-	}
-	elsif (%filenames)
-	{
-	    my @all_files = (nsort(keys %filenames));
-	    $values->{files_below_me} = \@all_files;
-	}
-    }
-    return undef;
-} # below_me
 
 # ===============================================
 # PageSpec functions
