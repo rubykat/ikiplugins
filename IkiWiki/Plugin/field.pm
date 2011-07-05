@@ -836,6 +836,21 @@ sub calculated_values {
     return (wantarray ? ($value) : $value);
 } # calculated_values
 
+sub field_is_null ($$) {
+    my $page=shift;
+    my $field_name=shift;
+
+    my $val = IkiWiki::Plugin::field::field_get_value($field_name, $page);
+
+    # testing if the value is null, undefined etc.
+    if (defined $val and $val) {
+	return IkiWiki::FailReason->new("$field_name of $page is not null");
+    }
+    else {
+	return IkiWiki::SuccessReason->new("$field_name of $page is null");
+    }
+} # field_is_null
+
 my %match_a_field_globs = ();
 
 # match field funcs
@@ -1055,6 +1070,12 @@ sub match_destfield_item ($$;@) {
     return IkiWiki::Plugin::field::match_a_field_item($params{destpage}, $wanted);
 } # match_destfield
 
+sub match_field_null ($$;@) {
+    my $page=shift;
+    my $wanted=shift;
+    return IkiWiki::Plugin::field::field_is_null($page, $wanted);
+} # match_field_null
+
 sub match_field_tagged ($$;@) {
     my $page=shift;
     my $wanted=shift;
@@ -1073,17 +1094,6 @@ sub match_field_tagged ($$;@) {
 	return IkiWiki::FailReason->new("cannot match field");
     }
     return match_link($page, $glob, linktype => lc($field_name), @_);
-}
-
-sub match_destfield_tagged ($$;@) {
-    my $page=shift;
-    my $wanted=shift;
-    my %params=@_;
-
-    return IkiWiki::FailReason->new("cannot match destpage") unless exists $params{destpage};
-
-    # Match the field on the destination page, not the source page
-    return IkiWiki::Plugin::field::match_field_tagged($params{destpage}, $wanted);
 }
 
 # ===============================================
