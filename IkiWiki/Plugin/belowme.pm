@@ -39,10 +39,11 @@ use Sort::Naturally;
 
 sub import {
 	hook(type => "getsetup", id => "belowme", call => \&getsetup);
+	hook(type => "checkconfig", id => "belowme", call => \&checkconfig);
+	hook(type => "needsbuild", id => "belowme", call => \&set_below_me);
 
     IkiWiki::loadplugin("field");
-    IkiWiki::Plugin::field::field_register_precontent(id=>'belowme',
-	call=>\&set_below_me);
+    IkiWiki::Plugin::field::field_register(id=>'belowme', first=>1);
 }
 
 #-------------------------------------------------------
@@ -54,11 +55,22 @@ sub getsetup () {
 			safe => 0,
 			rebuild => 1,
 		},
+		belowme_besideme => {
+			type => "boolean",
+			example => "belowme_besideme => 1",
+			description => "record the 'beside-me' value as well as the 'below-me' value",
+			safe => 0,
+			rebuild => undef,
+		},
 } # getsetup
 
-#-------------------------------------------------------
-# field functions
-#-------------------------------------------------------
+sub checkconfig () {
+
+    if (!defined $config{belowme_besideme})
+    {
+	$config{belowme_besideme} = 1;
+    }
+} # checkconfig
 
 sub set_below_me ($;$) {
     my $needsbuild = shift;
@@ -98,27 +110,29 @@ sub set_below_me ($;$) {
     }
 
     # set the below-me values;
-    my %all_values = ();
     foreach my $pp (keys %reset_me)
     {
 	my %values = ();
 	below_me($pp, \%values);
 	if (%values)
 	{
-	    $all_values{$pp}{pages_below_me} = $values{pages_below_me} if exists $values{pages_below_me};
-	    $all_values{$pp}{files_below_me} = $values{files_below_me} if exists $values{files_below_me};
-	    # set their children values
-#	    if (exists $values{pages_below_me}
-#		    and $values{pages_below_me})
-#	    {
-#		foreach my $cp (@{$values{pages_below_me}})
-#		{
-#		    $all_values{$cp}{pages_beside_me} = $values{pages_below_me};
-#		}
-#	    }
+	    $pagestate{$pp}{belowme}{pages_below_me} = $values{pages_below_me} if exists $values{pages_below_me};
+	    $pagestate{$pp}{belowme}{files_below_me} = $values{files_below_me} if exists $values{files_below_me};
+	    if ($config{belowme_besideme})
+	    {
+		# set their children values
+		if (exists $values{pages_below_me}
+			and $values{pages_below_me})
+		{
+		    foreach my $cp (@{$values{pages_below_me}})
+		    {
+			$pagestate{$cp}{belowme}{pages_beside_me} = $values{pages_below_me};
+		    }
+		}
+	    }
+
 	}
     }
-    return \%all_values;
 } # set_below_me
 
 #-------------------------------------------------------

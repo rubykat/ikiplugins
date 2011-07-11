@@ -41,7 +41,6 @@ modify it under the same terms as Perl itself.
 =cut
 
 use IkiWiki 3.00;
-use Storable qw(dclone);
 
 my $FieldO;
 
@@ -61,17 +60,13 @@ my %Fields = (
 );
 my @FieldsLookupOrder = ();
 
-my %FieldCalcs = ();
-my %FieldsEarly = ();
-
 sub field_get_value ($$;@);
 
 sub import {
 	hook(type => "getsetup", id => "field",  call => \&getsetup);
 	hook(type => "checkconfig", id => "field", call => \&checkconfig);
-	hook(type => "needsbuild", id => "field", call => \&needsbuild);
 	hook(type => "preprocess", id => "field", call => \&preprocess, scan=>1);
-	hook(type => "scan", id => "field", call => \&scan_last, last=>1);
+	hook(type => "scan", id => "field", call => \&scan, last=>1);
 	hook(type => "pagetemplate", id => "field", call => \&pagetemplate);
 }
 
@@ -190,25 +185,16 @@ sub preprocess (@) {
 	}
     }
     return '';
-}
+} # preprocess
 
-sub needsbuild ($;$) {
-    my $needsbuild = shift;
-    my $deleted = shift;
-
-    remember_early_values($needsbuild, $deleted);
-
-    return $needsbuild;
-} # needsbuild
-
-sub scan_last (@) {
+sub scan (@) {
     my %params=@_;
     my $page=$params{page};
     my $content=$params{content};
 
     remember_values(%params);
     scan_for_tags(%params);
-} # scan_last
+} # scan
 
 
 sub pagetemplate (@) {
@@ -278,88 +264,34 @@ sub field_register (%) {
     return 1;
 } # field_register
 
-# Register field-making that doesn't require
-# knowing the content of a page
-sub field_register_precontent (%) {
-    my %param=@_;
-    if (!exists $param{id})
-    {
-	error 'field_register_precontent requires id parameter';
-	return 0;
-    }
-    if (exists $param{call} and !ref $param{call})
-    {
-	error 'field_register_precontent call parameter must be function';
-	return 0;
-    }
-
-    my $id = $param{id};
-    $FieldsEarly{$id} = \%param;
-
-    return 1;
-} # field_register_precontent
-
-sub field_register_calculation (%) {
-    my %param=@_;
-
-    foreach my $requires (qw(id call))
-    {
-	if (!exists $param{$requires})
-	{
-	    error sprintf("%s requires %s parameter",
-		'field_register_calculation', $requires);
-	    return 0;
-	}
-    }
-    if (exists $param{call} and !ref $param{call})
-    {
-	error 'field_register_calculation call parameter must be function';
-	return 0;
-    }
-
-    my $id = $param{id};
-    $FieldCalcs{$id} = \%param;
-
-} # field_register_calculation
-
 sub field_get_value ($$;@) {
     my $field_name = shift;
     my $page = shift;
     my %params = @_;
 
     # This expects all values to have been remembered in the scan pass.
-    # Calculations on fields are given in dot notation.
-    # The actual field name must be the first part.
-    my @actions = split(/\./, lc($field_name));
+    # However, non-pages will not have been scanned in the scan pass.
+    # But non-pages could still have derived values, so check.
 
     my $pagesource = $pagesources{$page};
     return undef unless $pagesource;
     my $page_type = pagetype($pagesource);
 
-    my $lc_field_name = shift @actions;
+    if (!$page_type and !$FieldO->page_is_set($page))
+    {
+	remember_values(%params, page=>$page, content=>'');
+    }
+
+    my $lc_field_name = lc($field_name);
 
     if (exists $params{$lc_field_name})
     {
 	my $value = $params{$lc_field_name};
-	if (@actions)
-	{
-	    $value = apply_calculations(value=>$value,
-		page=>$page,
-		field_name=>$lc_field_name,
-		actions=>\@actions);
-	}
 	return $value;
     }
     else
     {
 	my $value = $FieldO->get_value($page, $lc_field_name);
-	if ($value and @actions)
-	{
-	    $value = apply_calculations(value=>$value,
-		page=>$page,
-		field_name=>$lc_field_name,
-		actions=>\@actions);
-	}
 	return $value;
     }
     return undef;
@@ -370,11 +302,21 @@ sub field_set_template_values ($$;@) {
     my $page = shift;
     my %params = @_;
 
+    # This expects all values to have been remembered in the scan pass.
+    # However, non-pages will not have been scanned in the scan pass.
+    # But non-pages could still have derived values, so check.
+    my $pagesource = $pagesources{$page};
+    return undef unless $pagesource;
+    my $page_type = pagetype($pagesource);
+    if (!$page_type and !$FieldO->page_is_set($page))
+    {
+	remember_values(%params, page=>$page, content=>'');
+    }
+
     my $ttype = ref $template;
 
     return set_html_template($template, $page, %params);
 } # field_set_template_values
-
 
 # ===============================================
 # Private Functions
@@ -394,6 +336,7 @@ sub set_html_template ($$;@) {
 	{
 	    # Don't redefine if the field already has a value set.
 	    next if ($template->param($field));
+	    # Passed-in parameters take precedence
 	    my $value = (
 		(exists $params{$field} and defined $params{$field})
 		? $params{$field}
@@ -455,52 +398,6 @@ sub scan_for_tags (@) {
     }
 } # scan_for_tags
 
-sub remember_early_values ($;$) {
-    my $needsbuild = shift;
-    my $deleted = shift;
-
-    # These are standard values such as parent_page etc.
-    foreach my $file (@{$needsbuild})
-    {
-	my $page=pagename($file);
-	my $page_type = pagetype($file);
-	add_standard_values($page, $page_type);
-    }
-
-    my %all_values = ();
-    foreach my $id (sort keys %FieldsEarly)
-    {
-	my $tvals = $FieldsEarly{$id}{call}->($needsbuild, $deleted);
-
-	foreach my $pn (keys %{$tvals})
-	{
-	    $all_values{$pn} = {};
-	    foreach my $key (keys %{$tvals->{$pn}})
-	    {
-		my $lc_key = lc($key);
-		$all_values{$pn}->{$lc_key} = $tvals->{$pn}->{$key};
-	    }
-	}
-
-    } # for pre-content field plugins
-
-    # now go through each page and add the new values
-    foreach my $page (keys %all_values)
-    {
-	my %values = $FieldO->get_values($page);
-	while (my ($key, $value) = each %{$all_values{$page}})
-	{
-	    format_values(
-		values => \%values,
-		field=>$key,
-		value=> $value,
-		page=>$page);
-	}
-	$FieldO->set_values($page, %values);
-    }
-
-} # remember_early_values
-
 sub remember_values (@) {
     my %params=@_;
     my $page=$params{page};
@@ -516,6 +413,8 @@ sub remember_values (@) {
     my $pagesource = $pagesources{$page};
     return undef unless $pagesource;
     my $page_type = pagetype($pagesource);
+
+    add_standard_values($page, $page_type);
 
     my %values = $FieldO->get_values($page);
     foreach my $id (@FieldsLookupOrder)
@@ -565,27 +464,6 @@ sub remember_values (@) {
 
     add_calculated_values($page, $page_type);
 } # remember_values
-
-sub apply_calculations {
-    my %params=@_;
-
-    my $val = $params{value};
-    my @actions = @{$params{actions}};
-
-    foreach my $act (@actions)
-    {
-	if ($act ne 'array')
-	{
-	    if (exists $FieldCalcs{$act}{call})
-	    {
-		$val = $FieldCalcs{$act}{call}->(%params,
-		    id=>$act,
-		    value=>$val);
-	    }
-	}
-    }
-    return $val;
-} # apply_calculations
 
 # Calculate the lookup order
 # <module, >module, AZ
@@ -958,6 +836,15 @@ sub new {
     my $self = bless ({%parameters}, ref ($class) || $class);
     return ($self);
 } # new
+
+# are values set for this page?
+sub page_is_set {
+    my ( $self, $page) = @_;
+
+    return 0 unless defined $page;
+    return 0 unless exists $IkiWiki::pagestate{$page}{field};
+    return 1;
+} # page_is_set
 
 #
 # These methods do the actual setting and getting.

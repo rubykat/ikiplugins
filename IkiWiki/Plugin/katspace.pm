@@ -136,6 +136,16 @@ sub all_katspace_vars (@) {
 	$values{bunnycount} = do_finishathon_bunny_count($page, wantarray);
 	$values{fandomlist} = do_finishathon_fandom_list($page, wantarray);
     }
+    if ($page =~ /stories/)
+    {
+	my $date = IkiWiki::Plugin::field::field_get_value('FicDate', $page);
+	if ($date)
+	{
+	    $values{'FicDate-year'} = IkiWiki::Plugin::common_custom::common_vars_calc(page=>$page, value=>$date, id=>'year');
+	    $values{'FicDate-month'} = IkiWiki::Plugin::common_custom::common_vars_calc(page=>$page, value=>$date, id=>'month');
+	    $values{'FicDate-monthname'} = IkiWiki::Plugin::common_custom::common_vars_calc(page=>$page, value=>$values{'FicDate-month'}, id=>'monthname');
+	}
+    }
 
     return \%values;
 } # all_katspace_vars

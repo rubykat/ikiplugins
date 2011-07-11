@@ -47,12 +47,6 @@ sub import {
     IkiWiki::loadplugin("field");
     IkiWiki::Plugin::field::field_register(id=>'common_custom',
 	all_values=>\&all_common_vars);
-    foreach my $id (qw(year month monthname date datelong))
-    {
-	IkiWiki::Plugin::field::field_register_calculation(
-	    id=>$id,
-	    call=>\&common_vars_calc);
-    }
 
     $OrigSubs{htmllink} = \&htmllink;
     inject(name => 'IkiWiki::htmllink', call => \&my_htmllink);
