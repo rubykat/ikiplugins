@@ -54,13 +54,19 @@ sub getsetup () {
     return
     plugin => {
 	safe => 1,
-	rebuild => undef,
-	section => "widget",
+	rebuild => 1,
     },
     subset_page => {
 	type => "string",
 	example => "subset_page => 'subsets'",
 	description => "page to look for subset definitions",
+	safe => 0,
+	rebuild => undef,
+    },
+    subset_def => {
+	type => "string",
+	example => "subset_def => '[[!subset name=foo pages=bar]]'",
+	description => "subset definitions",
 	safe => 0,
 	rebuild => undef,
     },
@@ -89,7 +95,14 @@ sub checkconfig () {
 	    IkiWiki::preprocess($subset_page, $subset_page, readfile($srcfile));
 	}
     }
-}
+    # Treat the config_def string as if it were the subsets page.
+    if (defined $config{subset_def} && $config{subset_def})
+    {
+	IkiWiki::preprocess($config{subset_page}, $config{subset_page},
+	    $config{subset_def});
+    }
+
+} # checkconfig
 
 sub preprocess_subset (@) {
     my %params=@_;
