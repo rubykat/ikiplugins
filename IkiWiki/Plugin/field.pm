@@ -42,8 +42,6 @@ modify it under the same terms as Perl itself.
 
 use IkiWiki 3.00;
 
-my $FieldO;
-
 my %Fields = (
     _first => {
 	id => '_first',
@@ -103,8 +101,6 @@ sub getsetup () {
 }
 
 sub checkconfig () {
-
-    $FieldO = IkiWiki::Plugin::field::Source->new();
 
     # use the simple by-plugin pagestatus method for
     # those plugins registered with the field_register config option.
@@ -189,8 +185,6 @@ sub preprocess (@) {
 
 sub scan (@) {
     my %params=@_;
-    my $page=$params{page};
-    my $content=$params{content};
 
     remember_values(%params);
     scan_for_tags(%params);
@@ -199,10 +193,8 @@ sub scan (@) {
 
 sub pagetemplate (@) {
     my %params=@_;
-    my $page=$params{page};
-    my $template=$params{template};
 
-    field_set_template_values($template, $page);
+    field_set_template_values($params{template}, $params{page});
 } # pagetemplate
 
 sub deleted (@) {
@@ -211,7 +203,7 @@ sub deleted (@) {
     foreach my $file (@files)
     {
 	my $page=pagename($file);
-	FieldO->clear_page($page);
+	delete $IkiWiki::pagestate{$page}{field};
     }
 } # deleted
 
@@ -277,7 +269,7 @@ sub field_get_value ($$;@) {
     return undef unless $pagesource;
     my $page_type = pagetype($pagesource);
 
-    if (!$page_type and !$FieldO->page_is_set($page))
+    if (!$page_type and !fs_page_is_set($page))
     {
 	remember_values(%params, page=>$page, content=>'');
     }
@@ -291,7 +283,7 @@ sub field_get_value ($$;@) {
     }
     else
     {
-	my $value = $FieldO->get_value($page, $lc_field_name);
+	my $value = fs_get_value($page, $lc_field_name);
 	return $value;
     }
     return undef;
@@ -308,7 +300,7 @@ sub field_set_template_values ($$;@) {
     my $pagesource = $pagesources{$page};
     return undef unless $pagesource;
     my $page_type = pagetype($pagesource);
-    if (!$page_type and !$FieldO->page_is_set($page))
+    if (!$page_type and !fs_page_is_set($page))
     {
 	remember_values(%params, page=>$page, content=>'');
     }
@@ -328,7 +320,7 @@ sub set_html_template ($$;@) {
     my $page = shift;
     my %params = @_;
 
-    my %vals = $FieldO->get_values($page);
+    my %vals = fs_get_values($page);
     if (%vals)
     {
 	my @parameter_names = $template->param();
@@ -363,7 +355,7 @@ sub set_html_template_pro ($$;@) {
     # Note that HTML::Template::Pro cannot query the template
     # so we don't know what values are required for this template
     # so we have to give them ALL
-    my %values = $FieldO->get_values($page);
+    my %values = fs_get_values($page);
     $template->param(%values);
     $template->param(%params);
 
@@ -416,7 +408,7 @@ sub remember_values (@) {
 
     add_standard_values($page, $page_type);
 
-    my %values = $FieldO->get_values($page);
+    my %values = fs_get_values($page);
     foreach my $id (@FieldsLookupOrder)
     {
 	my %vals = ();
@@ -458,7 +450,7 @@ sub remember_values (@) {
 
 	# Do this here so that later plugins can use the values.
 	# This is so that one can have values derived from other values.
-	$FieldO->set_values($page, %values);
+	fs_set_values($page, %values);
 
     } # for all registered field plugins
 
@@ -570,7 +562,7 @@ sub add_standard_values {
 	    }
 	}
     }
-    $FieldO->set_values($page, %values);
+    fs_set_values($page, %values);
 } # add_standard_values
 
 # standard values deduced from other values
@@ -579,7 +571,7 @@ sub add_calculated_values {
     my $page = shift;
     my $page_type = shift;
 
-    my %values = $FieldO->get_values($page);
+    my %values = fs_get_values($page);
     my @fields = (qw(title titlecaps pagetitle));
     foreach my $key (@fields)
     {
@@ -615,7 +607,7 @@ sub add_calculated_values {
 	    $values{"${lc_key}_loop"} = \@orig_loop;
 	}
     }
-    $FieldO->set_values($page, %values);
+    fs_set_values($page, %values);
 } # add_calculated_values
 
 # Add values in additional formats
@@ -824,45 +816,31 @@ sub match_a_field_item ($$) {
 } # match_a_field_item
 
 # ===============================================
-# Data Source Objects
+# Field Source
 #
 # Encapsulate this in an object.
 # ---------------------------
-package IkiWiki::Plugin::field::Source;
-
-sub new {
-    my $class = shift;
-    my %parameters = @_;
-    my $self = bless ({%parameters}, ref ($class) || $class);
-    return ($self);
-} # new
-
 # are values set for this page?
-sub page_is_set {
-    my ( $self, $page) = @_;
+sub fs_page_is_set {
+    my ($page) = @_;
 
     return 0 unless defined $page;
     return 0 unless exists $IkiWiki::pagestate{$page}{field};
     return 1;
-} # page_is_set
+} # fs_page_is_set
 
-#
-# These methods do the actual setting and getting.
-# They can be overridden if one desires to use a different data source.
-# The default source is to use the IkiWiki::pagestate hash.
-#
 # get ALL the values for a page
-sub get_values {
-    my ( $self, $page) = @_;
+sub fs_get_values {
+    my ( $page) = @_;
 
     return () unless defined $page;
     return () unless exists $IkiWiki::pagestate{$page}{field};
     return %{$IkiWiki::pagestate{$page}{field}};
-} # get_values
+} # fs_get_values
 
 # set ALL the values for a page
-sub set_values {
-    my ( $self, $page, %values) = @_;
+sub fs_set_values {
+    my ( $page, %values) = @_;
 
     return 0 unless defined $page;
     return 0 unless %values;
@@ -870,53 +848,17 @@ sub set_values {
     $IkiWiki::pagestate{$page}{field} = \%values;
 
     return scalar %values;
-} # set_values
+} # fs_set_values
 
-# delete all values for page
-sub clear_page {
-    my ($self, $page) = @_;
-
-    return 0 unless defined $page;
-    return 0 unless exists $IkiWiki::pagestate{$page}{field};
-    delete $IkiWiki::pagestate{$page}{field};
-} # clear_page
-
-sub list_fields {
-    my ( $self, $page) = @_;
-
-    return () unless defined $page;
-    return () unless exists $IkiWiki::pagestate{$page}{field};
-    my @fields = (sort keys %{$IkiWiki::pagestate{$page}{field}});
-    return @fields;
-} # list_fields
-
-sub get_value {
-    my ( $self, $page, $field ) = @_;
+sub fs_get_value {
+    my ( $page, $field ) = @_;
 
     return undef unless defined $page and defined $field;
     return undef unless exists $IkiWiki::pagestate{$page}{field};
     return undef unless exists $IkiWiki::pagestate{$page}{field}{$field};
     return $IkiWiki::pagestate{$page}{field}{$field};
-} # get_value
+} # fs_get_value
 
-sub set_value {
-    my ( $self, $page, $field, $value) = @_;
-
-    return undef unless defined $page and defined $field and defined $value;
-
-    my @values = ref $value ? @{$value} : ( $value );
-    if (scalar @values == 1 and $field !~ /_loop/i)
-    {
-	$IkiWiki::pagestate{$page}{field}{$field} = $values[0];
-    }
-    else
-    {
-	$IkiWiki::pagestate{$page}{field}{$field} = \@values;
-    }
-    return scalar @values;
-} # set_value
-
-1;
 # ===============================================
 # PageSpec functions
 # ---------------------------
