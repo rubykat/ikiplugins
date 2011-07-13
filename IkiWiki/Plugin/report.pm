@@ -575,6 +575,7 @@ sub build_report (@) {
 	    %params,
 	    template=>$template,
 	    page=>$page,
+	    recno=>$i,
 	    prev_page=>$prev_page,
 	    next_page=>$next_page,
 	    destpage=>$params{destpage},
