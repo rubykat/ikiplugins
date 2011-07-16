@@ -454,7 +454,7 @@ sub remember_values (@) {
 
     } # for all registered field plugins
 
-    add_calculated_values($page, $page_type);
+    add_derived_values($page, $page_type);
 } # remember_values
 
 # Calculate the lookup order
@@ -533,6 +533,13 @@ sub add_standard_values {
     my $page_type = shift;
 
     my %values = ();
+
+    format_values(values=>\%values,
+	field=>'page_type',
+	value=>$page_type,
+	page_type=>$page_type,
+	page=>$page);
+
     my @fields = (qw(page parent_page basename));
     foreach my $key (@fields)
     {
@@ -546,6 +553,7 @@ sub add_standard_values {
 	    page=>$page);
 	}
     }
+
     # config - just remember the scalars
     if ($config{field_allow_config})
     {
@@ -567,7 +575,7 @@ sub add_standard_values {
 
 # standard values deduced from other values
 # expects the values for the page to be set now
-sub add_calculated_values {
+sub add_derived_values {
     my $page = shift;
     my $page_type = shift;
 
@@ -607,8 +615,42 @@ sub add_calculated_values {
 	    $values{"${lc_key}_loop"} = \@orig_loop;
 	}
     }
+
+    # set meta values if they haven't been set
+    foreach my $key (qw{title description copyright author authorurl date updated})
+    {
+	if ((!exists $pagestate{$page}{meta}{$key}
+		or !defined $pagestate{$page}{meta}{$key})
+	    and exists $values{$key}
+	    and defined $values{$key}
+	    and $values{$key}
+	)
+	{
+	    if ($key eq 'title' and exists $values{titlesort})
+	    {
+		IkiWiki::Plugin::meta::preprocess(
+		    $key=>$values{$key},
+		    sortas=>$values{titlesort},
+		    page=>$page);
+	    }
+	    elsif ($key eq 'author' and exists $values{authorsort})
+	    {
+		IkiWiki::Plugin::meta::preprocess(
+		    $key=>$values{$key},
+		    sortas=>$values{authorsort},
+		    page=>$page);
+	    }
+	    else
+	    {
+		IkiWiki::Plugin::meta::preprocess(
+		    $key=>$values{$key},
+		    page=>$page);
+	    }
+	}
+    }
+
     fs_set_values($page, %values);
-} # add_calculated_values
+} # add_derived_values
 
 # Add values in additional formats
 # For example, _loop and _html
