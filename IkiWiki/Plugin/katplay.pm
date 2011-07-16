@@ -101,6 +101,28 @@ sub katplay_vars (@) {
 
     my %values = ();
     $values{navbar} = do_navbar($page);
+
+    if ($page =~ /stories/)
+    {
+	my @bits = split(/\//, $page);
+	# remove the actual page-file from this list
+	pop @bits;
+	my $found = 0;
+	my $level = 0;
+	while (@bits)
+	{
+	    my $s = shift @bits;
+	    if ($found)
+	    {
+		$level++;
+		$values{"section${level}"} = $s;
+	    }
+	    if ($s eq 'stories')
+	    {
+		$found = 1;
+	    }
+	}
+    }
     return \%values;
 } # katplay_vars
 
