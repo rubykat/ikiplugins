@@ -55,6 +55,7 @@ my @NavLinks = (qw(
 /docs/
 /episodes/
 /fanfic/
+/profic/
 /gusto/
 http://localhost/~kat/netfic/
 /search/
