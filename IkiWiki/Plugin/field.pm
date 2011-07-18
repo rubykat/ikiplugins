@@ -63,6 +63,7 @@ sub field_get_value ($$;@);
 sub import {
 	hook(type => "getsetup", id => "field",  call => \&getsetup);
 	hook(type => "checkconfig", id => "field", call => \&checkconfig);
+	hook(type => "needsbuild", id => "field", call => \&needsbuild);
 	hook(type => "preprocess", id => "field", call => \&preprocess, scan=>1);
 	hook(type => "scan", id => "field", call => \&scan, last=>1);
 	hook(type => "pagetemplate", id => "field", call => \&pagetemplate);
@@ -133,6 +134,26 @@ sub checkconfig () {
 	$config{field_allow_config} = 0;
     }
 } # checkconfig
+
+sub needsbuild (@) {
+    my ($needsbuild, $deleted) = @_;
+
+    # Non-page files need to have their fields cleared, because they won't
+    # be re-scanned in the scan pass, and we know at this point
+    # that they HAVE changed, so their data is out of date.
+    foreach my $file (@{$needsbuild})
+    {
+	my $page=pagename($file);
+	my $page_type = pagetype($file);
+	if (!$page_type)
+	{
+	    if (exists $pagestate{$page}{field})
+	    {
+		delete $pagestate{$page}{field};
+	    }
+	}
+    }
+} # needsbuild
 
 sub preprocess (@) {
     my %params= @_;
