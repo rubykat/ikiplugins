@@ -608,10 +608,11 @@ sub add_derived_values {
 	{
 	    my $val = calculated_values($key, $page);
 	    format_values(values=>\%values,
-	    field=>$key,
-	    value=>$val,
-	    page_type=>$page_type,
-	    page=>$page);
+		field=>$key,
+		value=>$val,
+		page_type=>$page_type,
+		page=>$page);
+	    fs_set_values($page, %values);
 	}
     }
     # tagpages
