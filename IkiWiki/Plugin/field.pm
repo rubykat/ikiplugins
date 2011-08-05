@@ -133,15 +133,6 @@ sub checkconfig () {
     {
 	$config{field_allow_config} = 0;
     }
-    eval { use HTML::Template::Pro; };
-    if ($@)
-    {
-	$config{field_use_template_pro} = 0;
-    }
-    else
-    {
-	$config{field_use_template_pro} = 1;
-    }
 } # checkconfig
 
 sub needsbuild (@) {
@@ -319,34 +310,6 @@ sub field_get_value ($$;@) {
     return undef;
 } # field_get_value
 
-sub field_get_template (@) {
-    my %params = @_;
-
-    my $template;
-    eval {
-	# Do this in an eval because it might fail
-	# if the template isn't a page in the wiki
-	$template=template_depends($params{template}, $params{page},
-				   blind_cache => 1);
-    };
-    if (! $template) {
-	# look for .tmpl template (in global templates dir)
-	my @opts = template("$params{template}.tmpl",
-	    blind_cache => 1);
-	
-	# try to use HTML::Template::Pro if it's available
-	if ($config{field_use_template_pro})
-	{
-	    $template = HTML::Template::Pro->new(@opts);
-	}
-	else
-	{
-	    $template = HTML::Template->new(@opts);
-	}
-    }
-    return $template;
-} # field_get_template
-
 sub field_set_template_values ($$;@) {
     my $template = shift;
     my $page = shift;
@@ -365,14 +328,7 @@ sub field_set_template_values ($$;@) {
 
     my $ttype = ref $template;
 
-    if ($ttype eq 'HTML::Template::Pro')
-    {
-	return set_html_template_pro($template, $page, %params);
-    }
-    else
-    {
-	return set_html_template($template, $page, %params);
-    }
+    return set_html_template($template, $page, %params);
 } # field_set_template_values
 
 # ===============================================
@@ -422,10 +378,7 @@ sub set_html_template_pro ($$;@) {
     # so we have to give them ALL
     my %values = fs_get_values($page);
     $template->param(%values);
-    if (%params)
-    {
-	$template->param(%params);
-    }
+    $template->param(%params);
 
     # Note that HTML::Template::Pro has expressions and functions, however.
 
