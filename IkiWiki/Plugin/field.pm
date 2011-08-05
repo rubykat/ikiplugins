@@ -326,21 +326,6 @@ sub field_set_template_values ($$;@) {
 	remember_values(%params, page=>$page, content=>'');
     }
 
-    my $ttype = ref $template;
-
-    return set_html_template($template, $page, %params);
-} # field_set_template_values
-
-# ===============================================
-# Private Functions
-# ---------------------------
-
-# set the values for the given HTML::Template template
-sub set_html_template ($$;@) {
-    my $template = shift;
-    my $page = shift;
-    my %params = @_;
-
     my %vals = fs_get_values($page);
     if (%vals)
     {
@@ -364,25 +349,11 @@ sub set_html_template ($$;@) {
 	    }
 	}
     }
+} # field_set_template_values
 
-} # set_html_template
-
-# set the values for the given HTML::Template::Pro template
-sub set_html_template_pro ($$;@) {
-    my $template = shift;
-    my $page = shift;
-    my %params = @_;
-
-    # Note that HTML::Template::Pro cannot query the template
-    # so we don't know what values are required for this template
-    # so we have to give them ALL
-    my %values = fs_get_values($page);
-    $template->param(%values);
-    $template->param(%params);
-
-    # Note that HTML::Template::Pro has expressions and functions, however.
-
-} # set_html_template_pro
+# ===============================================
+# Private Functions
+# ---------------------------
 
 sub scan_for_tags (@) {
     my %params=@_;
