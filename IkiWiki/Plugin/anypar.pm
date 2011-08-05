@@ -122,17 +122,8 @@ sub render_par (@) {
 	    'anypar', $par_template_name);
     }
 
-    # Look for the par-template only in the global templates dir
-    # for security
-    my $par_tmpl;
-    eval {
-	$par_tmpl=template($par_template_name,
-	    blind_cache => 1);
-    };
-    if ($@) {
-	error gettext("failed to process template $par_template_name:")." $@";
-    }
-
+    my $par_tmpl = IkiWiki::Plugin::field::field_get_template(%params,
+	template=>$par_template_name);
     IkiWiki::Plugin::field::field_set_template_values($par_tmpl, $page);
     my $content = $par_tmpl->output;
 

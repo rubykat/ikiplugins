@@ -102,29 +102,7 @@ sub preprocess (@) {
 	$params{first_page_is_index} = 0;
     }
 
-    my $template;
-    eval {
-	# Do this in an eval because it might fail
-	# if the template isn't a page in the wiki
-	$template=template_depends($params{template}, $params{page},
-				   blind_cache => 1);
-    };
-    if (! $template) {
-	# look for .tmpl template (in global templates dir)
-	eval {
-	    $template=template("$params{template}.tmpl",
-				       blind_cache => 1);
-	};
-	if ($@) {
-	    error gettext("failed to process template $params{template}.tmpl:")." $@";
-	}
-	if (! $template) {
-
-	    error sprintf(gettext("%s not found"),
-			  htmllink($params{page}, $params{destpage},
-				   "/templates/$params{template}"))
-	}
-    }
+    my $template = IkiWiki::Plugin::field::field_get_template(%params);
     delete $params{template};
 
     my $deptype=deptype($params{quick} ? 'presence' : 'content');
@@ -544,6 +522,7 @@ sub build_report (@) {
 	       );
 
     my @matching_pages = @{$params{matching_pages}};
+    delete $params{matching_pages};
     my $template = $params{template};
     my $scanning = $params{scanning};
     my @report = ();
