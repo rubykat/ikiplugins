@@ -601,7 +601,7 @@ sub add_derived_values {
     my $page_type = shift;
 
     my %values = fs_get_values($page);
-    my @fields = (qw(title titlecaps pagetitle));
+    my @fields = (qw(title titlecaps pagetitle baseurl));
     foreach my $key (@fields)
     {
 	if (!$values{$key})
@@ -736,6 +736,10 @@ sub calculated_values {
     elsif ($field_name eq 'pagetitle')
     {
 	$value = pagetitle(IkiWiki::basename($page));
+    }
+    elsif ($field_name eq 'baseurl')
+    {
+	$value = IkiWiki::baseurl($page);
     }
     elsif ($field_name eq 'titlecaps')
     {
