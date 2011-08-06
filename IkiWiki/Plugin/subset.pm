@@ -40,7 +40,7 @@ sub import {
     hook(type => "getsetup", id => "subset", call => \&getsetup);
     hook(type => "checkconfig", id => "subset", call => \&checkconfig);
     hook(type => "preprocess", id => "subset", call => \&preprocess_subset);
-#hook(type => "needsbuild", id => "subset", call => \&needsbuild);
+    hook(type => "needsbuild", id => "subset", call => \&needsbuild);
 
     $OrigSubs{pagespec_match_list} = \&pagespec_match_list;
     inject(name => 'IkiWiki::pagespec_match_list', call => \&subset_pagespec_match_list);
@@ -130,8 +130,8 @@ sub needsbuild ($;$) {
     my $needsbuild = shift;
     my $deleted = shift;
 
-    changed(@{$needsbuild});
     deleted(@{$deleted});
+    changed(@{$needsbuild});
 
     return $needsbuild;
 } # needsbuild
@@ -185,6 +185,15 @@ sub changed (@) {
 	    {
 		my $page=pagename($file);
 		if ($pagestate{$config{subset_page}}{subset}{match_hash}{$subset}{$page})
+		{
+		    $pagestate{$config{subset_page}}{subset}{match_hash}{$subset} = undef;
+		    $pagestate{$config{subset_page}}{subset}{match_list}{$subset} = undef;
+		    last;
+		}
+		# This could also be a new page, in which case, it won't
+		# be in this subset, but ought to be
+		elsif (pagespec_match($page,
+			$pagestate{$config{subset_page}}{subset}{name}{$subset}))
 		{
 		    $pagestate{$config{subset_page}}{subset}{match_hash}{$subset} = undef;
 		    $pagestate{$config{subset_page}}{subset}{match_list}{$subset} = undef;

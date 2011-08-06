@@ -248,7 +248,13 @@ sub preprocess (@) {
 	    and exists $pagestate{$page}
 	    and $show =~ /title/o)
 	{
-	    if (exists $pagestate{$page}{meta}{title})
+	    if ($using_field_plugin)
+	    {
+		$page_labels{$urlto}= 
+		IkiWiki::Plugin::field::field_get_value('titlecaps', $page);
+		$page_labels{$urlto} =~ s/ & / &amp; /go;
+	    }
+	    elsif (exists $pagestate{$page}{meta}{title})
 	    {
 		$page_labels{$urlto}=$pagestate{$page}{meta}{title};
 		$page_labels{$urlto} =~ s/ & / &amp; /go;
