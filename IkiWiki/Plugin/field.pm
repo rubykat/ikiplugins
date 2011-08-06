@@ -594,6 +594,7 @@ sub add_derived_values {
 	# to ensure that arrays are treated properly.
 	if (exists $values{"${lc_key}_loop"})
 	{
+	    my @tagpages = ();
 	    my @loop = ();
 	    my @orig_loop = @{$values{"${lc_key}_loop"}};
 	    for (my $i = 0; $i < @orig_loop; $i++)
@@ -602,8 +603,9 @@ sub add_derived_values {
 		my $link = $config{field_tags}{$key} . '/' . titlepage($tag);
 		$orig_loop[$i]->{"${lc_key}-tagpage"} = $link;
 		push @loop, {$lc_key => $link};
+		push @tagpages, $link;
 	    }
-	    $values{"${lc_key}-tagpage"} = join(' ', @loop);
+	    $values{"${lc_key}-tagpage"} = join(' ', @tagpages);
 	    $values{"${lc_key}-tagpage_loop"} = \@loop;
 	    $values{"${lc_key}_loop"} = \@orig_loop;
 	}
