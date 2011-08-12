@@ -546,6 +546,7 @@ sub build_report (@) {
     my @matching_pages = @{$params{matching_pages}};
     my $template = $params{template};
     my $scanning = $params{scanning};
+    my $destpage_baseurl = IkiWiki::baseurl($params{destpage});
     my @report = ();
 
     my $start = $params{start};
@@ -575,6 +576,7 @@ sub build_report (@) {
 	    %params,
 	    template=>$template,
 	    page=>$page,
+	    destpage_baseurl=>$destpage_baseurl,
 	    recno=>$i,
 	    prev_page=>$prev_page,
 	    next_page=>$next_page,
