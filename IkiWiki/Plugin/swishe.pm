@@ -1202,7 +1202,10 @@ sub highlight_props {
 
     # this is probably backwards -- might be better to loop through the %$props
 
-    while ( my( $meta, $phrases ) = each %{$self->{parsed_query}} ) {
+    foreach my $meta (keys %{$self->{parsed_query}} )
+    {
+	my $phrases = $self->{parsed_query}->{$meta};
+
         next unless $meta_to_prop->{$meta};  # is it a prop defined to highlight?
 
         # loop through the properties for the metaname
