@@ -204,9 +204,13 @@ sub parse_one_node {
 	    $newvals{elsewhere} = $val->{text};
 	    delete $newvals{$nm};
 	}
-	elsif ($nm eq 'title' and $val =~ /^(?:The |A )(.*)/)
+	elsif ($nm eq 'title')
 	{
-	    $newvals{titlesort} = $1;
+	    $newvals{fulltitle} = $val;
+	    if ($val =~ /^(?:The |A )(.*)/)
+	    {
+		$newvals{titlesort} = $1;
+	    }
 	}
     }
 
