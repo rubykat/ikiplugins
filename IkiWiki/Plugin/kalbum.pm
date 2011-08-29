@@ -390,10 +390,10 @@ sub preprocess_do (@) {
 	    image=>$item,
 	    album=>$page,
 	    prev_item=>$prev_item,
-	    prev_page_url=>$pagestate{$prev_item}{kalbum}{image_page_basename} . '.' . $config{htmlext},
+	    prev_page_url=>img_page_url($prev_item, $item),
 	    prev_thumb_url=>kalbum_get_value('thumb_url', $prev_item),
 	    next_item=>$next_item,
-	    next_page_url=>$pagestate{$next_item}{kalbum}{image_page_basename} . '.' . $config{htmlext},
+	    next_page_url=>img_page_url($next_item, $item),
 	    next_thumb_url=>kalbum_get_value('thumb_url', $next_item),
 	    first=>$first,
 	    last=>$last,
@@ -606,6 +606,7 @@ sub make_single_index {
 	$template->param(first=>$first);
 	$template->param(last=>$last);
 	$template->param(album=>$params{page});
+	$template->param(img_page_url=>img_page_url($item, $params{page}));
 	$template->param(%itemvals);
 
 	if (defined $pagestate{$item}{kalbum}{thumb_link})
@@ -725,13 +726,15 @@ sub calculate_image_data {
 	# already is a page
 	$pagestate{$item}{kalbum}{image_page} = $item;
 	$pagestate{$item}{kalbum}{image_page_abs_url} = IkiWiki::urlto($item);
+	$pagestate{$item}{kalbum}{image_page_bn_wext} = IkiWiki::basename($item)
+	. ($config{usedirs} ? '/' : '.' . $config{htmlext});
     }
     else
     {
 	my $image_page = $item;
 	$image_page =~ s{\.\w+$}{};
 	$pagestate{$item}{kalbum}{image_page} = $image_page;
-	$pagestate{$item}{kalbum}{image_page_basename} = IkiWiki::basename($image_page);
+	$pagestate{$item}{kalbum}{image_page_bn_wext} = IkiWiki::basename($image_page) . '.' . $config{htmlext};
 	my $image_page_dest = $image_page . '.' . $config{htmlext};
 	$pagestate{$item}{kalbum}{image_page_dest} = $image_page_dest;
 	$pagestate{$item}{kalbum}{image_page_target} = '/' . $image_page_dest;
@@ -905,20 +908,36 @@ sub img_page_url ($;$) {
     my $from_page = shift;
 
     return undef unless defined $page;
+    return undef unless defined $from_page;
     my $page_file=$pagesources{$page} || return undef;
     my $page_type=pagetype($page_file);
+    my $from_page_file=$pagesources{$from_page} || return undef;
+    my $from_page_type=pagetype($from_page_file);
+
     my $url;
-    if ($page_type) # ordinary page
+    if ($page_type and $from_page_type)
     {
 	$url = IkiWiki::urlto($page, $from_page);
     }
-    else
+    elsif (!$page_type and $from_page_type)
     {
-	my $image_page_dest = $pagestate{$page}{kalbum}{image_page_dest};
-	$url = IkiWiki::urlto($image_page_dest, $from_page);
-	# remove funky stuff
-	$url =~ s!/$!!;
-	$url =~ s!^\./!!;
+	my $use_page = $pagestate{$page}{kalbum}{image_page_dest};
+	$url = IkiWiki::urlto($use_page, $from_page);
+	$url =~ s!($config{htmlext})/$!$1!;
+    }
+    elsif ($page_type and !$from_page_type)
+    {
+	my $use_from_page = $pagestate{$from_page}{kalbum}{image_page};
+	$url = IkiWiki::urlto($page, $use_from_page);
+	$url =~ s!^\.\./!./!;
+    }
+    elsif (!$page_type and !$from_page_type)
+    {
+	my $use_page = $pagestate{$page}{kalbum}{image_page_dest};
+	my $use_from_page = $pagestate{$from_page}{kalbum}{image_page};
+	$url = IkiWiki::urlto($use_page, $use_from_page);
+	$url =~ s!^\.\./!!;
+	$url =~ s!($config{htmlext})/$!$1!;
     }
 
     return $url;
