@@ -44,30 +44,7 @@ use IkiWiki 3.00;
 use File::Basename;
 use HTML::LinkList qw(link_list nav_tree);
 use Sort::Naturally;
-use Fcntl;
-use Tie::File;
-use DBM::Deep;
 use YAML::Any;
-
-my @NavLinks = (qw(
-/action/
-/addressbook/
-/docs/
-/episodes/
-/fanfic/
-/profic/
-/gusto/
-http://localhost/~kat/netfic/
-/search/
-/stories/
-/text/
-/wiki/
-));
-my %NavLabels = (
-'/sitemap/' => 'Site Map',
-);
-
-my %Data = ();
 
 my %OrigSubs = ();
 
@@ -101,7 +78,6 @@ sub katplay_vars (@) {
     my $page = $params{page};
 
     my %values = ();
-    $values{navbar} = do_navbar($page);
 
     if ($page =~ /stories/)
     {
@@ -156,32 +132,30 @@ sub katplay_late_vars (@) {
     $values{monthname} = IkiWiki::Plugin::common_custom::common_vars_calc(page=>$page,
 	value=>$values{month}, id=>'monthname');
 
+    # Major characters are the first two characters
+    my $char_loop = IkiWiki::Plugin::field::field_get_value('characters_loop', $page);
+    if ($char_loop)
+    {
+	my @characters = @{$char_loop};
+	$values{major_characters} = [];
+	for (my $i = 0; $i < @characters; $i++)
+	{
+	    my $ch_hash = $characters[$i];
+	    if ($i < 2)
+	    {
+		push @{$values{major_characters}}, $ch_hash->{characters};
+	    }
+	    else
+	    {
+		if (!exists $values{minor_characters})
+		{
+		    $values{minor_characters} = [];
+		}
+		push @{$values{minor_characters}}, $ch_hash->{characters};
+	    }
+	}
+    }
     return \%values;
 } # katplay_late_vars
-
-sub do_navbar ($) {
-    my $page = shift;
-
-    my $current_url = IkiWiki::urlto($page, $page, 1);
-    # strip off leading http://site stuff
-    $current_url =~ s!https?://[^/]+!!;
-    $current_url =~ s!//!/!g;
-
-    my @navlinks = @NavLinks;
-    @navlinks = sort(@navlinks);
-
-    my $tree = link_list(urls=>\@navlinks,
-			      labels=>\%NavLabels,
-			      current_url=> $current_url,
-			      pre_current_parent=>'<span class="current">',
-			      post_current_parent=>'</span>',
-			      links_head=>'<ul>',
-			      links_foot=>'</ul>',
-			      start_depth=>1,
-			      end_depth=>1,
-			      hide_ext=>1,
-			      );
-    return $tree;
-} # do_navbar
 
 1;
