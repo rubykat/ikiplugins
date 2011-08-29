@@ -390,10 +390,10 @@ sub preprocess_do (@) {
 	    image=>$item,
 	    album=>$page,
 	    prev_item=>$prev_item,
-	    prev_page_url=>img_page_url($prev_item),
+	    prev_page_url=>$pagestate{$prev_item}{kalbum}{image_page_basename} . '.' . $config{htmlext},
 	    prev_thumb_url=>kalbum_get_value('thumb_url', $prev_item),
 	    next_item=>$next_item,
-	    next_page_url=>img_page_url($next_item),
+	    next_page_url=>$pagestate{$next_item}{kalbum}{image_page_basename} . '.' . $config{htmlext},
 	    next_thumb_url=>kalbum_get_value('thumb_url', $next_item),
 	    first=>$first,
 	    last=>$last,
@@ -439,10 +439,9 @@ sub create_image_page {
     my %params=@_;
     my $image = $params{image};
 
-    # figure out new pagename
-    my $new_page = $image;
-    $new_page =~ s{\.\w+$}{};
-    my $target = targetpage('', $config{htmlext}, $new_page);
+    # retrieve new pagename
+    my $new_page = $pagestate{$image}{kalbum}{image_page};
+    my $target = $pagestate{$image}{kalbum}{image_page_target};
 
     my $is_image = ($image =~ $config{kalbum_image_regexp});
     my $img_basename = IkiWiki::basename($image);
@@ -472,7 +471,7 @@ sub create_image_page {
 		    "/templates/$id"));
 	}
     }
-    $pagestate{$image}{kalbum}{img_page_url} = kalbum_get_value('img_page_url', $new_page);
+    $pagestate{$image}{kalbum}{img_page_url} = img_page_url($image, $params{album});
     $pagestate{$image}{kalbum}{title} = pagetitle(basename($new_page));
 
     my %itemvals = %{$pagestate{$image}{kalbum}};
@@ -720,6 +719,25 @@ sub calculate_image_data {
 
     $pagestate{$item}{kalbum}{image_basename} = $basename;
 
+    # find the name of the image-page
+    if ($is_page)
+    {
+	# already is a page
+	$pagestate{$item}{kalbum}{image_page} = $item;
+	$pagestate{$item}{kalbum}{image_page_abs_url} = IkiWiki::urlto($item);
+    }
+    else
+    {
+	my $image_page = $item;
+	$image_page =~ s{\.\w+$}{};
+	$pagestate{$item}{kalbum}{image_page} = $image_page;
+	$pagestate{$item}{kalbum}{image_page_basename} = IkiWiki::basename($image_page);
+	my $image_page_dest = $image_page . '.' . $config{htmlext};
+	$pagestate{$item}{kalbum}{image_page_dest} = $image_page_dest;
+	$pagestate{$item}{kalbum}{image_page_target} = '/' . $image_page_dest;
+	$pagestate{$item}{kalbum}{image_page_abs_url} = IkiWiki::urlto($image_page_dest);
+    }
+
     # Find the name for the thumbnail
     if ($is_page)
     {
@@ -875,7 +893,7 @@ sub kalbum_get_values (@) {
     my %params=@_;
 
     my %values = ();
-    foreach my $fn (qw(img_page_url short_caption caption is_image))
+    foreach my $fn (qw(short_caption caption is_image))
     {
 	$values{$fn} = kalbum_get_value($fn, $params{page});
     }
@@ -887,28 +905,30 @@ sub img_page_url ($;$) {
     my $from_page = shift;
 
     return undef unless defined $page;
-    my $url = IkiWiki::urlto($page,$from_page);
-    if ($url =~ /(.*)\.\w+$/)
+    my $page_file=$pagesources{$page} || return undef;
+    my $page_type=pagetype($page_file);
+    my $url;
+    if ($page_type) # ordinary page
     {
-	my $val = "${1}.$config{htmlext}";
-	return $val;
+	$url = IkiWiki::urlto($page, $from_page);
     }
     else
     {
-	return $url;
+	my $image_page_dest = $pagestate{$page}{kalbum}{image_page_dest};
+	$url = IkiWiki::urlto($image_page_dest, $from_page);
+	# remove funky stuff
+	$url =~ s!/$!!;
+	$url =~ s!^\./!!;
     }
-    return undef;
+
+    return $url;
 } # img_page_url
 
 sub kalbum_get_value ($$) {
     my $field_name = shift;
     my $page = shift;
 
-    if ($field_name eq 'img_page_url')
-    {
-	return img_page_url($page,undef);
-    }
-    elsif ($field_name eq 'short_caption')
+    if ($field_name eq 'short_caption')
     {
 	return get_caption(image=>$page,
 			   format=>$config{kalbum_short_caption});
