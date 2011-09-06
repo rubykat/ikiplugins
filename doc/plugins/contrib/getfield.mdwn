@@ -26,20 +26,20 @@ One can get the value of a field by using special markup in the page.
 This does not use directive markup, in order to make it easier to
 use the markup inside other directives.  There are four forms:
 
-* {{$*fieldname*}}
+* \{{$*fieldname*}}
 
   This queries the value of *fieldname* for the source page.
 
   For example:
 
     	\[[!meta title="My Long and Complicated Title With Potential For Spelling Mistakes"]]
-    	# {{$title}}
+    	# \{{$title}}
 
   When the page is processed, this will give you:
 
     	<h1>My Long and Complicated Title With Potential For Spelling Mistakes</h1>
 
-* {{$*pagename*#*fieldname*}}
+* \{{$*pagename*#*fieldname*}}
 
   This queries the value of *fieldname* for the page *pagename*.
 
@@ -53,13 +53,13 @@ use the markup inside other directives.  There are four forms:
 
   On PageBar:
 
-    For more info, see \[[{{$PageFoo#title}}|PageFoo]].
+    For more info, see \[[\{{$PageFoo#title}}|PageFoo]].
 
   When PageBar is displayed:
 
     &lt;p&gt;For more info, see &lt;a href="PageFoo"&gt;I Am Page Foo&lt;/a&gt;.&lt;/p&gt;
 
-* {{+$*fieldname*+}}
+* \{{+$*fieldname*+}}
 
   This queries the value of *fieldname* for the destination page; that is,
   the value when this page is included inside another page.
@@ -69,7 +69,7 @@ use the markup inside other directives.  There are four forms:
   On PageA:
 
     	\[[!meta title="I Am Page A"]]
-    	# {{+$title+}}
+    	# \{{+$title+}}
 
     	Stuff about A.
 
@@ -88,15 +88,21 @@ use the markup inside other directives.  There are four forms:
     	<h1>I Am Page B</h1>
     	<p>Stuff about A.</p>
 
-* {{+$*pagename*#*fieldname*+}}
+* \{{+$*pagename*#*fieldname*+}}
 
   This queries the value of *fieldname* for the page *pagename*; the
-  only difference between this and {{$*pagename*#*fieldname*}} is
+  only difference between this and \{{$*pagename*#*fieldname*}} is
   that the full name of *pagename* is calculated relative to the
   destination page rather than the source page.
 
   I can't really think of a reason why this should be needed, but
   this format has been added for completeness.
+
+### Escaping
+
+Getfield markup can be escaped by putting a backwards slash `\`
+in front of the markup.
+If that is done, then the markup is displayed as-is.
 
 ### No Value Found
 
@@ -107,9 +113,9 @@ For example:
 On PageFoo:
 
     \[[!meta title="Foo"]]
-    My title is {{$title}}.
+    My title is \{{$title}}.
     
-    My description is {{$description}}.
+    My description is \{{$description}}.
 
 When PageFoo is displayed:
 
@@ -123,7 +129,7 @@ This is because "description" hasn't been defined for that page.
 
 Listing all the sub-pages of the current page:
 
-    \[[!map pages="{{$page}}/*"]]
+    \[[!map pages="\{{$page}}/*"]]
 
 ## DOWNLOAD
 
