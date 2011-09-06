@@ -33,7 +33,7 @@ use the markup inside other directives.  There are four forms:
   For example:
 
     	\[[!meta title="My Long and Complicated Title With Potential For Spelling Mistakes"]]
-    	# \{{$title}}
+    	# {{$title}}
 
   When the page is processed, this will give you:
 
@@ -69,7 +69,7 @@ use the markup inside other directives.  There are four forms:
   On PageA:
 
     	\[[!meta title="I Am Page A"]]
-    	# \{{+$title+}}
+    	# {{+$title+}}
 
     	Stuff about A.
 
@@ -113,9 +113,9 @@ For example:
 On PageFoo:
 
     \[[!meta title="Foo"]]
-    My title is \{{$title}}.
+    My title is {{$title}}.
     
-    My description is \{{$description}}.
+    My description is {{$description}}.
 
 When PageFoo is displayed:
 
@@ -129,7 +129,7 @@ This is because "description" hasn't been defined for that page.
 
 Listing all the sub-pages of the current page:
 
-    \[[!map pages="\{{$page}}/*"]]
+    \[[!map pages="{{$page}}/*"]]
 
 ## DOWNLOAD
 
