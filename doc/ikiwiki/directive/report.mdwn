@@ -135,8 +135,18 @@ The structured data from the current matching page.  This includes
 
 ### Common values
 
-Values known for all pages: "page", "destpage".  Also "basename" (the
-base name of the page).
+Values known for all pages:
+
+* page (the current page)
+* destpage (the destination page)
+* basename (the base name of the page)
+* recno (N if the page is the Nth page in the report)
+
+### Prev_Page And Next_Page
+
+The "prev_page" and "next_page" variables will give the value of the
+previous page in the matching pages, or the next page in the matching pages.
+This is mainly useful for a "here_only" report.
 
 ### Passed-in values
 
@@ -153,13 +163,6 @@ values are passed in the report directive call.
 For example, one could have a "hide_mood" parameter which would hide
 the "Mood" section of your template when it is true, which one could
 use when the Mood is one of the headers.
-
-### Prev_ And Next_ Items
-
-Any of the above variables can be prefixed with "prev_" or "next_"
-and that will give the previous or next value of that variable; that is,
-the value from the previous or next page that this report is reporting on.
-This is mainly useful for a "here_only" report.
 
 ### Headers
 
