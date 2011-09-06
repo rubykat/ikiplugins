@@ -9,11 +9,11 @@ IkiWiki::Plugin::field - middle-end for per-page record fields.
 
 =head1 VERSION
 
-This describes version B<1.20110610> of IkiWiki::Plugin::field
+This describes version B<1.20110906> of IkiWiki::Plugin::field
 
 =cut
 
-our $VERSION = '1.20110610';
+our $VERSION = '1.20110906';
 
 =head1 DESCRIPTION
 
@@ -858,8 +858,6 @@ sub match_a_field_item ($$) {
 
 # ===============================================
 # Field Source
-#
-# Encapsulate this in an object.
 # ---------------------------
 # are values set for this page?
 sub fs_page_is_set {
