@@ -54,7 +54,7 @@ The following options can be set in the ikiwiki setup file.
     field_allow_config => 1,
 
 Allow the $config hash to be queried like any other field; the 
-keys of the config hash are the field names.
+keys of the config hash are the field names with a prefix of "CONFIG-".
 
 **field_register**
 
@@ -90,13 +90,29 @@ A hash of fields and their associated pages.  This provides a faceted
 tagging system.
 
 The way this works is that a given field-name will be associated with a given
-page, and the values of that field will be linked to sub-pages of that page.
+page, and the values of that field will be linked to sub-pages of that page,
+the same way that the \[[!tag ]] directive does.
+
+This also provides a field with the suffix of `-tagpage` which gives
+the name of the page to which that field-value is linked.
 
 For example:
 
 	BookGenre: SF
 
 will link to "/books/genres/SF", with a link-type of "bookgenre".
+
+If one was using a template, then the following template:
+
+	Genre: <TMPL_VAR BOOKGENRE>
+	GenrePage: <TMPL_VAR BOOKGENRE-TAGPAGE>
+	GenreLink: \[[<TMPL_VAR BOOKGENRE-TAGPAGE>]]
+
+would give:
+
+	Genre: SF
+	GenrePage: /books/genres/SF
+	GenreLink: <a href="/books/genres/SF/">SF</a>
 
 ## PageSpec
 
@@ -115,6 +131,9 @@ of fields for pages.
 * destfield_item
   * **destfield_item(*name* *glob*)**
   * as for "field_item" but matches against the destination page.
+* field_null
+  * **field_null(*name*)**
+  * matches if the field is null, that is, if there is no value for that field, or the value is empty.
 * field_tagged
   * **field_tagged(*name* *glob*)**
   * like `tagged`, but this uses the tag-bases and link-types defined in the `field_tags` configuration option.
@@ -186,13 +205,13 @@ ordering-sequence between 'AA' and 'ZZ'.
 
 ### field_get_value($field, $page)
 
-    my @values = field_get_value($field, $page);
-
     my $value = field_get_value($field, $page);
 
-Returns the values of the field for that page, or undef if none is found.
-Note that it will return an array of values if you ask for an array,
-and a scalar value if you ask for a scalar.
+    my $value = field_get_value($field, $page, foo=>'bar');
+
+Returns the value of the field for that page, or undef if none is found.
+It is also possible to override the value returned by passing in
+a value of your own.
 
 ## DOWNLOAD
 
