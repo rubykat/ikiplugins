@@ -54,7 +54,7 @@ The following options can be set in the ikiwiki setup file.
     field_allow_config => 1,
 
 Allow the $config hash to be queried like any other field; the 
-keys of the config hash are the field names.
+keys of the config hash are the field names with a prefix of "CONFIG-".
 
 **field_register**
 
