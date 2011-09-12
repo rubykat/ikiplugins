@@ -982,19 +982,17 @@ sub get_caption {
     my $user_cap = '';
     if ($params{caption})
     {
-	$user_cap .= $params{caption};
-	$user_cap .= ' ';
+	$user_cap = $params{caption};
     }
     elsif (exists $pagestate{$image}{kalbum}{caption}
 	and defined $pagestate{$image}{kalbum}{caption})
     {
-	$user_cap .= $pagestate{$image}{kalbum}{caption};
-	$user_cap .= ' ';
+	$user_cap = $pagestate{$image}{kalbum}{caption};
     }
-    if (exists $pagestate{$image}{meta}{description}
+    elsif (exists $pagestate{$image}{meta}{description}
 	and defined $pagestate{$image}{meta}{description})
     {
-	$user_cap .= $pagestate{$image}{meta}{description};
+	$user_cap = $pagestate{$image}{meta}{description};
     }
     my $out = '';
     my $items = 0;
