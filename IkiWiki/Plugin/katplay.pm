@@ -100,6 +100,17 @@ sub katplay_vars (@) {
 	    }
 	}
     }
+    my $baseurl = IkiWiki::baseurl($page);
+    my @themes = (qw(b7 cloud cnblue gblue gblue2 gblue3 gold green green2 green3 iron irons ivy jungle lav lblue matrix midblu rainbow sand sfc silver stars sunset team tricolore turk violet yellow));
+    my @tout = ();
+    foreach my $theme (@themes)
+    {
+	push @tout, sprintf('<link rel="alternate stylesheet" title="%s" href="%sstyles/themes/theme_%s.css" type="text/css" />',
+	    $theme,
+	    $baseurl,
+	    $theme);
+    }
+    $values{themes} = join("\n", @tout);
     return \%values;
 } # katplay_vars
 
