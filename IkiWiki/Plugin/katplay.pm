@@ -14,18 +14,6 @@ This describes version B<1.20110610> of IkiWiki::Plugin::katplay
 
 our $VERSION = '1.20110610';
 
-=head1 PREREQUISITES
-
-    IkiWiki
-    File::Basename
-    HTML::LinkList
-    Sort::Naturally
-    Fcntl
-    Tie::File
-    DBM::Deep
-    YAML::Any
-    IkiWiki::Plugin::field
-
 =head1 AUTHOR
 
     Kathryn Andersen (RUBYKAT)

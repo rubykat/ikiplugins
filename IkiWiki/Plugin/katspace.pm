@@ -15,18 +15,6 @@ This describes version B<1.20110610> of IkiWiki::Plugin::katspace
 
 our $VERSION = '1.20110610';
 
-=head1 PREREQUISITES
-
-    IkiWiki
-    File::Basename
-    HTML::LinkList
-    Sort::Naturally
-    Fcntl
-    Tie::File
-    DBM::Deep
-    YAML::Any
-    IkiWiki::Plugin::field
-
 =head1 AUTHOR
 
     Kathryn Andersen (RUBYKAT)
@@ -46,7 +34,6 @@ use HTML::LinkList qw(link_list nav_tree);
 use Sort::Naturally;
 use Fcntl;
 use Tie::File;
-use DBM::Deep;
 use YAML::Any;
 
 my @NavLinks = (qw(
