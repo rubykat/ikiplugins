@@ -7,11 +7,11 @@ IkiWiki::Plugin::getfield - query the values of fields
 
 =head1 VERSION
 
-This describes version B<1.20110906> of IkiWiki::Plugin::getfield
+This describes version B<1.20110610> of IkiWiki::Plugin::getfield
 
 =cut
 
-our $VERSION = '1.20110906';
+our $VERSION = '1.20110610';
 
 =head1 DESCRIPTION
 
@@ -69,21 +69,27 @@ sub do_filter (@) {
     my $page_type=pagetype($page_file);
     if (defined $page_type)
     {
-	# substitute {{$var}} variables (source-page)
-	$params{content} =~ s/(\\?){{\$([-\w]+)}}/get_field_value($1,$2,$page)/eg;
+	while ($params{content} =~ /{{\$([-\w\/]+#)?[-\w]+}}/)
+	{
+	    # substitute {{$var}} variables (source-page)
+	    $params{content} =~ s/{{\$([-\w]+)}}/get_field_value($1,$page)/eg;
 
-	# substitute {{$page#var}} variables (source-page)
-	$params{content} =~ s/(\\?){{\$([-\w\/]+)#([-\w]+)}}/get_other_page_field_value($1, $3,$page,$2)/eg;
+	    # substitute {{$page#var}} variables (source-page)
+	    $params{content} =~ s/{{\$([-\w\/]+)#([-\w]+)}}/get_other_page_field_value($2,$page,$1)/eg;
+	}
     }
 
     $page_file=$pagesources{$destpage} || return $params{content};
     $page_type=pagetype($page_file);
     if (defined $page_type)
     {
-	# substitute {{+$var+}} variables (dest-page)
-	$params{content} =~ s/(\\?){{\+\$([-\w]+)\+}}/get_field_value($1,$2,$destpage)/eg;
-	# substitute {{+$page#var+}} variables (source-page)
-	$params{content} =~ s/(\\?){{\+\$([-\w\/]+)#([-\w]+)\+}}/get_other_page_field_value($1, $3,$destpage,$2)/eg;
+	while ($params{content} =~ /{{\+\$([-\w\/]+#)?[-\w]+\+}}/)
+	{
+	    # substitute {{+$var+}} variables (dest-page)
+	    $params{content} =~ s/{{\+\$([-\w]+)\+}}/get_field_value($1,$destpage)/eg;
+	    # substitute {{+$page#var+}} variables (source-page)
+	    $params{content} =~ s/{{\+\$([-\w\/]+)#([-\w]+)\+}}/get_other_page_field_value($2,$destpage,$1)/eg;
+	}
     }
 
     return $params{content};
@@ -93,15 +99,10 @@ sub do_filter (@) {
 # Private functions
 # --------------------------------
 sub get_other_page_field_value ($$$) {
-    my $escape = shift;
     my $field = shift;
     my $page = shift;
     my $other_page = shift;
 
-    if (length $escape)
-    {
-	return "{{\$${other_page}#${field}}}";
-    }
     my $use_page = bestlink($page, $other_page);
     # add a dependency for the page from which we get the value
     add_depends($page, $use_page);
@@ -116,14 +117,9 @@ sub get_other_page_field_value ($$$) {
 } # get_other_page_field_value
 
 sub get_field_value ($$) {
-    my $escape = shift;
     my $field = shift;
     my $page = shift;
 
-    if (length $escape)
-    {
-	return "{{\$${field}}}";
-    }
     my $value = IkiWiki::Plugin::field::field_get_value($field,$page);
     return $value if defined $value;
 

@@ -7,11 +7,11 @@ IkiWiki::Plugin::report - Produce templated reports from page field data.
 
 =head1 VERSION
 
-This describes version B<1.20110906> of IkiWiki::Plugin::report
+This describes version B<1.20110610> of IkiWiki::Plugin::report
 
 =cut
 
-our $VERSION = '1.20110906';
+our $VERSION = '1.20110610';
 
 =head1 DESCRIPTION
 
@@ -131,20 +131,16 @@ sub preprocess (@) {
 
     my @matching_pages;
     my @trailpages = ();
-    # Don't add the dependencies yet because
-    # the results could be further filtered below.
     if ($params{pagenames})
     {
 	@matching_pages =
 	    map { bestlink($params{page}, $_) } split ' ', $params{pagenames};
-	# Because we used pagenames, we have to sort the pages ourselves.
-	# This code is cribbed from pagespec_match_list
-	if ($params{sort})
+	foreach my $mp (@matching_pages)
 	{
-	    my $sort=IkiWiki::sortspec_translate($params{sort},
-						 $params{reverse});
-	    @matching_pages=IkiWiki::SortSpec::sort_pages($sort,
-							  @matching_pages);
+	    if ($mp ne $dest_page)
+	    {
+		add_depends($dest_page, $mp, $deptype);
+	    }
 	}
     }
     # "trail" means "all the pages linked to from a given page"
@@ -202,8 +198,7 @@ sub preprocess (@) {
     {
 	@matching_pages = pagespec_match_list($params{destpage}, $pages,
 					      %params,
-					      num=>$params{count},
-					      deptype => 0);
+					      deptype => $deptype);
     }
 
     # ------------------------------------------------------------------
@@ -247,15 +242,12 @@ sub preprocess (@) {
 	}
     }
 
-    # Only add dependencies IF we found matches
-    if ($#matching_pages > 0)
+    # Only add dependencies when using trails IF we found matches
+    if ($params{trail} and $#matching_pages > 0)
     {
-	if ($params{trail} and !$params{here_only})
+	foreach my $tp (@trailpages)
 	{
-	    foreach my $tp (@trailpages)
-	    {
-		add_depends($dest_page, $tp, deptype("links"));
-	    }
+	    add_depends($dest_page, $tp, deptype("links"));
 	}
 	foreach my $mp (@matching_pages)
 	{
@@ -428,10 +420,14 @@ sub create_page_links {
     my $next_link = '';
     my $report_base = ($params{report_id}
 		       ? $params{report_id} : 'report');
+    debug(sprintf("cpl: page=%s, first_page_is_index=%d",
+	    $params{page},
+	    $first_page_is_index));
     my @page_links = ();
     for (my $pind = ($first_page_is_index ? -1 : 0);
 	 $pind < $params{num_pages}; $pind++)
     {
+	debug(sprintf("cpl: pind=%s", $pind));
 	if ($pind == $params{cur_page}
 	    and $pind == -1)
 	{
@@ -465,6 +461,7 @@ sub create_page_links {
 		    sprintf(' <a href="%s_%d.%s">&lt;- Prev</a> ',
 			$report_base, $pind, $config{htmlext});
 		}
+		debug(sprintf("cpl: prev_link=%s", $prev_link));
 	    }
 	}
 	elsif ($pind == -1)
@@ -546,7 +543,6 @@ sub build_report (@) {
     my @matching_pages = @{$params{matching_pages}};
     my $template = $params{template};
     my $scanning = $params{scanning};
-    my $destpage_baseurl = IkiWiki::baseurl($params{destpage});
     my @report = ();
 
     my $start = $params{start};
@@ -576,8 +572,6 @@ sub build_report (@) {
 	    %params,
 	    template=>$template,
 	    page=>$page,
-	    destpage_baseurl=>$destpage_baseurl,
-	    recno=>$i,
 	    prev_page=>$prev_page,
 	    next_page=>$next_page,
 	    destpage=>$params{destpage},
