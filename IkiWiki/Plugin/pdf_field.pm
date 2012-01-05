@@ -124,7 +124,8 @@ sub parse_value {
     # we want the latest; therefore always overwrite
     # earlier values.
     my $name = Image::ExifTool::GetTagName($key);
-    my $lc_name = $name =~ tr/A-Z/a-z/r;
+    my $lc_name = $name;
+    $lc_name =~ tr/A-Z/a-z/;
     $values->{$lc_name} = $info->{$key};
 
     # Re-interpret keys to our own schema

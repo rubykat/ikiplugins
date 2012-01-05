@@ -257,7 +257,8 @@ sub field_get_value ($$;@) {
     my $page = shift;
     my %params = @_;
 
-    my $lc_field_name = $field_name =~ tr/A-Z/a-z/r;
+    my $lc_field_name = $field_name;
+    $lc_field_name =~ tr/A-Z/a-z/;
 
     #
     # passed-in values override all other values
@@ -431,7 +432,8 @@ sub scan_for_tags (@) {
     {
 	foreach my $field (keys %{$config{field_tags}})
 	{
-	    my $lc_field = $field =~ tr/A-Z/a-z/r;
+	    my $lc_field = $field;
+	    $lc_field =~ tr/A-Z/a-z/;
 	    my $value = field_get_value($lc_field, $page);
 	    if ($value)
 	    {
