@@ -70,8 +70,7 @@ sub import {
 	hook(type => "filter", id => "pmwiki", call => \&filter);
 	hook(type => "linkify", id => "pmwiki", call => \&linkify, first=>1);
 	hook(type => "htmlize", id => "pmwiki", call => \&htmlize);
-    IkiWiki::Plugin::field::field_register(id=>'pmwiki',
-	all_values=>\&scan_ptvs, first=>1);
+    IkiWiki::Plugin::field::field_register(id=>'pmwiki');
 }
 
 # ===============================================
@@ -141,6 +140,7 @@ sub scan (@) {
 	    }
 	}
     }
+    scan_ptvs(%params);
 }
 
 sub filter (@) {
@@ -227,28 +227,19 @@ sub scan_ptvs (@) {
     my %params=@_;
     my $page = $params{page};
 
-    my $page_file=$pagesources{$page} || return;
-    my $page_type=pagetype($page_file);
-    if (!defined $page_type
-	or $page_type ne 'pmwiki')
-    {
-	return undef;
-    }
-    my %values = ();
     # scan for title
     if ($params{content} =~ m!(?:^|\n)\(:title\s+(.*?):\)\s*!so)
     {
-	my $key = 'title';
 	my $val = $1;
-	$values{$key} = $val;
+	$pagestate{$page}{pmwiki}{title} = $val;
     }
     while ($params{content} =~ m!(?:^|\n)\(:([-\w]+):(.*?):\)!igso)
     {
 	my $key = $1;
+	$key =~ tr/A-Z/a-z/;
 	my $val = $2;
-	$values{lc($key)} = $val;
+	$pagestate{$page}{pmwiki}{$key} = $val;
     }
-    return \%values;
 } # scan_ptvs
 
 sub process_link ($$$$) {

@@ -45,6 +45,7 @@ use IkiWiki 3.00;
 use Config::Context;
 
 my $ConfObj;
+my %Cache = ();
 
 sub import {
 	hook(type => "getopt", id => "concon",  call => \&getopt);
@@ -53,7 +54,7 @@ sub import {
 
 	IkiWiki::loadplugin('field');
 	IkiWiki::Plugin::field::field_register(id=>'concon',
-					       all_values=>\&concon_get_values,
+					       get_value=>\&concon_get_value,
 					       first=>1);
 }
 
@@ -146,14 +147,24 @@ sub checkconfig () {
     return 1;
 }
 
-sub concon_get_values {
+sub concon_get_value {
+    my $field_name = shift;
+    my $page = shift;
     my %params=@_;
-    my $page=$params{page};
 
-    my $page_file=$pagesources{$page} || return;
+    if (!exists $Cache{$page})
+    {
+	my $page_file=$pagesources{$page} || return;
 
-    my %config = $ConfObj->context(page=>"/${page}", file=>$page_file);
-    return \%config;
-} # concon_get_values
+	my %config = $ConfObj->context(page=>"/${page}", file=>$page_file);
+	$Cache{$page} = \%config;
+    }
+
+    if (exists $Cache{$page}->{$field_name})
+    {
+	return $Cache{$page}->{$field_name};
+    }
+    return undef;
+} # concon_get_value
 
 1;

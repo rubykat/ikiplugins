@@ -36,13 +36,14 @@ use IkiWiki 3.00;
 use Image::ExifTool;
 
 my $exifTool;
+my %Cache = ();
 
 sub import {
 	hook(type => "getsetup", id => "pdf_field", call => \&getsetup);
 
     IkiWiki::loadplugin("field");
     IkiWiki::Plugin::field::field_register(id=>'pdf_field',
-	all_values=>\&parse_pdf_vars);
+	get_value=>\&get_pdf_value);
 
 }
 
@@ -60,6 +61,28 @@ sub getsetup () {
 #-------------------------------------------------------
 # field functions
 #-------------------------------------------------------
+sub get_pdf_value ($$) {
+    my $field_name = shift;
+    my $page = shift;
+
+    if (!exists $Cache{$page})
+    {
+	my $values = parse_pdf_vars(page=>$page);
+	if (defined $values)
+	{
+	    $Cache{$page} = $values;
+	}
+    }
+    if (exists $Cache{$page}{$field_name})
+    {
+	return $Cache{$page}{$field_name};
+    }
+    return undef;
+} # get_pdf_value
+
+#-------------------------------------------------------
+# Private functions
+#-------------------------------------------------------
 sub parse_pdf_vars ($$) {
     my %params = @_;
     my $page = $params{page};
@@ -70,12 +93,13 @@ sub parse_pdf_vars ($$) {
 	$exifTool->Options(Charset => 'UTF8');
     }
 
-    my %values = ();
-
     my $file = $pagesources{$page};
+    return undef if (!$file);
+
     my $page_type = pagetype($file);
     if ($file =~ /\.pdf$/i or ($page_type and $page_type eq 'pdf'))
     {
+	my %values = ();
 	my $srcfile = srcfile($file, 1);
 	my $info = $exifTool->ImageInfo($srcfile);
 	foreach my $key (sort keys %{$info})
@@ -84,13 +108,11 @@ sub parse_pdf_vars ($$) {
 	}
 
 	$values{is_pdf} = 1;
+	return \%values;
     }
-    return \%values;
+    return undef;
 } # parse_pdf_vars
 
-#-------------------------------------------------------
-# Private functions
-#-------------------------------------------------------
 sub parse_value {
     my %params = @_;
 
@@ -102,7 +124,7 @@ sub parse_value {
     # we want the latest; therefore always overwrite
     # earlier values.
     my $name = Image::ExifTool::GetTagName($key);
-    my $lc_name = lc($name);
+    my $lc_name = $name =~ tr/A-Z/a-z/r;
     $values->{$lc_name} = $info->{$key};
 
     # Re-interpret keys to our own schema

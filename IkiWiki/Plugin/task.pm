@@ -51,7 +51,7 @@ sub import {
 
 	IkiWiki::loadplugin('field');
 	IkiWiki::Plugin::field::field_register(id=>'task',
-					       all_values=>\&all_task_vars,
+					       get_value=>\&get_task_value,
 					       first=>1);
 }
 
@@ -119,8 +119,10 @@ sub preprocess (@) {
     # and add the links
     if ($scan)
     {
-	my @task_fields = grep(!/^(:?page|destpage|preview)$/, sort keys %params);
+	my @task_fields = grep(!/^(:?page|destpage|preview)$/, keys %params);
 	my @annotations = ();
+
+	$pagestate{$page}{task}{task_is_started} = 0;
 	foreach my $fn (@task_fields)
 	{
 	    my $real_fn = "task_$fn";
@@ -133,6 +135,10 @@ sub preprocess (@) {
 		$year += 1900;
 		$mon++;
 		$pagestate{$page}{task}{"${real_fn}date"} = "${year}-${mon}-${mday}";
+		if ($fn eq 'start')
+		{
+		    $pagestate{$page}{task}{task_is_started} = 1;
+		}
 	    }
 	    elsif ($fn =~ /annotation_(\d+)/)
 	    {
@@ -143,11 +149,18 @@ sub preprocess (@) {
 		$mon++;
 		push @annotations, "${year}-${mon}-${mday} $fval";
 	    }
+	    elsif ($fn eq 'status')
+	    {
+		$pagestate{$page}{task}{task_is_done} = (
+		    $fval eq 'deleted' || $fval eq 'completed'
+		    ? 1 : 0);
+	    }
 	}
 	if (@annotations)
 	{
 	    $pagestate{$page}{task}{task_annotations} = \@annotations;
 	}
+
 	# special case for "tags" field, if we are using
 	# the "tag" plugin
 	if ($config{tagbase}
@@ -211,51 +224,11 @@ sub preprocess (@) {
 # ===============================================
 # field functions
 # ---------------------------
-sub all_task_vars {
-    my %params=@_;
-
-    # this expects preprocess-scan to have already been done
-    my %values = ();
-    foreach my $fn (qw(task_is_done task_is_started task_project task_full_project task_proj_type))
-    {
-	$values{$fn} = task_vars($fn, $params{page});
-    }
-    return \%values;
-} # all_task_vars
-
-sub task_vars ($$) {
+sub get_task_value ($$) {
     my $field_name = shift;
     my $page = shift;
 
     my $value = undef;
-    if ($field_name eq 'task_is_done')
-    {
-	if (exists $pagestate{$page}{task}{task_status}
-	    and defined $pagestate{$page}{task}{task_status})
-	{
-	    if ($pagestate{$page}{task}{task_status} =~ /deleted|completed/)
-	    {
-		$value = 1;
-	    }
-	    else
-	    {
-		$value = 0;
-	    }
-	}
-    }
-    elsif ($field_name eq 'task_is_started')
-    {
-	if (exists $pagestate{$page}{task}{task_start}
-	    and defined $pagestate{$page}{task}{task_start}
-	    and $pagestate{$page}{task}{task_start})
-	{
-	    $value = 1;
-	}
-	else
-	{
-	    $value = 0;
-	}
-    }
     if ($field_name eq 'task_project')
     {
 	if ($page =~ /projects\//)
@@ -306,12 +279,8 @@ sub task_vars ($$) {
 	    $value = $pagestate{$page}{task}{task_proj_type};
 	}
     }
-    if (defined $value)
-    {
-	return (wantarray ? ($value) : $value);
-    }
-    return undef;
-} # task_vars
+    return $value;
+} # get_task_value
 
 # ===============================================
 # SortSpec functions

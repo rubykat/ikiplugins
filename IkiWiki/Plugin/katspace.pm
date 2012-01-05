@@ -86,7 +86,7 @@ sub import {
 
     IkiWiki::loadplugin("field");
     IkiWiki::Plugin::field::field_register(id=>'katspace',
-	all_values=>\&all_katspace_vars, last=>1);
+	get_value=>\&katspace_get_value);
 
 }
 
@@ -104,38 +104,57 @@ sub getsetup () {
 #-------------------------------------------------------
 # field functions
 #-------------------------------------------------------
-sub all_katspace_vars (@) {
-    my %params=@_;
-    my $page = $params{page};
+sub katspace_get_value ($$;@) {
+    my $field_name = shift;
+    my $page = shift;
+    my %params = @_;
 
-    my %values = ();
-    $values{navbar} = do_navbar($page);
-
+    if ($field_name eq 'navbar')
+    {
+	return do_navbar($page);
+    }
     if ($page =~ /ficathon/)
     {
-	foreach my $wt (qw(win tie))
+	if ($field_name =~ /^(win|wintie)(fandom|rating|type|description)/
+		and $field_name ne 'winner'
+		and $field_name ne 'winnertie')
 	{
-	    foreach my $fn (qw(fandom rating type description))
-	    {
-		$values{"${wt}${fn}"} = do_finishathon_winners($wt, $fn, $page, wantarray);
-	    }
+	    return do_finishathon_winners($1, $2, $page, 0);
 	}
-	$values{bunnycount} = do_finishathon_bunny_count($page, wantarray);
-	$values{fandomlist} = do_finishathon_fandom_list($page, wantarray);
+	elsif ($field_name eq 'bunnycount')
+	{
+	    return do_finishathon_bunny_count($page, 0);
+	}
+	elsif ($field_name eq 'fandomlist')
+	{
+	    return do_finishathon_fandom_list($page, 1);
+	}
     }
     if ($page =~ /stories/)
     {
-	my $date = IkiWiki::Plugin::field::field_get_value('FicDate', $page);
-	if ($date)
+	if ($field_name =~ /^FicDate-(.*)/i)
 	{
-	    $values{'FicDate-year'} = IkiWiki::Plugin::common_custom::common_vars_calc(page=>$page, value=>$date, id=>'year');
-	    $values{'FicDate-month'} = IkiWiki::Plugin::common_custom::common_vars_calc(page=>$page, value=>$date, id=>'month');
-	    $values{'FicDate-monthname'} = IkiWiki::Plugin::common_custom::common_vars_calc(page=>$page, value=>$values{'FicDate-month'}, id=>'monthname');
+	    my $id = $1;
+	    my $date = IkiWiki::Plugin::field::field_get_value('FicDate', $page);
+	    if ($date)
+	    {
+		if ($id eq 'monthname')
+		{
+		    my $month =
+		    IkiWiki::Plugin::common_custom::common_vars_calc(page=>$page,
+			value=>$date, id=>'month');
+		    return IkiWiki::Plugin::common_custom::
+		    common_vars_calc(page=>$page, value=>$month, id=>$id);
+		}
+		else
+		{
+		    return IkiWiki::Plugin::common_custom::common_vars_calc(page=>$page, value=>$date, id=>$id);
+		}
+	    }
 	}
     }
-
-    return \%values;
-} # all_katspace_vars
+    return undef;
+} # katspace_get_value
 
 sub do_navbar ($$) {
     my $page = shift;

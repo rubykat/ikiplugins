@@ -60,7 +60,7 @@ sub import {
 	IkiWiki::loadplugin("report");
 
 	IkiWiki::Plugin::field::field_register(id=>'kalbum',
-					       all_values=>\&kalbum_get_values);
+					       get_value=>\&kalbum_get_value);
 }
 
 #------------------------------------------------------------------

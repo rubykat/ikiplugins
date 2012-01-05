@@ -36,12 +36,14 @@ use IkiWiki 3.00;
 use XML::LibXML;
 use Archive::Zip qw( :ERROR_CODES :CONSTANTS );
 
+my %Cache = ();
+
 sub import {
 	hook(type => "getsetup", id => "epub_field", call => \&getsetup);
 
     IkiWiki::loadplugin("field");
     IkiWiki::Plugin::field::field_register(id=>'epub_field',
-	all_values=>\&parse_epub_vars);
+	get_value=>\&get_epub_value);
 
 }
 
@@ -59,16 +61,39 @@ sub getsetup () {
 #-------------------------------------------------------
 # field functions
 #-------------------------------------------------------
+sub get_epub_value ($$) {
+    my $field_name = shift;
+    my $page = shift;
+
+    if (!exists $Cache{$page})
+    {
+	my $values = parse_epub_vars(page=>$page);
+	if (defined $values)
+	{
+	    $Cache{$page} = $values;
+	}
+    }
+    if (exists $Cache{$page}{$field_name})
+    {
+	return $Cache{$page}{$field_name};
+    }
+    return undef;
+} # get_epub_value
+
+#-------------------------------------------------------
+# Private functions
+#-------------------------------------------------------
 sub parse_epub_vars ($$) {
     my %params = @_;
     my $page = $params{page};
 
-    my %values = ();
-
     my $file = $pagesources{$page};
+    return undef if (!$file);
+
     my $page_type = pagetype($file);
     if ($file =~ /\.epub$/i or ($page_type and $page_type eq 'epub'))
     {
+	my %values = ();
 	my $zip = Archive::Zip->new();
 	my $status = $zip->read( $config{srcdir} . '/' . $file );
 	if ($status != AZ_OK)
@@ -98,13 +123,12 @@ sub parse_epub_vars ($$) {
 	    }
 	}
 	$values{is_epub} = 1;
+	return \%values;
     }
-    return \%values;
+    return undef;
+
 } # parse_epub_vars
 
-#-------------------------------------------------------
-# Private functions
-#-------------------------------------------------------
 sub parse_one_node {
     my %params = @_;
 

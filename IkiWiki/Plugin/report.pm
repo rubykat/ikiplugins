@@ -511,7 +511,7 @@ sub render_simple_page (@) {
     # render as a simple page
     # cargo-culted from IkiWiki::Render::genpage
     my $ptmpl = IkiWiki::template('page.tmpl', blind_cache=>1);
-    $ptmpl->param(%{$pagestate{$params{page}}{field}});
+    IkiWiki::Plugin::field::field_set_template_values($ptmpl, $params{page});
     $ptmpl->param(
 		  title => IkiWiki::pagetitle(IkiWiki::basename($new_page)),
 		  wikiname => $config{wikiname},

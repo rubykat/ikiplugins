@@ -41,9 +41,7 @@ sub import {
 
     IkiWiki::loadplugin("field");
     IkiWiki::Plugin::field::field_register(id=>'katplay',
-	all_values=>\&katplay_vars);
-    IkiWiki::Plugin::field::field_register(id=>'katplay2',
-	all_values=>\&katplay_late_vars, last=>1);
+	get_value=>\&katplay_get_value);
 
 }
 
@@ -61,103 +59,113 @@ sub getsetup () {
 #-------------------------------------------------------
 # field functions
 #-------------------------------------------------------
-sub katplay_vars (@) {
-    my %params=@_;
-    my $page = $params{page};
+sub katplay_get_value ($$;@) {
+    my $field_name = shift;
+    my $page = shift;
+    my %params = @_;
 
-    my %values = ();
-
-    if ($page =~ /stories/)
+    my $value = undef;
+    if ($field_name eq 'themes')
     {
-	my @bits = split(/\//, $page);
-	# remove the actual page-file from this list
-	pop @bits;
-	my $found = 0;
-	my $level = 0;
-	while (@bits)
+	if ($config{kat_themes})
 	{
-	    my $s = shift @bits;
-	    if ($found)
+	    my $baseurl = IkiWiki::baseurl($page);
+	    my @themes = @{$config{kat_themes}};
+	    my @tout = ();
+	    foreach my $theme (@themes)
 	    {
-		$level++;
-		$values{"section${level}"} = $s;
+		push @tout, sprintf('<link rel="alternate stylesheet" title="%s" href="%sstyles/themes/theme_%s.css" type="text/css" />',
+		    $theme,
+		    $baseurl,
+		    $theme);
 	    }
-	    if ($s eq 'stories')
-	    {
-		$found = 1;
-	    }
+	    $value = join("\n", @tout);
 	}
     }
-    if ($config{kat_themes})
+    elsif ($field_name =~ /^(datelong|date|year|month|monthname)$/)
     {
-	my $baseurl = IkiWiki::baseurl($page);
-	my @themes = @{$config{kat_themes}};
-	my @tout = ();
-	foreach my $theme (@themes)
+	my %vals = ();
+
+	my $timestamp = IkiWiki::Plugin::field::field_get_value('timestamp', $page);
+	my $ctime = $IkiWiki::pagectime{$page};
+	if ($timestamp and $timestamp ne $ctime)
 	{
-	    push @tout, sprintf('<link rel="alternate stylesheet" title="%s" href="%sstyles/themes/theme_%s.css" type="text/css" />',
-		$theme,
-		$baseurl,
-		$theme);
+	    $IkiWiki::pagectime{$page}=$timestamp;
+	    $ctime=$timestamp;
 	}
-	$values{themes} = join("\n", @tout);
-    }
-return \%values;
-} # katplay_vars
-
-# these vars depend on other values
-sub katplay_late_vars (@) {
-    my %params=@_;
-    my $page = $params{page};
-
-    my %values = ();
-
-    my $timestamp = IkiWiki::Plugin::field::field_get_value('timestamp', $page);
-    my $ctime = $IkiWiki::pagectime{$page};
-    if ($timestamp and $timestamp ne $ctime)
-    {
-	$IkiWiki::pagectime{$page}=$timestamp;
-	$ctime=$timestamp;
-    }
-    my $longdate = IkiWiki::date_3339($ctime);
-    $values{datelong} = $longdate;
-    $values{date} = $longdate;
-    $values{date} =~ s/T.*$//;
-    if ($values{date} =~ /^(\d{4})-/)
-    {
-	$values{year} = $1;
-    }
-    if ($values{date} =~ /^\d{4}-(\d{2})/)
-    {
-	$values{month} = $1;
-    }
-    $values{monthname} = IkiWiki::Plugin::common_custom::common_vars_calc(page=>$page,
-	value=>$values{month}, id=>'monthname');
-
-    # Major characters are the first two characters
-    my $char_loop = IkiWiki::Plugin::field::field_get_value('characters_loop', $page);
-    if ($char_loop)
-    {
-	my @characters = @{$char_loop};
-	$values{major_characters} = [];
-	for (my $i = 0; $i < @characters; $i++)
+	my $longdate = IkiWiki::date_3339($ctime);
+	$vals{datelong} = $longdate;
+	$vals{date} = $longdate;
+	$vals{date} =~ s/T.*$//;
+	if ($vals{date} =~ /^(\d{4})-/)
 	{
-	    my $ch_hash = $characters[$i];
-	    if ($i < 2)
+	    $vals{year} = $1;
+	}
+	if ($vals{date} =~ /^\d{4}-(\d{2})/)
+	{
+	    $vals{month} = $1;
+	}
+	$vals{monthname} = IkiWiki::Plugin::common_custom::common_vars_calc(page=>$page,
+	    value=>$vals{month}, id=>'monthname');
+
+	$value = $vals{$field_name};
+    }
+    elsif ($field_name =~ /^(major_characters|minor_characters)$/)
+    {
+	# Major characters are the first two characters
+	my $char_loop = IkiWiki::Plugin::field::field_get_value('characters_loop', $page);
+	if ($char_loop)
+	{
+	    my %vals = ();
+	    my @characters = @{$char_loop};
+	    $vals{major_characters} = [];
+	    for (my $i = 0; $i < @characters; $i++)
 	    {
-		push @{$values{major_characters}}, $ch_hash->{characters};
-	    }
-	    else
-	    {
-		if (!exists $values{minor_characters})
+		my $ch_hash = $characters[$i];
+		if ($i < 2)
 		{
-		    $values{minor_characters} = [];
+		    push @{$vals{major_characters}}, $ch_hash->{characters};
 		}
-		push @{$values{minor_characters}}, $ch_hash->{characters};
+		else
+		{
+		    if (!exists $vals{minor_characters})
+		    {
+			$vals{minor_characters} = [];
+		    }
+		    push @{$vals{minor_characters}}, $ch_hash->{characters};
+		}
 	    }
+	    $value = $vals{$field_name};
 	}
     }
-    return \%values;
-} # katplay_late_vars
+    elsif ($field_name =~ /^section(\d+)$/)
+    {
+	my $wanted_level = $1;
+	if ($page =~ /stories/)
+	{
+	    my %vals = ();
+	    my @bits = split(/\//, $page);
+	    # remove the actual page-file from this list
+	    pop @bits;
+	    my $found = 0;
+	    my $level = 0;
+	    while (@bits)
+	    {
+		my $s = shift @bits;
+		if ($found)
+		{
+		    $level++;
+		    $vals{"section${level}"} = $s;
+		}
+		if ($s eq 'stories')
+		{
+		    $found = 1;
+		}
+	    }
+	    $value = $vals{$field_name};
+	}
+    }
+    return $value;
+} # katplay_get_value
 
 1;

@@ -59,8 +59,6 @@ sub import {
 	$config{wiki_file_prune_regexps} = [ grep { !m/\\\.x\?html\?\$/ } @{$config{wiki_file_prune_regexps}} ];
 
 	IkiWiki::loadplugin("field");
-	IkiWiki::Plugin::field::field_register(id=>'xhtml',
-	    all_values=>\&scan_meta);
 }
 
 sub getsetup () {
@@ -98,6 +96,7 @@ sub scan (@) {
 		}
 	    }
 	}
+	scan_meta(%params);
     }
 }
 
@@ -121,18 +120,19 @@ sub scan_meta (@) {
 	    if ($head =~ m#<title>(.*)</title>#iso)
 	    {
 		my $title = $1;
-		$meta{title} = $title;
-		$pagestate{$page}{meta}{title} = $title;
+		IkiWiki::Plugin::meta::preprocess(
+		    title=>$title,
+		    page=>$page);
 	    }
 	    if ($head =~ m#<meta\s+name="description"\s+content\s*=\s*"([^"]*)"#iso)
 	    {
 		my $desc = $1;
-		$meta{description} = $desc;
-		$pagestate{$page}{meta}{description} = $desc;
+		IkiWiki::Plugin::meta::preprocess(
+		    description=>$desc,
+		    page=>$page);
 	    }
 	}
     }
-    return \%meta;
 } # scan_meta
 
 # return the BODY content

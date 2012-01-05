@@ -46,7 +46,7 @@ sub import {
 
     IkiWiki::loadplugin("field");
     IkiWiki::Plugin::field::field_register(id=>'common_custom',
-	all_values=>\&all_common_vars);
+	get_value=>\&get_common_var);
 
     $OrigSubs{htmllink} = \&htmllink;
     inject(name => 'IkiWiki::htmllink', call => \&my_htmllink);
@@ -160,80 +160,77 @@ sub my_htmllink ($$$;@) {
 #-------------------------------------------------------
 # field functions
 #-------------------------------------------------------
-sub all_common_vars ($$) {
+sub get_common_var ($$;@) {
+    my $field_name = shift;
+    my $page = shift;
     my %params = @_;
-    my $page = $params{page};
 
-    my %values = ();
-    my $basename = pagetitle(basename($page));
-
-    # pagename as search term
-    my $term = $basename;
-    $term =~ s#_#+#g;
-    $values{pageterm} = $term;
-
-    my $namespaced = $basename;
-    $namespaced =~ s/\.\w+$//;
-    $namespaced =~ s#_# #g;
-    $namespaced =~ s#-# #g;
-    $namespaced =~ s/([-\w]+)/\u\L$1/g;
-    $values{namespaced} = $namespaced;
-    
-    if (not exists $pagestate{$page}{meta}{title})
+    my $value = undef;
+    if ($field_name eq 'pageterm'
+	|| $field_name eq 'namespaced'
+	|| $field_name eq 'title'
+	|| $field_name eq 'name_a'
+	|| $field_name eq 'base_no_ext')
     {
-	my $title = $basename;
-	$title =~ s#_# #g;
-	$title =~ s#-# #g;
-	$title =~ s/([-\w]+)/\u\L$1/g;
-	$values{title} = $title;
-	$pagestate{$page}{meta}{title} = $title;
-    }
+	my $basename = pagetitle(basename($page));
 
-    $values{name_a} = uc(substr($basename, 0, 1));
-
-    my $bn = $basename;
-    $bn =~ s/\.\w+$//;
-    $values{base_no_ext} = $bn;
-
-    if (exists $config{local_css}
-	    and defined $config{local_css})
-    {
-	foreach my $re (sort keys %{$config{local_css}})
+	# pagename as search term
+	if ($field_name eq 'pageterm')
 	{
-	    if ($page =~ /$re/i)
+	    my $term = $basename;
+	    $term =~ s#_#+#g;
+	    $value = $term;
+	}
+	elsif ($field_name eq 'namespaced')
+	{
+	    my $namespaced = $basename;
+	    $namespaced =~ s/\.\w+$//;
+	    $namespaced =~ s#_# #g;
+	    $namespaced =~ s#-# #g;
+	    $namespaced =~ s/([-\w]+)/\u\L$1/g;
+	    $value = $namespaced;
+	}
+	elsif ($field_name eq 'title')
+	{
+	    if (not exists $pagestate{$page}{meta}{title})
 	    {
-		$values{local_css} = $config{local_css}{$re};
-		last;
+		my $title = $basename;
+		$title =~ s#_# #g;
+		$title =~ s#-# #g;
+		$title =~ s/([-\w]+)/\u\L$1/g;
+		$value = $title;
 	    }
+	}
+	elsif ($field_name eq 'name_a')
+	{
+	    $value = uc(substr($basename, 0, 1));
+	}
+	elsif ($field_name eq 'base_no_ext')
+	{
+	    my $bn = $basename;
+	    $bn =~ s/\.\w+$//;
+	    $value = $bn;
+	}
+    }
+    elsif ($field_name eq 'plain_mtime')
+    {
+	if ($IkiWiki::pagemtime{$page})
+	{
+	    my $mtime = IkiWiki::date_3339($IkiWiki::pagemtime{$page});
+	    $value = $mtime;
+	}
+    }
+    elsif ($field_name eq 'plain_ctime')
+    {
+	if ($IkiWiki::pagectime{$page})
+	{
+	    my $ctime = IkiWiki::date_3339($IkiWiki::pagectime{$page});
+	    $value = $ctime;
 	}
     }
 
-    if (exists $config{local_css2}
-	    and defined $config{local_css2})
-    {
-	foreach my $re (sort keys %{$config{local_css2}})
-	{
-	    if ($page =~ /$re/i)
-	    {
-		$values{local_css2} = $config{local_css2}{$re};
-		last;
-	    }
-	}
-    }
-
-    if ($IkiWiki::pagemtime{$page})
-    {
-	my $mtime = IkiWiki::date_3339($IkiWiki::pagemtime{$page});
-	$values{plain_mtime} = $mtime;
-    }
-    if ($IkiWiki::pagectime{$page})
-    {
-	my $ctime = IkiWiki::date_3339($IkiWiki::pagectime{$page});
-	$values{plain_ctime} = $ctime;
-    }
-
-    return \%values;
-} # all_common_vars
+    return $value;
+} # get_common_var
 
 sub common_vars_calc (@) {
     my %params=@_;
