@@ -898,6 +898,8 @@ sub cmp_field {
 
     $left = "" unless defined $left;
     $right = "" unless defined $right;
+    $left = join(' ', @{$left}) if ref $left eq 'ARRAY';
+    $right = join(' ', @{$right}) if ref $right eq 'ARRAY';
     return $left cmp $right;
 }
 
@@ -913,6 +915,8 @@ sub cmp_field_natural {
 
     $left = "" unless defined $left;
     $right = "" unless defined $right;
+    $left = join(' ', @{$left}) if ref $left eq 'ARRAY';
+    $right = join(' ', @{$right}) if ref $right eq 'ARRAY';
     return Sort::Naturally::ncmp($left, $right);
 }
 

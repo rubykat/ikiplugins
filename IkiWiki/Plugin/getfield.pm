@@ -125,7 +125,11 @@ sub get_field_value ($$) {
 	return "{{\$${field}}}";
     }
     my $value = IkiWiki::Plugin::field::field_get_value($field,$page);
-    return $value if defined $value;
+    if (defined $value)
+    {
+	$value = join(' ', @{$value}) if ref $value eq 'ARRAY';
+	return $value;
+    }
 
     # if there is no value, return the field name.
     return $field;

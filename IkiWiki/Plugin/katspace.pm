@@ -234,6 +234,7 @@ sub do_finishathon_fandom_list ($) {
 	    IkiWiki::Plugin::field::field_get_value("Fandom$i", $page);
 	if ($fd)
 	{
+	    $fd = join(' ', @{$fd}) if ref $fd eq 'ARRAY';
 	    if ($fandom_count{$fd})
 	    {
 		$fandom_count{$fd}++;
