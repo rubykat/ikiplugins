@@ -8,11 +8,11 @@ IkiWiki::Plugin::ymlfront - add YAML-format data to a page
 
 =head1 VERSION
 
-This describes version B<1.20110610> of IkiWiki::Plugin::ymlfront
+This describes version B<1.20120105> of IkiWiki::Plugin::ymlfront
 
 =cut
 
-our $VERSION = '1.20110610';
+our $VERSION = '1.20120105';
 
 =head1 DESCRIPTION
 
@@ -47,12 +47,12 @@ sub import {
 	hook(type => "checkconfig", id => "ymlfront", call => \&checkconfig);
 	hook(type => "filter", id => "ymlfront", call => \&filter, first=>1);
 	hook(type => "preprocess", id => "ymlfront", call => \&preprocess, scan=>1);
-    #hook(type => "scan", id => "ymlfront", call => \&scan);
+	hook(type => "scan", id => "ymlfront", call => \&scan);
 	hook(type => "checkcontent", id => "ymlfront", call => \&checkcontent);
 
 	IkiWiki::loadplugin('field');
 	IkiWiki::Plugin::field::field_register(id=>'ymlfront',
-					       all_values=>\&yml_get_values,
+					       get_value=>\&yml_get_value,
 					       first=>1);
 }
 
@@ -119,34 +119,44 @@ sub scan (@) {
 	my $parsed_yml = parse_yml(%params, data=>$extracted_yml->{yml});
 	if (defined $parsed_yml)
 	{
-	    # clear the old data
-	    if (exists $pagestate{$page}{ymlfront})
-	    {
-		delete $pagestate{$page}{ymlfront};
-	    }
 	    # save the data to pagestate
 	    foreach my $fn (keys %{$parsed_yml})
 	    {
 		my $fval = $parsed_yml->{$fn};
 		$pagestate{$page}{ymlfront}{$fn} = $fval;
 	    }
-	    # update meta hash
-	    if (exists $pagestate{$page}{ymlfront}{title}
-		and $pagestate{$page}{ymlfront}{title})
+	    # update meta values
+	    foreach my $key (qw{title description author})
 	    {
-		$pagestate{$page}{meta}{title} = $pagestate{$page}{ymlfront}{title};
+		if (exists $pagestate{$page}{ymlfront}{$key}
+			and $pagestate{$page}{ymlfront}{$key})
+		{
+		    my $val = (ref $pagestate{$page}{ymlfront}{$key}
+			? join(' ', @{$pagestate{$page}{ymlfront}{$key}})
+			: $pagestate{$page}{ymlfront}{$key});
+		    if ($key eq 'title' and exists $pagestate{$page}{ymlfront}{titlesort})
+		    {
+			IkiWiki::Plugin::meta::preprocess(
+			    $key=>$val,
+			    sortas=>$pagestate{$page}{ymlfront}{titlesort},
+			    page=>$page);
+		    }
+		    elsif ($key eq 'author' and exists $pagestate{$page}{ymlfront}{authorsort})
+		    {
+			IkiWiki::Plugin::meta::preprocess(
+			    $key=>$val,
+			    sortas=>$pagestate{$page}{ymlfront}{authorsort},
+			    page=>$page);
+		    }
+		    else
+		    {
+			IkiWiki::Plugin::meta::preprocess(
+			    $key=>$val,
+			    page=>$page);
+		    }
+		}
 	    }
-	    if (exists $pagestate{$page}{ymlfront}{description}
-		and $pagestate{$page}{ymlfront}{description})
-	    {
-		$pagestate{$page}{meta}{description} = $pagestate{$page}{ymlfront}{description};
-	    }
-	    if (exists $pagestate{$page}{ymlfront}{author}
-		and $pagestate{$page}{ymlfront}{author})
-	    {
-		$pagestate{$page}{meta}{author} = $pagestate{$page}{ymlfront}{author};
-	    }
-	}
+	} # defined parsed_yml
     }
 } # scan
 
@@ -170,19 +180,9 @@ sub preprocess (@) {
 	return '';
     }
 
-    # clear the old data
-    if (exists $pagestate{$page}{ymlfront})
-    {
-	delete $pagestate{$page}{ymlfront};
-    }
     my $parsed_yml = parse_yml(%params);
     if (defined $parsed_yml)
     {
-	# clear the old data
-	if (exists $pagestate{$page}{ymlfront})
-	{
-	    delete $pagestate{$page}{ymlfront};
-	}
 	# save the data to pagestate
 	foreach my $fn (keys %{$parsed_yml})
 	{
@@ -269,54 +269,17 @@ sub checkcontent {
 # ------------------------------------------------------------
 # Field functions
 # --------------------------------
-sub yml_get_values (@) {
-    my %params=@_;
-    my $page = $params{page};
-
-    my $page_file=$pagesources{$page} || return;
-    my $page_type=pagetype($page_file);
-    if (!defined $page_type)
-    {
-	return;
-    }
-    my $extracted_yml = extract_yml(%params);
-    if (defined $extracted_yml
-	and defined $extracted_yml->{yml})
-    {
-	my $parsed_yml = parse_yml(%params, data=>$extracted_yml->{yml});
-	return $parsed_yml;
-    }
-    return undef;
-} # yml_get_values
-
 sub yml_get_value ($$) {
     my $field_name = shift;
     my $page = shift;
 
     my $value = undef;
+    $field_name =~ tr/A-Z/a-z/;
     if (exists $pagestate{$page}{ymlfront}{$field_name})
     {
 	$value = $pagestate{$page}{ymlfront}{$field_name};
     }
-    elsif (exists $pagestate{$page}{ymlfront}{lc($field_name)})
-    {
-	$value = $pagestate{$page}{ymlfront}{lc($field_name)};
-    }
-    if (defined $value)
-    {
-	if (ref $value)
-	{
-	    my @value_array = @{$value};
-	    return (wantarray
-		    ? @value_array
-		    : join(",", @value_array));
-	}
-	else
-	{
-	    return (wantarray ? ($value) : $value);
-	}
-    }
-    return undef;
+    return $value;
 } # yml_get_value
 
 # ------------------------------------------------------------
@@ -419,7 +382,8 @@ sub parse_yml {
 	    foreach my $fn (keys %{$ydata})
 	    {
 		my $fval = $ydata->{$fn};
-		$lc_data{lc($fn)} = $fval;
+		my $lc_fn = $fn =~ tr/A-Z/a-z/r;
+		$lc_data{$lc_fn} = $fval;
 	    }
 	    return \%lc_data;
 	}
