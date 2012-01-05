@@ -9,11 +9,11 @@ IkiWiki::Plugin::katspace - customizations for the KatSpace site
 
 =head1 VERSION
 
-This describes version B<1.20110610> of IkiWiki::Plugin::katspace
+This describes version B<1.20120105> of IkiWiki::Plugin::katspace
 
 =cut
 
-our $VERSION = '1.20110610';
+our $VERSION = '1.20120105';
 
 =head1 AUTHOR
 

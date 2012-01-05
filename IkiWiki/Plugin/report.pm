@@ -7,11 +7,11 @@ IkiWiki::Plugin::report - Produce templated reports from page field data.
 
 =head1 VERSION
 
-This describes version B<1.20110906> of IkiWiki::Plugin::report
+This describes version B<1.20120105> of IkiWiki::Plugin::report
 
 =cut
 
-our $VERSION = '1.20110906';
+our $VERSION = '1.20120105';
 
 =head1 DESCRIPTION
 

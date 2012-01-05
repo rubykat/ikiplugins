@@ -9,11 +9,11 @@ IkiWiki::Plugin::common_custom - a bunch of personal customizations.
 
 =head1 VERSION
 
-This describes version B<1.20110610> of IkiWiki::Plugin::common_custom
+This describes version B<1.20120105> of IkiWiki::Plugin::common_custom
 
 =cut
 
-our $VERSION = '1.20110610';
+our $VERSION = '1.20120105';
 
 =head1 PREREQUISITES
 

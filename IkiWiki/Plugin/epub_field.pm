@@ -8,11 +8,11 @@ IkiWiki::Plugin::epub_field - field parser for EPUB files
 
 =head1 VERSION
 
-This describes version B<0.20110715> of IkiWiki::Plugin::epub_field
+This describes version B<0.20120105> of IkiWiki::Plugin::epub_field
 
 =cut
 
-our $VERSION = '0.20110715';
+our $VERSION = '0.20120105';
 
 =head1 PREREQUISITES
 

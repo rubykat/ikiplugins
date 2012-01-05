@@ -8,11 +8,11 @@ IkiWiki::Plugin::pdf_field - field parser for PDF files
 
 =head1 VERSION
 
-This describes version B<0.20110821> of IkiWiki::Plugin::pdf_field
+This describes version B<0.20120105> of IkiWiki::Plugin::pdf_field
 
 =cut
 
-our $VERSION = '0.20110821';
+our $VERSION = '0.20120105';
 
 =head1 PREREQUISITES
 
