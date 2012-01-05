@@ -570,6 +570,7 @@ sub build_report (@) {
 	    my $val =
 		IkiWiki::Plugin::field::field_get_value($fn, $page);
 	    $val = '' if !defined $val;
+	    $val = join(' ', @{$val}) if ref $val eq 'ARRAY';
 	    push @header_values, $val;
 	}
 	my $rowr = do_one_template(
