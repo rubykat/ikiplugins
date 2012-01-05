@@ -382,7 +382,8 @@ sub parse_yml {
 	    foreach my $fn (keys %{$ydata})
 	    {
 		my $fval = $ydata->{$fn};
-		my $lc_fn = $fn =~ tr/A-Z/a-z/r;
+		my $lc_fn = $fn;
+		$lc_fn =~ tr/A-Z/a-z/;
 		$lc_data{$lc_fn} = $fval;
 	    }
 	    return \%lc_data;
