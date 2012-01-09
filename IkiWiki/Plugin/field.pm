@@ -692,6 +692,25 @@ sub calculated_values {
     {
 	$value = IkiWiki::basename($page);
     }
+    # apply the "titlepage" function to the field value(s)
+    elsif ($field_name =~ /^(.*)-titlepage$/)
+    {
+	my $basename = $1;
+	$value = field_get_value($basename, $page);
+	if (ref $value eq 'ARRAY')
+	{
+	    my @values = ();
+	    foreach my $v (@{$value})
+	    {
+		push @values, IkiWiki::titlepage($v);
+	    }
+	    $value = \@values;
+	}
+	elsif (!ref $value)
+	{
+	    $value = IkiWiki::basename($value);
+	}
+    }
     elsif ($config{field_allow_config}
 	and $field_name =~ /^config-(.*)/)
     {
