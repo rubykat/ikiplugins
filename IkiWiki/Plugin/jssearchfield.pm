@@ -208,67 +208,44 @@ EOT
     return out;
 }
 
-// Grabs all the desired query values from a GET-style URL
+// Grabs all the desired query values from the form
 // and constructs a query object
-// Also updates the form
-function queryRec() {
+function queryRec(formid) {
 
-	// get the string following the question mark
-	var queryString = location.href.substring(location.href.indexOf("?")+1);
+	var myform = document.getElementById(formid);
 
-	// split parameters into pairs, assuming pairs are separated by ampersands
-	var pairs = queryString.split("&");
-
-	var myform = document.getElementById("jssearchfield");
-
-	// for each pair, we get the name and the value
+	// Go through all the elements of the form
 	var found = false;
-	for (var i = 0; i < pairs.length; i++) { 
-		var pos = pairs[i].indexOf('='); 
-		if (pos == -1) {
-			continue; 
-		}
-		var argname = pairs[i].substring(0,pos);
-		var argvalue = pairs[i].substring(pos+1); 
-
-		// Replaces "Google-style" + signs with the spaces
-		// they represent
-		argvalue = unescape(argvalue.replace(/\\+/g, " "));
-		if (argvalue.length > 0)
+	for (var i = 0; i < myform.elements.length; i++)
+	{
+	    var elem = myform.elements[i];
+	    if (elem.type == 'text')
+	    {
+		// split text values on spaces
+		if (typeof elem.value != 'undefined'
+		    && elem.value.length > 0)
 		{
-		    if (myform[argname].type == 'text')
+		    this[elem.name] = elem.value.split(" ");
+		    found = true;
+		}
+	    }
+	    else if (elem.type == 'checkbox')
+	    {
+		if (elem.checked)
+		{
+		    if (typeof this[elem.name] == 'undefined')
 		    {
-			myform[argname].value = argvalue;
-			this[argname] = argvalue.split(" ");
-		    }
-		    else if (myform[argname].length > 0)
-		    {
-			for (j=0; j < myform[argname].length;j++)
-			{
-			    if (myform[argname][j].value == argvalue)
-			    {
-				myform[argname][j].checked = true;
-			    }
-			}
-			if (typeof this[argname] == 'undefined')
-			{
-			    this[argname] = [argvalue];
-			}
-			else
-			{
-			    this[argname][this[argname].length] = argvalue;
-			}
+			this[elem.name] = [elem.value];
 		    }
 		    else
 		    {
-			this[argname] = [argvalue];
+			this[elem.name][this[elem.name].length] = elem.value;
 		    }
-		    if (argname != "search")
-		    {
-			found = true;
-		    }
+		    found = true;
 		}
-	}
+	    } // form element types
+	} // form elements
+
 	this["_terms"] = found;
 	return this;
 }
@@ -294,6 +271,19 @@ queryRec.prototype.as_html = function() {
 		{
 		    out = out + x + "=<b>" + qv + "</b> ";
 		}
+	    }
+	}
+    return out;
+}
+
+queryRec.prototype.dump = function() {
+	var out = "";
+	for (x in this)
+	{
+	    if (typeof this[x] != "function"
+		&& typeof this[x] != "undefined")
+	    {
+		    out = out + x + ":" + this[x] + "\\n";
 	    }
 	}
     return out;
@@ -350,33 +340,49 @@ EOT
 	}
 }
 
+function writeMessage(message) {
+    var writeon = document.getElementById('message');
+    writeon.innerHTML = message;
+}
+
+function query_from_form() {
+    var query = new queryRec("jssearchfield");
+    var results = doSearch(query);
+    if (results) {
+        formatResults(query,results);
+    }
+    return false;
+}
+
 function initForm() {
     var search_form = document.getElementById('jssearchfield');
-    search_form.setAttribute("action", document.location.pathname);
+    search_form.setAttribute("onsubmit", 'return query_from_form()');
 
-    document.writeln("<p>Ready to search!</p>");
+    writeMessage("<p>Ready to search!</p>");
 }
 
 function formatResults(query,results) {
 	// Loop through them and make it pretty! :)
+	var the_message = "<p>Searched for " + query.as_html() + "</p>";
 	if (is_array(results)) {
-		document.writeln("<p>Searched for " + query.as_html() + " Found " + results.length + " results.</p>");
+		the_message = the_message + "<p>Found " + results.length + " results.</p>";
 	
-		document.writeln("<ol>");
+		the_message = the_message + "<ol>";
 		for (r = 0; r < results.length; r++) {
 			result = searchDB[results[r]];
 			
-			document.writeln(result.as_html());
+			the_message = the_message + result.as_html();
 		}
-		document.writeln("</ol>");
+		the_message = the_message + "</ol>";
 	}
 	// If it is not an array, then we got an error message, so display that
 	// rather than results
 	else {
-		document.writeln("<i>" + results + "</i>");
-		document.writeln("<br />");
+		the_message = the_message + "<i>" + results + "</i>";
+		the_message = the_message + "<br />";
 	}
-	document.writeln("<br/>\\n<a href=\\"#jssearchfield\\">&raquo; Back to search form</a>\\n");
+	the_message = the_message + "<br/>\\n<a href=\\"#jssearchfield\\">&raquo; Back to search form</a>\\n";
+    writeMessage(the_message);
 }
 EOT
 
@@ -493,18 +499,11 @@ EOT
 </table>
 <input type="submit" value="Search!" name="search" />
 </form>
+<div id="message"></div>
 
 <script type='text/javascript'>
 <!--
 initForm();
-
-var query = new queryRec();
-if (query["search"]) {
-    var results = doSearch(query);
-    if (results) {
-        formatResults(query,results);
-    }
-}
 //-->
 </script>
 EOT
