@@ -19,7 +19,7 @@ sub getsetup () {
 		plugin => {
 			safe => 1,
 			rebuild => undef,
-			section => "widget",
+			section => "search",
 		},
 		jssearchfield_css => {
 			type => "string",
@@ -73,6 +73,14 @@ sub set_up_search {
     }
 
     my @fields = split(' ', $fields);
+    my @tagfields = ($params{tagfields}
+	? split(' ', $params{tagfields})
+	: ());
+    my %is_tagfield = ();
+    foreach my $tag (@tagfields)
+    {
+	$is_tagfield{$tag} = 1;
+    }
 
     my $out = '';
 
@@ -110,7 +118,7 @@ searchRec.prototype.field_equals = function(fn,val) {
     {
 	return false;
     }
-    else if (typeof this[fn] == 'array')
+    else if (typeof this[fn] == 'object')
     {
 	for (var x = 0; x < this[fn].length; x++) {
 	    if (this[fn][x] == val)
@@ -140,7 +148,7 @@ searchRec.prototype.field_matches = function(fn,regex) {
     {
 	return false;
     }
-    else if (typeof this[fn] == 'array')
+    else if (typeof this[fn] == 'object')
     {
 	for (var x = 0; x < this[fn].length; x++) {
 	    if (this[fn][x].match(regex))
@@ -187,7 +195,10 @@ EOT
 	if ($fn ne 'url' and $fn ne 'title')
 	{
 	    $out .=<<EOT;
+	if (typeof this.$fn != 'undefined')
+	{
 	out = out + "<span class=\\"result-$fn\\">" + this.$fn + "</span>\\n";
+	}
 EOT
 	}
     }
@@ -222,12 +233,36 @@ function queryRec() {
 
 		// Replaces "Google-style" + signs with the spaces
 		// they represent
-		// and split on the spaces
 		argvalue = unescape(argvalue.replace(/\\+/g, " "));
 		if (argvalue.length > 0)
 		{
-		    myform[argname].value = argvalue;
-		    this[argname] = argvalue.split(" ");
+		    if (myform[argname].type == 'text')
+		    {
+			myform[argname].value = argvalue;
+			this[argname] = argvalue.split(" ");
+		    }
+		    else if (myform[argname].length > 0)
+		    {
+			for (j=0; j < myform[argname].length;j++)
+			{
+			    if (myform[argname][j].value == argvalue)
+			    {
+				myform[argname][j].checked = true;
+			    }
+			}
+			if (typeof this[argname] == 'undefined')
+			{
+			    this[argname] = [argvalue];
+			}
+			else
+			{
+			    this[argname][this[argname].length] = argvalue;
+			}
+		    }
+		    else
+		    {
+			this[argname] = [argvalue];
+		    }
 		    if (argname != "search")
 		    {
 			found = true;
@@ -350,6 +385,7 @@ EOT
 searchDB = new Array();
 EOT
 
+    my %tagsets = ();
     for (my $i = 0; $i < @matching_pages; $i++)
     {
 	my $pn = $matching_pages[$i];
@@ -362,22 +398,58 @@ EOT
 	$out .= 'url:"'.$url.'",';
 	foreach my $fn (@fields)
 	{
+	    $tagsets{$fn} = {} if ($is_tagfield{$fn} and !exists $tagsets{$fn});
 	    my $val = IkiWiki::Plugin::field::field_get_value($fn, $pn);
 	    if (ref $val eq 'ARRAY')
 	    {
 		my @vals = ();
 		foreach my $v (@{$val})
 		{
+		    $v =~ s/"/'/g;
 		    push @vals, '"'.$v.'"';
+		    if ($is_tagfield{$fn})
+		    {
+			$tagsets{$fn}{$v} = 0 if !exists $tagsets{$fn}{$v};
+			$tagsets{$fn}{$v}++;
+		    }
 		}
 		$out .= $fn.':['.join(',', @vals).'],';
 	    }
-	    else
+	    elsif ($val)
 	    {
+		$val =~ s/"/'/g;
 		$out .= $fn.':"'.$val.'",';
+		if ($is_tagfield{$fn})
+		{
+		    $tagsets{$fn}{$val} = 0 if !exists $tagsets{$fn}{$val};
+		    $tagsets{$fn}{$val}++;
+		}
 	    }
 	}
 	$out .= "});\n";
+    }
+
+    # and the tagsets
+    if (@tagfields > 0)
+    {
+	$out .=<<EOT;
+tagSets = new Object();
+EOT
+	foreach my $fn (@tagfields)
+	{
+	    $out .=<<EOT;
+	tagSets["$fn"] = [
+EOT
+	    foreach my $tag (sort keys %{$tagsets{$fn}})
+	    {
+		$out .=<<EOT;
+	    {tag:"$tag",freq:$tagsets{$fn}{$tag}},
+EOT
+	    }
+	    $out .=<<EOT;
+	];
+EOT
+	}
     }
     $out .=<<EOT;
 //-->
@@ -390,9 +462,32 @@ EOT
 EOT
     foreach my $fn (@fields)
     {
-	$out .=<<EOT
-<tr><td class='label'>$fn:</td><td><input type="text" name="$fn" /></td></tr>
+	$out .= "<tr><td class='label'>$fn:</td><td>";
+	if ($is_tagfield{$fn})
+	{
+	    $out .= "<ul class='taglist'>\n";
+	    my $count = 0;
+	    foreach my $tag (sort keys %{$tagsets{$fn}})
+	    {
+		$out .=<<EOT;
+<li><input name="$fn" type="checkbox" value="$tag" />
+<label for="$fn">$tag ($tagsets{$fn}{$tag})</label></li>
 EOT
+		$count++;
+		if ($count %10 == 0)
+		{
+		    $out .= "</ul>\n<ul class='taglist'>\n";
+		}
+	    }
+	    $out .= "</ul>\n";
+	}
+	else
+	{
+	    $out .=<<EOT
+<input type="text" name="$fn" size="60"/>
+EOT
+	}
+	$out .= "</td></tr>\n";
     }
     $out .=<<EOT;
 </table>
