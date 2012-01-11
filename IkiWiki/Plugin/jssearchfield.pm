@@ -437,7 +437,7 @@ function initForm() {
     });
     var search_form = document.getElementById('jssearchfield');
     search_form.setAttribute("onsubmit", 'return query_from_form()');
-    query_from_form();
+    writeMessage("Ready to search!")
 }
 
 function formatResults(query,results) {
