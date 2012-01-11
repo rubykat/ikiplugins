@@ -294,12 +294,17 @@ function is_array(array) { return !( !array || (!array.length || array.length ==
 
 function doSearch (query) {
 
-    if (!query["_terms"]) {
-	return ERR_NoSearchTerms;
-    }
-
     // This is where we will be putting the results.
     results = new Array();
+
+    if (!query["_terms"]) {
+	// return EVERYTHING
+	for (i=0;i < searchDB.length;i++)
+	{
+	    results[i] = i;
+	}
+	return results;
+    }
 
     // Loop through the db for potential results
     // For every entry in the "database"
@@ -308,6 +313,9 @@ function doSearch (query) {
 EOT
     foreach my $fn (@fields)
     {
+	my $match_fn = ($is_tagfield{$fn}
+	    ? "field_equals"
+	    : "field_does_match");
 	$out .=<<EOT;
 	if (typeof query["$fn"] != 'undefined')
 	{
@@ -315,7 +323,7 @@ EOT
 		for (var t = 0; t < query["$fn"].length; t++) {
 		    matches_this_term = false;
 		    var q = query["$fn"][t];
-		    if (searchDB[sDB].field_does_match("$fn",q)) {
+		    if (searchDB[sDB].$match_fn("$fn",q)) {
 			matches_this_term = true;
 		    }
 		    if (!matches_this_term)
@@ -354,16 +362,92 @@ function query_from_form() {
     return false;
 }
 
+function filterTaglist(fn,results) {
+    tagset = new Object();
+    for (ri=0;ri < results.length;ri++)
+    {
+	val = searchDB[results[ri]][fn];
+	if (is_array(val))
+	{
+	    for (j=0;j < val.length;j++)
+	    {
+		vv = val[j];
+		if (typeof tagset[vv] == 'undefined')
+		{
+		    tagset[vv] = 1;
+		}
+		else
+		{
+		    tagset[vv]++;
+		}
+	    }
+	}
+	else
+	{
+	    if (typeof tagset[val] == 'undefined')
+	    {
+		tagset[val] = 1;
+	    }
+	    else
+	    {
+		tagset[val]++;
+	    }
+	}
+    }
+    tcol = \$("#jssearchfield .q-"+fn+" .tagcoll .taglists li");
+    tcol.each(function(index){
+	check = \$(this).find("input");
+	label = \$(this).find("label");
+	checkval = check.attr("value");
+	if (typeof tagset[checkval] == 'undefined')
+	{
+	    \$(this).hide();
+	}
+	else
+	{
+	    \$(this).show();
+	    label.html(checkval+" ("+tagset[checkval]+")");
+	}
+    });
+}
+
 function initForm() {
+    \$("#jssearchfield .tagcoll .taglists").hide();
+    \$("#jssearchfield .tagcoll .toggle").click(function(){
+	tl = \$(this).siblings(".taglists");
+	if (tl.is(":hidden")) {
+	    this.innerHTML = "&#9660;"
+	    tl.show();
+	} else {
+	    this.innerHTML = "&#9654;"
+	    tl.find("input").prop("checked", false);
+	    tl.hide();
+	}
+    });
+    \$("#jssearchfield input").change(function(){
+	var query = new queryRec("jssearchfield");
+	var results = doSearch(query);
+	if (results) {
+	    formatResults(query,results);
+	}
+	for (i=0;i<tagFields.length;i++)
+	{
+	    filterTaglist(tagFields[i],results);
+	}
+    });
     var search_form = document.getElementById('jssearchfield');
     search_form.setAttribute("onsubmit", 'return query_from_form()');
-
-    writeMessage("<p>Ready to search!</p>");
+    query_from_form();
 }
 
 function formatResults(query,results) {
 	// Loop through them and make it pretty! :)
-	var the_message = "<p>Searched for " + query.as_html() + "</p>";
+	var the_message = "";
+	var qhtml = query.as_html();
+	if (qhtml.length > 0)
+	{
+	    the_message = the_message + "<p>Searched for " + qhtml + "</p>";
+	}
 	if (is_array(results)) {
 		the_message = the_message + "<p>Found " + results.length + " results.</p>";
 	
@@ -439,22 +523,15 @@ EOT
     if (@tagfields > 0)
     {
 	$out .=<<EOT;
-tagSets = new Object();
+tagFields = new Array();
 EOT
+	my $ind = 0;
 	foreach my $fn (@tagfields)
 	{
 	    $out .=<<EOT;
-	tagSets["$fn"] = [
+tagFields[$ind] = "$fn";
 EOT
-	    foreach my $tag (sort keys %{$tagsets{$fn}})
-	    {
-		$out .=<<EOT;
-	    {tag:"$tag",freq:$tagsets{$fn}{$tag}},
-EOT
-	    }
-	    $out .=<<EOT;
-	];
-EOT
+	    $ind++;
 	}
     }
     $out .=<<EOT;
@@ -468,24 +545,31 @@ EOT
 EOT
     foreach my $fn (@fields)
     {
-	$out .= "<tr><td class='label'>$fn:</td><td>";
+	$out .= "<tr><td class='label'>$fn:</td><td class='q-$fn'>";
 	if ($is_tagfield{$fn})
 	{
-	    $out .= "<ul class='taglist'>\n";
+	    $out .=<<EOT;
+<div class="tagcoll"><span class="toggle">&#9654;</span>
+<div class="taglists">
+<ul class="taglist">
+EOT
 	    my $count = 0;
-	    foreach my $tag (sort keys %{$tagsets{$fn}})
+	    my @tagvals = keys %{$tagsets{$fn}};
+	    @tagvals = sort @tagvals;
+	    my $half = int @tagvals / 2;
+	    foreach my $tag (@tagvals)
 	    {
-		$out .=<<EOT;
-<li><input name="$fn" type="checkbox" value="$tag" />
+	    $out .=<<EOT;
+<li><input name="$fn" type='checkbox' value="$tag" />
 <label for="$fn">$tag ($tagsets{$fn}{$tag})</label></li>
 EOT
-		$count++;
-		if ($count %10 == 0)
+		if ($count == $half)
 		{
 		    $out .= "</ul>\n<ul class='taglist'>\n";
 		}
+		$count++;
 	    }
-	    $out .= "</ul>\n";
+	    $out .= "</ul></div></div>\n";
 	}
 	else
 	{
@@ -498,6 +582,7 @@ EOT
     $out .=<<EOT;
 </table>
 <input type="submit" value="Search!" name="search" />
+<input type="reset" value="Reset" name="reset" />
 </form>
 <div id="message"></div>
 
