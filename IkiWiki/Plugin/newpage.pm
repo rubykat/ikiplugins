@@ -31,9 +31,9 @@ sub pageactions (@) {
     my $cgiurl = $config{cgiurl};
     my $form =<<EOT;
     <form method="get" action="$cgiurl" id="newpageform">
-<input type="submit" name="do" value="create"/>
+<input type="submit" name="do" value="create" class="button"/>
 <input type="hidden" name="from" value="$page"/>
-<input type="text" name="page" value=""/>
+<input type="text" name="page" value="" class="input"/>
 </form>
 EOT
     return ($form);
