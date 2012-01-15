@@ -143,8 +143,7 @@ sub katspace_get_value ($$;@) {
 		    my $month =
 		    IkiWiki::Plugin::common_custom::common_vars_calc(page=>$page,
 			value=>$date, id=>'month');
-		    return IkiWiki::Plugin::common_custom::
-		    common_vars_calc(page=>$page, value=>$month, id=>$id);
+		    return IkiWiki::Plugin::common_custom::common_vars_calc(page=>$page, value=>$month, id=>$id);
 		}
 		else
 		{
