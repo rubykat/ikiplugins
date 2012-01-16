@@ -3,7 +3,7 @@
 [[!toc]]
 ## NAME
 
-IkiWiki::Plugin::newpage - add a "create new page" field to actions
+IkiWiki::Plugin::newpage - add a "create new page" form to actions
 
 ## SYNOPSIS
 
