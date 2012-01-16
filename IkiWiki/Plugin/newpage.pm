@@ -1,9 +1,38 @@
 #!/usr/bin/perl
 # Form for creating a new page.
 package IkiWiki::Plugin::newpage;
-
 use warnings;
 use strict;
+=head1 NAME
+
+IkiWiki::Plugin::newpage - add a "create new page" form to actions
+
+=head1 VERSION
+
+This describes version B<1.20120116> of IkiWiki::Plugin::newpage
+
+=cut
+
+our $VERSION = '1.20120116';
+
+=head1 PREREQUISITES
+
+    IkiWiki
+
+=head1 AUTHOR
+
+    Kathryn Andersen (RUBYKAT)
+    http://github.com/rubykat
+
+=head1 COPYRIGHT
+
+Copyright (c) 2012 Kathryn Andersen
+
+This program is free software; you can redistribute it and/or
+modify it under the same terms as Perl itself.
+
+=cut
+
 use IkiWiki 3.00;
 
 sub import {
