@@ -1,0 +1,29 @@
+[[!template id=plugin name=newpage author="[[rubykat]]"]]
+[[!tag type/web]]
+[[!toc]]
+## NAME
+
+IkiWiki::Plugin::newpage - add a "create new page" field to actions
+
+## SYNOPSIS
+
+    # activate the plugin
+    add_plugins => [qw{goodstuff newpage ....}],
+
+## DESCRIPTION
+
+This plugin adds a new action to the "ACTIONS" section of a page;
+a button labelled "create" and an input field next to it.
+
+The common way of creating a new page is to edit a different page
+and add a link to the new page.  However, there are some situations
+where that is a nuisance; for example, where pages are listed using
+a [[!ikiwiki plugins/map]] directive.  The newpage plugin enables
+one to simply type the name of the new page, click the "create" button,
+and one is then taken to the standard IkiWiki create-page form.
+
+## DOWNLOAD
+
+* browse at GitHub: <http://github.com/rubykat/ikiplugins/blob/master/IkiWiki/Plugin/newpage.pm>
+* git repo at git://github.com/rubykat/ikiplugins.git
+
