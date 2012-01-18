@@ -190,15 +190,18 @@ EOT
 	$tvars{search_fields} .= "<tr><td class='label'>$fn:</td><td class='q-$fn'>";
 	if ($is_tagfield{$fn})
 	{
+	    my $null_tag = delete $tagsets{$fn}{"NONE"}; # show nulls separately
+	    my @tagvals = keys %{$tagsets{$fn}};
+	    @tagvals = sort @tagvals;
+	    my $num_tagvals = int @tagvals;
+
 	    $tvars{search_fields} .=<<EOT;
 <div class="tagcoll"><span class="toggle">&#9654;</span>
+<span class="count">(tags: $num_tagvals)</span>
 <div class="taglists">
 <ul class="taglist">
 EOT
 	    my $count = 0;
-	    my $null_tag = delete $tagsets{$fn}{"NONE"}; # show nulls separately
-	    my @tagvals = keys %{$tagsets{$fn}};
-	    @tagvals = sort @tagvals;
 	    my $half = int @tagvals / 2;
 	    foreach my $tag (@tagvals)
 	    {
@@ -476,6 +479,7 @@ function query_from_form() {
 
 function filterTaglist(fn,results) {
     tagset = new Object();
+    var tcount = 0;
     for (ri=0;ri < results.length;ri++)
     {
 	val = searchDB[results[ri]][fn];
@@ -487,6 +491,7 @@ function filterTaglist(fn,results) {
 		if (typeof tagset[vv] == 'undefined')
 		{
 		    tagset[vv] = 1;
+		    tcount++;
 		}
 		else
 		{
@@ -499,6 +504,7 @@ function filterTaglist(fn,results) {
 	    if (typeof tagset[val] == 'undefined')
 	    {
 		tagset[val] = 1;
+		tcount++;
 	    }
 	    else
 	    {
@@ -521,6 +527,8 @@ function filterTaglist(fn,results) {
 	    label.html(checkval+" ("+tagset[checkval]+")");
 	}
     });
+    tc_total = $("#jssearchfield .q-"+fn+" .count");
+    tc_total.html("(tags: "+tcount+")");
 }
 
 function initForm() {
@@ -532,7 +540,6 @@ function initForm() {
 	    tl.show();
 	} else {
 	    this.innerHTML = "&#9654;"
-	    tl.find("input").prop("checked", false);
 	    tl.hide();
 	}
     });
