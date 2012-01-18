@@ -77,7 +77,7 @@ sub set_up_search {
 	if ($fn ne 'url' and $fn ne 'title')
 	{
 	    $tvars{fields_as_html} .=<<EOT;
-	if (typeof this.$fn != 'undefined')
+	if (typeof this.$fn != 'undefined' && this.$fn != 'NONE')
 	{
 	out = out + "<span class=\\"result-$fn\\">" + this.$fn + "</span>\\n";
 	}
@@ -85,13 +85,13 @@ EOT
 	}
     }
 
-    $tvars{fields2} = '';
+    $tvars{fields_match} = '';
     foreach my $fn (@fields)
     {
 	my $match_fn = ($is_tagfield{$fn}
 	    ? "field_equals"
 	    : "field_does_match");
-	$tvars{fields2} .=<<EOT;
+	$tvars{fields_match} .=<<EOT;
 	if (typeof query["$fn"] != 'undefined')
 	{
 		// For every search term we are working with
@@ -152,6 +152,16 @@ EOT
 		    $tagsets{$fn}{$val}++;
 		}
 	    }
+	    else # value is null
+	    {
+		$val = "NONE";
+		$tvars{records} .= $fn.':"'.$val.'",';
+		if ($is_tagfield{$fn})
+		{
+		    $tagsets{$fn}{$val} = 0 if !exists $tagsets{$fn}{$val};
+		    $tagsets{$fn}{$val}++;
+		}
+	    }
 	}
 	$tvars{records} .= "});\n";
     } # for matching_pages
@@ -186,6 +196,7 @@ EOT
 <ul class="taglist">
 EOT
 	    my $count = 0;
+	    my $null_tag = delete $tagsets{$fn}{"NONE"}; # show nulls separately
 	    my @tagvals = keys %{$tagsets{$fn}};
 	    @tagvals = sort @tagvals;
 	    my $half = int @tagvals / 2;
@@ -200,6 +211,13 @@ EOT
 		    $tvars{search_fields} .= "</ul>\n<ul class='taglist'>\n";
 		}
 		$count++;
+	    }
+	    if ($null_tag)
+	    {
+		$tvars{search_fields} .=<<EOT;
+<li><input name="$fn" type='checkbox' value="NONE" />
+<label for="$fn">NONE ($null_tag)</label></li>
+EOT
 	    }
 	    $tvars{search_fields} .= "</ul></div></div>\n";
 	}
@@ -428,7 +446,7 @@ function doSearch (query) {
     // For every entry in the "database"
     for (sDB = 0; sDB < searchDB.length; sDB++) {
 	    matches_all_terms = true; //matches until it does not
-<TMPL_VAR FIELDS2>
+<TMPL_VAR FIELDS_MATCH>
 	    if (matches_all_terms)
 	    {
 		results[results.length] = String(sDB);
