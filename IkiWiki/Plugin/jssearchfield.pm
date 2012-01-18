@@ -10,7 +10,6 @@ use IkiWiki 3.00;
 
 sub import {
 	hook(type => "getsetup", id => "jssearchfield", call => \&getsetup);
-	hook(type => "checkconfig", id => "jssearchfield", call => \&checkconfig);
 	hook(type => "preprocess", id => "jssearchfield", call => \&preprocess);
 }
 
@@ -21,24 +20,6 @@ sub getsetup () {
 			rebuild => undef,
 			section => "search",
 		},
-		jssearchfield_css => {
-			type => "string",
-			example => "jssearchfield.css",
-			description => "the location of the CSS file",
-			safe => 0,
-			rebuild => undef,
-		},
-}
-
-sub checkconfig () {
-    if (!defined $config{jssearchfield_css})
-    {
-	$config{jssearchfield_css} = 'jssearchfield.css';
-    }
-    if ($config{jssearchfield_css} !~ /^(http|\/)/) # relative
-    {
-	$config{_jssearchfield_css_relative} = 1;
-    }
 }
 
 sub preprocess (@) {
@@ -82,13 +63,163 @@ sub set_up_search {
 	$is_tagfield{$tag} = 1;
     }
 
-    my $out = '';
-
     # The Javascript.
     # Note that we are creating all the Javascript inline,
     # because the code depends on which fields are being queried.
     # And also because it's simpler not to have to have an extra file.
-    $out .=<<EOT;
+    # The template for the javascript is in the __DATA__ handle
+    # at the end of this file.
+
+    my %tvars = ();
+    $tvars{fields_as_html} = '';
+    foreach my $fn (@fields)
+    {
+	if ($fn ne 'url' and $fn ne 'title')
+	{
+	    $tvars{fields_as_html} .=<<EOT;
+	if (typeof this.$fn != 'undefined')
+	{
+	out = out + "<span class=\\"result-$fn\\">" + this.$fn + "</span>\\n";
+	}
+EOT
+	}
+    }
+
+    $tvars{fields2} = '';
+    foreach my $fn (@fields)
+    {
+	my $match_fn = ($is_tagfield{$fn}
+	    ? "field_equals"
+	    : "field_does_match");
+	$tvars{fields2} .=<<EOT;
+	if (typeof query["$fn"] != 'undefined')
+	{
+		// For every search term we are working with
+		for (var t = 0; t < query["$fn"].length; t++) {
+		    matches_this_term = false;
+		    var q = query["$fn"][t];
+		    if (searchDB[sDB].$match_fn("$fn",q)) {
+			matches_this_term = true;
+		    }
+		    if (!matches_this_term)
+		    {
+			matches_all_terms = false;
+		    }
+		}
+	}
+EOT
+    }
+
+    # the array of records
+    $tvars{records} = '';
+    my %tagsets = ();
+    for (my $i = 0; $i < @matching_pages; $i++)
+    {
+	my $pn = $matching_pages[$i];
+	$tvars{records} .=<<EOT;
+searchDB[$i] = new searchRec({
+EOT
+	my $title = IkiWiki::Plugin::field::field_get_value('title', $pn);
+	my $url = htmllink($params{page}, $params{destpage}, $pn, linktext=>$title);
+	$url =~ s/"/'/g; # use single quotes so as not to mess up the double quotes
+	$tvars{records} .= 'url:"'.$url.'",';
+	foreach my $fn (@fields)
+	{
+	    $tagsets{$fn} = {} if ($is_tagfield{$fn} and !exists $tagsets{$fn});
+	    my $val = IkiWiki::Plugin::field::field_get_value($fn, $pn);
+	    if (ref $val eq 'ARRAY')
+	    {
+		my @vals = ();
+		foreach my $v (@{$val})
+		{
+		    $v =~ s/"/'/g;
+		    push @vals, '"'.$v.'"';
+		    if ($is_tagfield{$fn})
+		    {
+			$tagsets{$fn}{$v} = 0 if !exists $tagsets{$fn}{$v};
+			$tagsets{$fn}{$v}++;
+		    }
+		}
+		$tvars{records} .= $fn.':['.join(',', @vals).'],';
+	    }
+	    elsif ($val)
+	    {
+		$val =~ s/"/'/g;
+		$tvars{records} .= $fn.':"'.$val.'",';
+		if ($is_tagfield{$fn})
+		{
+		    $tagsets{$fn}{$val} = 0 if !exists $tagsets{$fn}{$val};
+		    $tagsets{$fn}{$val}++;
+		}
+	    }
+	}
+	$tvars{records} .= "});\n";
+    } # for matching_pages
+
+    # and the tagsets
+    $tvars{tagsets} = '';
+    if (@tagfields > 0)
+    {
+	$tvars{tagsets} .=<<EOT;
+tagFields = new Array();
+EOT
+	my $ind = 0;
+	foreach my $fn (@tagfields)
+	{
+	    $tvars{tagsets} .=<<EOT;
+tagFields[$ind] = "$fn";
+EOT
+	    $ind++;
+	}
+    }
+
+    # The search form
+    $tvars{search_fields} = '';
+    foreach my $fn (@fields)
+    {
+	$tvars{search_fields} .= "<tr><td class='label'>$fn:</td><td class='q-$fn'>";
+	if ($is_tagfield{$fn})
+	{
+	    $tvars{search_fields} .=<<EOT;
+<div class="tagcoll"><span class="toggle">&#9654;</span>
+<div class="taglists">
+<ul class="taglist">
+EOT
+	    my $count = 0;
+	    my @tagvals = keys %{$tagsets{$fn}};
+	    @tagvals = sort @tagvals;
+	    my $half = int @tagvals / 2;
+	    foreach my $tag (@tagvals)
+	    {
+		$tvars{search_fields} .=<<EOT;
+<li><input name="$fn" type='checkbox' value="$tag" />
+<label for="$fn">$tag ($tagsets{$fn}{$tag})</label></li>
+EOT
+		if ($count == $half)
+		{
+		    $tvars{search_fields} .= "</ul>\n<ul class='taglist'>\n";
+		}
+		$count++;
+	    }
+	    $tvars{search_fields} .= "</ul></div></div>\n";
+	}
+	else
+	{
+	    $tvars{search_fields} .=<<EOT
+<input type="text" name="$fn" size="60"/>
+EOT
+	}
+	$tvars{search_fields} .= "</td></tr>\n";
+    }
+
+    my $t = HTML::Template->new(filehandle => *DATA);
+    $t->param(%tvars);
+    return $t->output();
+} # set_up_search
+
+1;
+
+__DATA__
 <script type='text/javascript'>
 <!--
 // Error strings
@@ -188,22 +319,9 @@ searchRec.prototype.field_does_match = function(fn,qval) {
 
 // Format the search rec as a HTML string
 searchRec.prototype.as_html = function() {
-	var out = "<li class=\\"result\\"><span class=\\"result-url\\">" + this.url + "</span>\\n";
-EOT
-    foreach my $fn (@fields)
-    {
-	if ($fn ne 'url' and $fn ne 'title')
-	{
-	    $out .=<<EOT;
-	if (typeof this.$fn != 'undefined')
-	{
-	out = out + "<span class=\\"result-$fn\\">" + this.$fn + "</span>\\n";
-	}
-EOT
-	}
-    }
-    $out .=<<EOT;
-    out = out + "</li>\\n";
+	var out = "<li class=\"result\"><span class=\"result-url\">" + this.url + "</span>\n";
+<TMPL_VAR FIELDS_AS_HTML>
+    out = out + "</li>\n";
 
     return out;
 }
@@ -283,7 +401,7 @@ queryRec.prototype.dump = function() {
 	    if (typeof this[x] != "function"
 		&& typeof this[x] != "undefined")
 	    {
-		    out = out + x + ":" + this[x] + "\\n";
+		    out = out + x + ":" + this[x] + "\n";
 	    }
 	}
     return out;
@@ -310,31 +428,7 @@ function doSearch (query) {
     // For every entry in the "database"
     for (sDB = 0; sDB < searchDB.length; sDB++) {
 	    matches_all_terms = true; //matches until it does not
-EOT
-    foreach my $fn (@fields)
-    {
-	my $match_fn = ($is_tagfield{$fn}
-	    ? "field_equals"
-	    : "field_does_match");
-	$out .=<<EOT;
-	if (typeof query["$fn"] != 'undefined')
-	{
-		// For every search term we are working with
-		for (var t = 0; t < query["$fn"].length; t++) {
-		    matches_this_term = false;
-		    var q = query["$fn"][t];
-		    if (searchDB[sDB].$match_fn("$fn",q)) {
-			matches_this_term = true;
-		    }
-		    if (!matches_this_term)
-		    {
-			matches_all_terms = false;
-		    }
-		}
-	}
-EOT
-    }
-    $out .=<<EOT;
+<TMPL_VAR FIELDS2>
 	    if (matches_all_terms)
 	    {
 		results[results.length] = String(sDB);
@@ -394,27 +488,27 @@ function filterTaglist(fn,results) {
 	    }
 	}
     }
-    tcol = \$("#jssearchfield .q-"+fn+" .tagcoll .taglists li");
+    tcol = $("#jssearchfield .q-"+fn+" .tagcoll .taglists li");
     tcol.each(function(index){
-	check = \$(this).find("input");
-	label = \$(this).find("label");
+	check = $(this).find("input");
+	label = $(this).find("label");
 	checkval = check.attr("value");
 	if (typeof tagset[checkval] == 'undefined')
 	{
-	    \$(this).hide();
+	    $(this).hide();
 	}
 	else
 	{
-	    \$(this).show();
+	    $(this).show();
 	    label.html(checkval+" ("+tagset[checkval]+")");
 	}
     });
 }
 
 function initForm() {
-    \$("#jssearchfield .tagcoll .taglists").hide();
-    \$("#jssearchfield .tagcoll .toggle").click(function(){
-	tl = \$(this).siblings(".taglists");
+    $("#jssearchfield .tagcoll .taglists").hide();
+    $("#jssearchfield .tagcoll .toggle").click(function(){
+	tl = $(this).siblings(".taglists");
 	if (tl.is(":hidden")) {
 	    this.innerHTML = "&#9660;"
 	    tl.show();
@@ -424,7 +518,7 @@ function initForm() {
 	    tl.hide();
 	}
     });
-    \$("#jssearchfield input").change(function(){
+    $("#jssearchfield input").change(function(){
 	var query = new queryRec("jssearchfield");
 	var results = doSearch(query);
 	if (results) {
@@ -465,121 +559,22 @@ function formatResults(query,results) {
 		the_message = the_message + "<i>" + results + "</i>";
 		the_message = the_message + "<br />";
 	}
-	the_message = the_message + "<br/>\\n<a href=\\"#jssearchfield\\">&raquo; Back to search form</a>\\n";
+	the_message = the_message + "<br/>\n<a href=\"#jssearchfield\">&raquo; Back to search form</a>\n";
     writeMessage(the_message);
 }
-EOT
 
-    # the array of records
-    $out .=<<EOT;
+// the array of records
 searchDB = new Array();
-EOT
+<TMPL_VAR RECORDS>
 
-    my %tagsets = ();
-    for (my $i = 0; $i < @matching_pages; $i++)
-    {
-	my $pn = $matching_pages[$i];
-	$out .=<<EOT;
-searchDB[$i] = new searchRec({
-EOT
-	my $title = IkiWiki::Plugin::field::field_get_value('title', $pn);
-	my $url = htmllink($params{page}, $params{destpage}, $pn, linktext=>$title);
-	$url =~ s/"/'/g; # use single quotes so as not to mess up the double quotes
-	$out .= 'url:"'.$url.'",';
-	foreach my $fn (@fields)
-	{
-	    $tagsets{$fn} = {} if ($is_tagfield{$fn} and !exists $tagsets{$fn});
-	    my $val = IkiWiki::Plugin::field::field_get_value($fn, $pn);
-	    if (ref $val eq 'ARRAY')
-	    {
-		my @vals = ();
-		foreach my $v (@{$val})
-		{
-		    $v =~ s/"/'/g;
-		    push @vals, '"'.$v.'"';
-		    if ($is_tagfield{$fn})
-		    {
-			$tagsets{$fn}{$v} = 0 if !exists $tagsets{$fn}{$v};
-			$tagsets{$fn}{$v}++;
-		    }
-		}
-		$out .= $fn.':['.join(',', @vals).'],';
-	    }
-	    elsif ($val)
-	    {
-		$val =~ s/"/'/g;
-		$out .= $fn.':"'.$val.'",';
-		if ($is_tagfield{$fn})
-		{
-		    $tagsets{$fn}{$val} = 0 if !exists $tagsets{$fn}{$val};
-		    $tagsets{$fn}{$val}++;
-		}
-	    }
-	}
-	$out .= "});\n";
-    }
-
-    # and the tagsets
-    if (@tagfields > 0)
-    {
-	$out .=<<EOT;
-tagFields = new Array();
-EOT
-	my $ind = 0;
-	foreach my $fn (@tagfields)
-	{
-	    $out .=<<EOT;
-tagFields[$ind] = "$fn";
-EOT
-	    $ind++;
-	}
-    }
-    $out .=<<EOT;
+<TMPL_IF TAGSETS>
+<TMPL_VAR TAGSETS>
+</TMPL_IF>
 //-->
 </script>
-EOT
-    # The search form
-    $out .=<<EOT;
 <form id="jssearchfield" name="search" action="" method="get">
 <table>
-EOT
-    foreach my $fn (@fields)
-    {
-	$out .= "<tr><td class='label'>$fn:</td><td class='q-$fn'>";
-	if ($is_tagfield{$fn})
-	{
-	    $out .=<<EOT;
-<div class="tagcoll"><span class="toggle">&#9654;</span>
-<div class="taglists">
-<ul class="taglist">
-EOT
-	    my $count = 0;
-	    my @tagvals = keys %{$tagsets{$fn}};
-	    @tagvals = sort @tagvals;
-	    my $half = int @tagvals / 2;
-	    foreach my $tag (@tagvals)
-	    {
-	    $out .=<<EOT;
-<li><input name="$fn" type='checkbox' value="$tag" />
-<label for="$fn">$tag ($tagsets{$fn}{$tag})</label></li>
-EOT
-		if ($count == $half)
-		{
-		    $out .= "</ul>\n<ul class='taglist'>\n";
-		}
-		$count++;
-	    }
-	    $out .= "</ul></div></div>\n";
-	}
-	else
-	{
-	    $out .=<<EOT
-<input type="text" name="$fn" size="60"/>
-EOT
-	}
-	$out .= "</td></tr>\n";
-    }
-    $out .=<<EOT;
+<TMPL_VAR SEARCH_FIELDS>
 </table>
 <input type="submit" value="Search!" name="search" />
 <input type="reset" value="Reset" name="reset" />
@@ -591,8 +586,3 @@ EOT
 initForm();
 //-->
 </script>
-EOT
-
-} # set_up_search
-
-1
