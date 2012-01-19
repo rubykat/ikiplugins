@@ -234,7 +234,14 @@ EOT
     }
 
     my $t = HTML::Template->new(filehandle => *DATA);
-    $t->param(%tvars);
+    my @parameter_names = $t->param();
+    foreach my $field (@parameter_names)
+    {
+	if ($tvars{$field})
+	{
+	    $t->param($field => $tvars{$field});
+	}
+    }
     return $t->output();
 } # set_up_search
 
