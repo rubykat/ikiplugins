@@ -204,19 +204,12 @@ EOT
 <div class="taglists">
 <ul class="taglist">
 EOT
-	    my $count = 0;
-	    my $half = int @tagvals / 2;
 	    foreach my $tag (@tagvals)
 	    {
 		$tvars{search_fields} .=<<EOT;
 <li><input name="$fn" type='checkbox' value="$tag" />
 <label for="$fn">$tag ($tagsets{$fn}{$tag})</label></li>
 EOT
-		if ($count == $half)
-		{
-		    $tvars{search_fields} .= "</ul>\n<ul class='taglist'>\n";
-		}
-		$count++;
 	    }
 	    if ($null_tag)
 	    {
@@ -376,7 +369,7 @@ function queryRec(formid) {
 	for (var i = 0; i < myform.elements.length; i++)
 	{
 	    var elem = myform.elements[i];
-	    if (elem.type == 'text')
+	    if (elem.type == 'text' || elem.type == 'textarea')
 	    {
 		// split text values on spaces
 		if (typeof elem.value != 'undefined'
@@ -399,6 +392,20 @@ function queryRec(formid) {
 			this[elem.name][this[elem.name].length] = elem.value;
 		    }
 		    found = true;
+		}
+	    }
+	    else if (elem.type == 'radio')
+	    {
+		if (elem.checked)
+		{
+		    // radio buttons only have one value
+		    this[elem.name] = [elem.value];
+
+		    // the "sort" field is not a search term!
+		    if (elem.name != 'sort')
+		    {
+			found = true;
+		    }
 		}
 	    } // form element types
 	} // form elements
@@ -474,7 +481,11 @@ function doSearch (query) {
 	    }
     }
 	if (results.length > 0) {
-		return results;
+	    if (query['sort'] == 'random')
+	    {
+		results.shuffle();
+	    }
+	    return results;
 	}
 	else {
 		return ERR_NoResults;
@@ -619,6 +630,9 @@ searchDB = new Array();
 <table>
 <TMPL_VAR SEARCH_FIELDS>
 </table>
+<span class="label">Sort:</span>
+<input name="sort" type="radio" value="default" checked="yes"/><label for="sort">default</label>
+<input name="sort" type="radio" value="random"/><label for="sort">random</label>
 <input type="submit" value="Search!" name="search" />
 <input type="reset" value="Reset" name="reset" />
 </form>
