@@ -71,6 +71,9 @@ sub set_up_search {
     # at the end of this file.
 
     my %tvars = ();
+
+    $tvars{formid} = ($params{formid} ? $params{formid} : 'jssearchfield');
+
     $tvars{fields_as_html} = '';
     foreach my $fn (@fields)
     {
@@ -253,6 +256,14 @@ __DATA__
 // Error strings
 ERR_NoSearchTerms	= "You didn't enter any terms to search for, please enter some terms to search for and try again.";
 ERR_NoResults		= "Your search found no results.";
+
+// To sort an array in random order
+Array.prototype.shuffle = function() {
+var s = [];
+while (this.length) s.push(this.splice(Math.random() * this.length, 1));
+while (s.length) this.push(s.pop());
+return this;
+}
 
 // Constructor for each search engine item.
 // Used to create a record in the searchable "database"
@@ -476,7 +487,7 @@ function writeMessage(message) {
 }
 
 function query_from_form() {
-    var query = new queryRec("jssearchfield");
+    var query = new queryRec("<TMPL_VAR FORMID>");
     var results = doSearch(query);
     if (results) {
         formatResults(query,results);
@@ -519,7 +530,7 @@ function filterTaglist(fn,results) {
 	    }
 	}
     }
-    tcol = $("#jssearchfield .q-"+fn+" .tagcoll .taglists li");
+    tcol = $("#<TMPL_VAR FORMID> .q-"+fn+" .tagcoll .taglists li");
     tcol.each(function(index){
 	check = $(this).find("input");
 	label = $(this).find("label");
@@ -534,13 +545,13 @@ function filterTaglist(fn,results) {
 	    label.html(checkval+" ("+tagset[checkval]+")");
 	}
     });
-    tc_total = $("#jssearchfield .q-"+fn+" .count");
+    tc_total = $("#<TMPL_VAR FORMID> .q-"+fn+" .count");
     tc_total.html("(tags: "+tcount+")");
 }
 
 function initForm() {
-    $("#jssearchfield .tagcoll .taglists").hide();
-    $("#jssearchfield .tagcoll .toggle").click(function(){
+    $("#<TMPL_VAR FORMID> .tagcoll .taglists").hide();
+    $("#<TMPL_VAR FORMID> .tagcoll .toggle").click(function(){
 	tl = $(this).siblings(".taglists");
 	if (tl.is(":hidden")) {
 	    this.innerHTML = "&#9660;"
@@ -550,8 +561,8 @@ function initForm() {
 	    tl.hide();
 	}
     });
-    $("#jssearchfield input").change(function(){
-	var query = new queryRec("jssearchfield");
+    $("#<TMPL_VAR FORMID> input").change(function(){
+	var query = new queryRec("<TMPL_VAR FORMID>");
 	var results = doSearch(query);
 	if (results) {
 	    formatResults(query,results);
@@ -561,7 +572,7 @@ function initForm() {
 	    filterTaglist(tagFields[i],results);
 	}
     });
-    var search_form = document.getElementById('jssearchfield');
+    var search_form = document.getElementById('<TMPL_VAR FORMID>');
     search_form.setAttribute("onsubmit", 'return query_from_form()');
     writeMessage("Ready to search!")
 }
@@ -591,7 +602,7 @@ function formatResults(query,results) {
 		the_message = the_message + "<i>" + results + "</i>";
 		the_message = the_message + "<br />";
 	}
-	the_message = the_message + "<br/>\n<a href=\"#jssearchfield\">&raquo; Back to search form</a>\n";
+	the_message = the_message + "<br/>\n<a href=\"#<TMPL_VAR FORMID>\">&raquo; Back to search form</a>\n";
     writeMessage(the_message);
 }
 
@@ -604,7 +615,7 @@ searchDB = new Array();
 </TMPL_IF>
 //-->
 </script>
-<form id="jssearchfield" name="search" action="" method="get">
+<form id="<TMPL_VAR FORMID>" name="search" action="" method="get">
 <table>
 <TMPL_VAR SEARCH_FIELDS>
 </table>
