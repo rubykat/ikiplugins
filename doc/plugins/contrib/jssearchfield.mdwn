@@ -1,0 +1,31 @@
+[[!template id=plugin name=jssearchfield author="[[rubykat]]"]]
+[[!tag type/meta type/format]]
+IkiWiki::Plugin::jssearchfield - Create a search form to search page field data.
+
+This plugin provides the [[ikiwiki/directive/jssearchfield]] directive.  This
+enables one to search the structured data ("field" values) of multiple pages.
+This uses Javascript for the searching, which means that the entire thing
+is self-contained and does not require a server or CGI access, unlike
+the default IkiWiki search. This means that it can be used in places such
+as ebook readers.  The disadvantage is that because Javascript runs
+in the browser, the searching is only as fast as the machine your browser
+is running on.
+
+This plugin depends on the [[plugins/contrib/field]] plugin.
+
+## Activate the plugin
+
+    # activate the plugin
+    add_plugins => [qw{goodstuff field jssearchfield ....}],
+
+## PREREQUISITES
+
+    IkiWiki
+    IkiWiki::Plugin::field
+    HTML::Template
+    Encode
+
+## DOWNLOAD
+
+* browse at GitHub: <http://github.com/rubykat/ikiplugins/blob/master/IkiWiki/Plugin/jssearchfield.pm>
+* git repo at git://github.com/rubykat/ikiplugins.git
