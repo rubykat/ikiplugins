@@ -1,5 +1,5 @@
 [[!template id=plugin name=jssearchfield author="[[rubykat]]"]]
-[[!tag type/meta type/format]]
+[[!tag type/search]]
 IkiWiki::Plugin::jssearchfield - Create a search form to search page field data.
 
 This plugin provides the [[ikiwiki/directive/jssearchfield]] directive.  This
@@ -11,6 +11,8 @@ as ebook readers.  The disadvantage is that because Javascript runs
 in the browser, the searching is only as fast as the machine your browser
 is running on.
 
+Because this uses Javascript, the htmlscrubber must be turned off for any page where the directive is used.
+
 This plugin depends on the [[plugins/contrib/field]] plugin.
 
 ## Activate the plugin
@@ -18,12 +20,14 @@ This plugin depends on the [[plugins/contrib/field]] plugin.
     # activate the plugin
     add_plugins => [qw{goodstuff field jssearchfield ....}],
 
+    # disable scrubbing for search page
+    htmlscrubber_skip => 'mysearchpage',
+
 ## PREREQUISITES
 
     IkiWiki
     IkiWiki::Plugin::field
     HTML::Template
-    Encode
 
 ## DOWNLOAD
 

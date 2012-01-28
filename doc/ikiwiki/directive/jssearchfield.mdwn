@@ -3,7 +3,7 @@ The `jssearchfield` directive is supplied by the [[!iki plugins/contrib/jssearch
 This enables one to search the structured data ("field" values) of
 multiple pages.  A search form is constructed, and the searching is
 done with Javascript, which means that the entire thing is self-contained.
-This depends on the [[plugins/contrib/field]] plugin.
+This depends on the [[!iki plugins/contrib/field]] plugin.
 
 The pages to search are selected by a PageSpec given by the "pages"
 parameter.
@@ -32,7 +32,7 @@ display the search results in random order.
 
 The search form that is created by this directive contains the following:
 
-* for each search field, a label, plus either a text input field, or a list of checkboxes with values next to them.  Note that the lists of checkboxes are initially hidden; one must click on the triangle next to the label to display them.
+* for each search field, a label, plus either a text input field, or a list of checkboxes with values next to them if the field is also a tagfield.  Note that the lists of checkboxes are initially hidden; one must click on the triangle next to the label to display them.
 * a "sort" toggle. One can select either "default" or "random".
 * A "Search!" button, to trigger the search if needed (see below)
 * A "Reset" button, which will clear all the values.
