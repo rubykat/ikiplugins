@@ -1,0 +1,42 @@
+The `jssearchfield` directive is supplied by the [[!iki plugins/contrib/jssearchfield desc=jssearchfield]] plugin.
+
+This enables one to search the structured data ("field" values) of
+multiple pages.  A search form is constructed, and the searching is
+done with Javascript, which means that the entire thing is self-contained.
+This depends on the [[!iki plugins/contrib/field]] plugin.
+
+The pages to search are selected by a PageSpec given by the "pages"
+parameter.
+The fields to search are given by the "fields" parameter.  By default,
+the field name is given, and the user can type the search parameter for
+that field into a text input field.
+
+## OPTIONS
+
+**pages**: A PageSpec to determine the pages to search through.
+
+**fields**: The fields to put into the search form, and to display
+in the results.
+
+**tagfields**: Display the given fields as a list of tags that can
+be selected from, rather than having a text input field.  Every distinct
+value of that field will be listed, so it is best used for things with
+short values, like "Author" rather than long ones like "Description".
+Note that "tagfields" must be a subset of "fields".
+
+**sort**: A SortSpec to determine how the matching pages should be sorted; this is the "default" sort order that the results will be displayed in.
+The search form also gives the option of "random" sort, which will
+display the search results in random order.
+
+## SEARCHING
+
+The search form that is created by this directive contains the following:
+
+* for each search field, a label, plus either a text input field, or a list of checkboxes with values next to them if the field is also a tagfield.  Note that the lists of checkboxes are initially hidden; one must click on the triangle next to the label to display them.
+* a "sort" toggle. One can select either "default" or "random".
+* A "Search!" button, to trigger the search if needed (see below)
+* A "Reset" button, which will clear all the values.
+
+The searching is dynamic.  As soon as a value is changed, either by tabbing out of the text field, or by selecting or de-selecting a checkbox, the search
+results are updated.  Furthermore, for tagfields, the tagfield lists
+themselves are updated to reflect the current search results.
