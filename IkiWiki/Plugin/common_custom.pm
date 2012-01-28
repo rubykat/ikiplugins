@@ -361,6 +361,33 @@ sub match_links_from ($$;@) {
     return IkiWiki::FailReason->new("$link_page does not link to $page", "" => 1);
 } # match_links_from
 
+sub match_links_to_exact ($$;@) {
+    my $page=shift;
+    my $link_to_page=shift;
+    my %params=@_;
+
+    # Does $page link to $link_to_page?
+    # Basically a fast "match_link" test; only works if the links are exact;
+    # doesn't call bestlink, doesn't do a glob match, doesn't lowercase anything.
+
+    # one argument: the dest-page (full name)
+    my $links = $IkiWiki::links{$page};
+    return IkiWiki::FailReason->new("$page has no links", $page => $IkiWiki::DEPEND_LINKS, "" => 1)
+	unless $links && @{$links};
+
+    foreach my $p (@{$links})
+    {
+	if (($link_to_page eq $p)
+		or ($p eq "/$link_to_page")
+		or ("/$p" eq $link_to_page))
+	{
+	    return IkiWiki::SuccessReason->new("$page links to $link_to_page", $page => $IkiWiki::DEPEND_LINKS, "" => 1);
+	}
+    }
+
+    return IkiWiki::FailReason->new("$page does not link to $link_to_page", "" => 1);
+} # match_links_to_exact
+
 # ===============================================
 # SortSpec functions
 # ---------------------------
