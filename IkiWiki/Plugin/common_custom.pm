@@ -375,10 +375,11 @@ sub match_links_to_exact ($$;@) {
     return IkiWiki::FailReason->new("$page has no links", $page => $IkiWiki::DEPEND_LINKS, "" => 1)
 	unless $links && @{$links};
 
+    my $abs_ltp = "/$link_to_page";
     foreach my $p (@{$links})
     {
 	if (($link_to_page eq $p)
-		or ($p eq "/$link_to_page")
+		or ($p eq $abs_ltp)
 		or ("/$p" eq $link_to_page))
 	{
 	    return IkiWiki::SuccessReason->new("$page links to $link_to_page", $page => $IkiWiki::DEPEND_LINKS, "" => 1);
