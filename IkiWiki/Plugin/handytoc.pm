@@ -12,7 +12,6 @@ sub import {
 	hook(type => "checkconfig", id => "handytoc", call => \&checkconfig);
 	hook(type => "preprocess", id => "handytoc", call => \&preprocess);
 	hook(type => "format", id => "handytoc", call => \&format);
-	hook(type => "pagetemplate", id => "handytoc", call => \&pagetemplate);
 }
 
 sub getsetup () {
@@ -40,13 +39,6 @@ sub getsetup () {
 			type => "string",
 			example => "handytoc.js",
 			description => "the location of the JavaScript file",
-			safe => 0,
-			rebuild => undef,
-		},
-		handytoc_jq_js => {
-			type => "string",
-			example => "jquery.min.js",
-			description => "the location of the JQuery JavaScript file",
 			safe => 0,
 			rebuild => undef,
 		},
@@ -91,11 +83,6 @@ sub checkconfig () {
     {
 	$config{_handytoc_js_relative} = 1;
     }
-    if (exists $config{handytoc_jq_js}
-	    and $config{handytoc_js} !~ /^(http|\/)/) # relative
-    {
-	$config{_handytoc_jq_js_relative} = 1;
-    }
 }
 
 my %tocpages;
@@ -125,6 +112,18 @@ sub format (@) {
     {
 	return $content;
     }
+
+    # if there is no </head> tag then we're probably in preview mode
+    if (index($content, '</head>') < 0)
+    {
+	return $content;
+    }
+
+    my $scripting = render_css_and_js(%params);
+
+    # add the CSS and Javascript at the end of the head section
+    $content=~s!(</head>)!${scripting}$1!s;
+
     # ------------------------------
     # Add the TOC div if it isn't there
     # Place it after the first H1
@@ -138,43 +137,12 @@ sub format (@) {
     }
 
     return $content;
-}
-
-sub pagetemplate (@) {
-    my %params=@_;
-    my $page=$params{page};
-    my $template=$params{template};
-
-    if (!pagespec_match($page, $config{handytoc_pages}))
-    {
-	return;
-    }
-    my $page_file = $pagesources{$params{page}} || return;
-    my $page_type=pagetype($page_file);
-    if ($page_type)
-    {
-	# Add the CSS link after the title
-	my $baseurl = IkiWiki::baseurl($page);
-	my $handytoc_css = ($config{_handytoc_css_relative}
-	    ? $baseurl . $config{handytoc_css}
-	    : $config{handytoc_css});
-	$template->param(handytoc_css=>$handytoc_css);
-	if (exists $config{handytoc_jq_js})
-	{
-	    my $jq_js = ($config{_handytoc_jq_js_relative}
-		? $baseurl . $config{handytoc_jq_js}
-		: $config{handytoc_jq_js});
-	    $template->param(jquery_js=>$jq_js);
-	}
-	my $handytoc_js = render_js(%params);
-	$template->param(handytoc_js=>$handytoc_js);
-    }
-} # pagetemplate
+} # format
 
 # ------------------------------------------------------------
 # Private Functions
 # ----------------------------
-sub render_js {
+sub render_css_and_js {
     my %params=@_;
     my $page=$params{page};
 
@@ -203,20 +171,25 @@ sub render_js {
     }
     my $js_args = join(', ', @js_args);
 
-    my $scripting = '';
+    my $handytoc_css = ($config{_handytoc_css_relative}
+	? $baseurl . $config{handytoc_css}
+	: $config{handytoc_css});
+    my $jq_js = urlto("ikiwiki/jquery.min.js", $page);
+
     my $handytoc_js = ($config{_handytoc_js_relative}
 	? $baseurl . $config{handytoc_js}
 	: $config{handytoc_js});
 
+    my $scripting = '';
     $scripting .=<<EOT;
+<link rel="stylesheet" href="$handytoc_css" type="text/css" />
+<script type='text/javascript' src='$jq_js'></script>
 <script type='text/javascript' src='$handytoc_js'></script>
 <script type="text/javascript">
-<!--
 \$(document).ready(function(){HandyToc.setup({$js_args});});
-//-->
 </script>
 EOT
     return $scripting;
-} # render_js
+} # render_css_and_js
 
 1
