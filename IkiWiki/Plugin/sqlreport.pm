@@ -179,7 +179,8 @@ sub print_select {
     push @result, $res_tab;
     push @result, "<p>$count rows displayed of $args{total}.</p>\n"
 	if ($args{report_style} ne 'bare'
-	    and $args{report_style} ne 'compact');
+	    and $args{report_style} ne 'compact'
+	    and $args{total} > 1);
     if ($args{limit} and $args{report_style} eq 'full')
     {
 	push @result, "<p>Page $page of $num_pages.</p>\n"
