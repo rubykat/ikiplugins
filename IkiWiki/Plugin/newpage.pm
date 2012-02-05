@@ -9,11 +9,11 @@ IkiWiki::Plugin::newpage - add a "create new page" form to actions
 
 =head1 VERSION
 
-This describes version B<1.20120116> of IkiWiki::Plugin::newpage
+This describes version B<1.20120205> of IkiWiki::Plugin::newpage
 
 =cut
 
-our $VERSION = '1.20120116';
+our $VERSION = '1.20120205';
 
 =head1 PREREQUISITES
 
