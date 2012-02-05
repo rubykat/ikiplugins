@@ -58,13 +58,17 @@ sub pageactions (@) {
     my $page=$params{page};
 
     my $cgiurl = $config{cgiurl};
-    my $form =<<EOT;
+    my $form;
+    if ($cgiurl and IkiWiki->can("cgi editpage"))
+    {
+	$form =<<EOT;
     <form method="get" action="$cgiurl" id="newpageform">
 <input type="submit" name="do" value="create" class="button"/>
 <input type="hidden" name="from" value="$page"/>
 <input type="text" name="page" value="" class="input"/>
 </form>
 EOT
+    }
     return ($form);
 }
 
