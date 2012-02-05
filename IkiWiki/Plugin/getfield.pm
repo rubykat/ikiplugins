@@ -106,11 +106,12 @@ sub get_other_page_field_value ($$$) {
     # add a dependency for the page from which we get the value
     add_depends($page, $use_page);
 
-    my $val = get_field_value($field, $use_page);
-    if ($val eq $field)
+    my $val = IkiWiki::Plugin::field::field_get_value($field, $use_page);
+    if (!defined $val)
     {
 	return "${other_page}#$field";
     }
+    $val = join(' ', @{$val}) if ref $val eq 'ARRAY';
     return $val;
 
 } # get_other_page_field_value
