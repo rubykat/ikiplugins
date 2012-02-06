@@ -212,6 +212,21 @@ sub get_common_var ($$;@) {
 	    $value = $bn;
 	}
     }
+    elsif ($field_name eq 'pagetype')
+    {
+	$value = pagetype($pagesources{$page});
+    }
+    elsif ($field_name eq 'grandparent_page')
+    {
+	if ($page =~ m{^(.*)/[-\.\w]+/[-\.\w]+$}o)
+	{
+	    $value = $1;
+	}
+	else # top-level page
+	{
+	    $value = '';
+	}
+    }
     elsif ($field_name eq 'plain_mtime')
     {
 	if ($IkiWiki::pagemtime{$page})
@@ -220,12 +235,26 @@ sub get_common_var ($$;@) {
 	    $value = $mtime;
 	}
     }
+    elsif ($field_name eq 'mtime')
+    {
+	if ($IkiWiki::pagemtime{$page})
+	{
+	    $value = $IkiWiki::pagemtime{$page};
+	}
+    }
     elsif ($field_name eq 'plain_ctime')
     {
 	if ($IkiWiki::pagectime{$page})
 	{
 	    my $ctime = IkiWiki::date_3339($IkiWiki::pagectime{$page});
 	    $value = $ctime;
+	}
+    }
+    elsif ($field_name eq 'ctime')
+    {
+	if ($IkiWiki::pagectime{$page})
+	{
+	    $value = $IkiWiki::pagectime{$page};
 	}
     }
 
