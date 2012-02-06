@@ -44,11 +44,13 @@ use Text::NeatTemplate;
 use SQLite::Work;
 
 my %Databases = ();
+my $DBs_Connected = 0;
 
 sub import {
     hook(type => "getsetup", id => "sqlreport",  call => \&getsetup);
     hook(type => "checkconfig", id => "sqlreport", call => \&checkconfig);
     hook(type => "preprocess", id => "sqlreport", call => \&preprocess);
+    hook(type => "change", id => "sqlreport", call => \&hang_up);
 }
 
 sub getsetup () {
@@ -77,14 +79,19 @@ sub checkconfig () {
     {
 	if (!-r $file)
 	{
-	    error(gettext("sqlreport: cannot read database file $file"));
+	    debug(gettext("sqlreport: cannot read database file $file"));
+	    delete $config{sqlreport_databases}->{$alias};
 	}
-	my $rep = SQLite::Work::IkiWiki->new(database=>$file);
-	if (!$rep or !$rep->do_connect())
+	else
 	{
-	    error(gettext("Can't connect to $file: $DBI::errstr"));
+	    my $rep = SQLite::Work::IkiWiki->new(database=>$file);
+	    if (!$rep or !$rep->do_connect())
+	    {
+		error(gettext("Can't connect to $file: $DBI::errstr"));
+	    }
+	    $Databases{$alias} = $rep;
+	    $DBs_Connected = 1;
 	}
-	$Databases{$alias} = $rep;
     }
 }
 
@@ -106,13 +113,30 @@ sub preprocess (@) {
     }
     my $out = '';
 
-    $out = $Databases{$params{database}}->do_report(%params);
+    $out = $Databases{$params{database}}->do_report(%params, master_page=>$page);
     return $out;
 } # preprocess
 
+sub hang_up {
+    my $rendered = shift;
+
+    # Hack for disconnecting from the databases
+
+    if ($DBs_Connected)
+    {
+	while (my ($alias, $rep) = each %Databases)
+	{
+	    $rep->do_disconnect();
+	}
+	$DBs_Connected = 0;
+    }
+} # hang_up 
+
+# =================================================================
 package SQLite::Work::IkiWiki;
 use SQLite::Work;
 use Text::NeatTemplate;
+use POSIX;
 our @ISA = qw(SQLite::Work);
 
 sub new {
@@ -176,11 +200,20 @@ sub print_select {
 	$title =~ s/ & / &amp; /g;
     }
     my @result = ();
-    push @result, $res_tab;
-    push @result, "<p>$count rows displayed of $args{total}.</p>\n"
-	if ($args{report_style} ne 'bare'
+    if ($args{report_style} ne 'bare'
 	    and $args{report_style} ne 'compact'
-	    and $args{total} > 1);
+	    and $args{total} > 1)
+    {
+	if ($count == $args{total})
+	{
+	    push @result, "<p>$args{total} rows match.</p>\n";
+	}
+	else
+	{
+	    push @result, "<p>$count rows displayed of $args{total}.</p>\n";
+	}
+    }
+    push @result, $res_tab;
     if ($args{limit} and $args{report_style} eq 'full')
     {
 	push @result, "<p>Page $page of $num_pages.</p>\n"
@@ -283,7 +316,6 @@ sub do_report {
 	headers=>'',
 	groups=>'',
 	sort_by=>'',
-	sort_reversed=>{},
 	not_where=>{},
 	where=>{},
 	show=>'',
@@ -299,9 +331,9 @@ sub do_report {
     my $table = $args{table};
     my $command = $args{command};
     my @headers = (ref $args{headers} ? @{$args{headers}}
-	: split(/|/, $args{headers}));
+	: split(/\|/, $args{headers}));
     my @groups = (ref $args{groups} ? @{$args{groups}}
-	: split(/|/, $args{groups}));
+	: split(/\|/, $args{groups}));
     my @sort_by = (ref $args{sort_by} ? @{$args{sort_by}}
 	: split(' ', $args{sort_by}));
 
@@ -318,7 +350,7 @@ sub do_report {
 	show=>\@columns,
 	sort_by=>\@sort_by,
 	total=>$total);
-    $self->print_select($sth1,
+    my $out = $self->print_select($sth1,
 	$sth2,
 	%args,
 	show=>\@columns,
@@ -330,5 +362,67 @@ sub do_report {
 	headers=>\@headers,
 	groups=>\@groups,
 	);
+    $self->do_depends(%args);
+    return $out;
 } # do_report
+
+sub do_depends {
+    my $self = shift;
+    my %args = @_;
+
+    my $table = $args{table};
+    my $master_page = $args{master_page};
+
+    my @columns = $self->get_colnames($table);
+
+    # does this have a "page" column?
+    my $has_page = 0;
+    foreach my $col (@columns)
+    {
+	if ($col eq 'page')
+	{
+	    $has_page = 1;
+	    last;
+	}
+    }
+    if (!$has_page)
+    {
+	return 1;
+    }
+
+    # build up the query data
+    my @where = $self->build_where_conditions(
+	where=>$args{where}, not_where=>$args{not_where});
+    
+    my $query = "SELECT page FROM $table";
+    if (@where)
+    {
+	$query .= " WHERE " . join(" AND ", @where);
+    }
+    
+    my $sth = $self->{dbh}->prepare($query);
+    if (!$sth)
+    {
+	$self->print_message("Can't prepare query $query: $DBI::errstr");
+	return 0;
+    }
+    my $rv = $sth->execute();
+    if (!$rv)
+    {
+	$self->print_message("Can't execute query $query: $DBI::errstr");
+	return 0;
+    }
+    my @row;
+    my $deptype=IkiWiki::deptype($args{quick} ? 'presence' : 'content');
+    while (@row = $sth->fetchrow_array)
+    {
+	my $dep_page = $row[0];
+	if (exists $IkiWiki::pagesources{$dep_page})
+	{
+	    IkiWiki::add_depends($master_page, $dep_page, $deptype);
+	}
+    }
+    return 1;
+} # do_depends
+
 1
