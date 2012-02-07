@@ -257,6 +257,13 @@ sub get_common_var ($$;@) {
 	    $value = $IkiWiki::pagectime{$page};
 	}
     }
+    elsif ($field_name =~ /([-\w]+)-sqlescape$/)
+    {
+	# escape from things SQL hates, like apostrophes
+	my $fn = $1;
+	$value = IkiWiki::Plugin::field::field_get_value($fn, $page);
+	$value =~ s/'/''/g if defined $value;
+    }
 
     return $value;
 } # get_common_var
