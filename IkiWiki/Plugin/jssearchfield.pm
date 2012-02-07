@@ -82,7 +82,26 @@ sub set_up_search {
 	    $tvars{fields_as_html} .=<<EOT;
 	if (typeof this.$fn != 'undefined' && this.$fn != 'NONE')
 	{
-	out = out + "<span class=\\"result-$fn\\">" + this.$fn + "</span>\\n";
+	    out = out + "<span class=\\"result-$fn\\">";
+	    if (\$.isArray(this.$fn))
+	    {
+		for (var x = 0; x < this.$fn.length; x++)
+		{
+		    if (x + 1 < this.$fn.length)
+		    {
+			out = out + this.$fn\[x] + ", ";
+		    }
+		    else
+		    {
+			out = out + this.$fn\[x];
+		    }
+		}
+	    }
+	    else
+	    {
+		out = out + this.$fn;
+	    }
+	    out = out + "</span>\\n";
 	}
 EOT
 	}
