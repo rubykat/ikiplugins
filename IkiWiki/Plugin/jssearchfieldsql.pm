@@ -233,7 +233,7 @@ EOT
 	    my $fn = $fields[$i];
 	    $tagsets{$fn} = {} if ($is_tagfield{$fn} and !exists $tagsets{$fn});
 	    my $val = $row[$i+1];
-	    if (index($val, '|') >= 0)
+	    if ($val and index($val, '|') >= 0)
 	    {
 		my @val_array = split(/\|/, $val);
 		my @vals = ();
