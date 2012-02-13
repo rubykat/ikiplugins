@@ -30,27 +30,35 @@ sub scan (@) {
     return unless defined $page_type;
 
     # count the words in the content
-    # ignoring all punctuation
-    my @matches = ($params{content} =~ m/\b[\w-]+/gs);
-    $pagestate{$page}{wordcount} = scalar @matches;
+    $params{content} =~ s/<[^>]+>/ /gs; # remove html tags
+    # Remove everything but letters + spaces
+    # This is so that things like apostrophes don't make one
+    # word count as two words
+    $params{content} =~ s/[^\w\s]//gs;
+
+    my @matches = ($params{content} =~ m/\b[\w]+/gs);
+    $pagestate{$page}{wordcount}{words} = int @matches;
 } # scan
 
 sub preprocess (@) {
     my %params=@_;
-    my $pages=defined $params{pages} ? $params{pages} : "*";
+    my $page = $params{page};
+    my $pages=(defined $params{pages} ? $params{pages} : $page);
 
     my @matching_pages = ();
-    if ($pages eq '*') {
-        # optimisation to avoid needing to try matching every page
-        add_depends($params{page}, $pages);
-        @matching_pages = keys %pagesources;
+    if ($pages eq $page)
+    {
+        push @matching_pages, $page;
     }
-
-    @matching_pages = pagespec_match_list($params{page}, $pages);
+    else
+    {
+        @matching_pages = pagespec_match_list($params{page}, $pages);
+    }
     my $total = 0;
     foreach my $pn (@matching_pages)
     {
-        $total += $pagestate{$pn}{wordcount};
+        my $words = $pagestate{$pn}{wordcount}{words};
+        $total += $words;
     }
     return $total;
 } # preprocess
