@@ -176,6 +176,7 @@ sub preprocess (@) {
 		    . titlepage($tagname);
 		add_link($page, $link, 'tag');
 		$pagestate{$page}{task}{"task_tags-link"} = $link;
+		$pagestate{$page}{task}{"task_tags_link"} = $link;
 	    }
 	}
 
@@ -199,6 +200,7 @@ sub preprocess (@) {
 				. titlepage($tagname);
 			    add_link($page, $link, $real_fn);
 			    $pagestate{$page}{task}{"${real_fn}-link"} = $link;
+			    $pagestate{$page}{task}{"${real_fn}_link"} = $link;
 			}
 		    }
 		}
