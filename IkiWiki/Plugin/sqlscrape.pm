@@ -43,13 +43,14 @@ use YAML;
 
 my $Database;
 my $Transaction_On = 0;
+my $Num_Trans = 0;
 
 sub import {
     hook(type => "getsetup", id => "sqlscrape",  call => \&getsetup);
     hook(type => "checkconfig", id => "sqlscrape", call => \&checkconfig);
     hook(type => "needsbuild", id => "sqlscrape", call => \&needsbuild);
     hook(type => "scan", id => "sqlscrape", call => \&scan, last=>1);
-    hook(type => "filter", id => "sqlscrape", call => \&filter, first=>1);
+    hook(type => "format", id => "sqlscrape", call => \&format, first=>1);
 }
 
 sub getsetup () {
@@ -112,6 +113,7 @@ sub checkconfig () {
 	}
     }
     $Database = $dbh;
+    $Transaction_On = 0;
 }
 
 sub needsbuild {
@@ -133,7 +135,7 @@ sub needsbuild {
 	$ret = $Database->do("BEGIN TRANSACTION;");
 	if (!$ret)
 	{
-	    error(gettext("sqlscrape failed BEGIN TRANSACTION : $DBI::errstr"));
+	    error(gettext("sqlscrape in needsbuild failed BEGIN TRANSACTION : $DBI::errstr"));
 	}
 	$Transaction_On = 1;
     }
@@ -147,6 +149,16 @@ sub needsbuild {
 	    error(gettext("sqlscrape failed DELETE '$q' : $DBI::errstr"));
 	}
     }
+    # finish the transaction now
+    if ($Transaction_On)
+    {
+	my $ret = $Database->do("COMMIT;");
+	if (!$ret)
+	{
+	    error(gettext("sqlscrape in needsbuild failed COMMIT : $DBI::errstr"));
+	}
+	$Transaction_On = 0;
+    }
 
     return $needsbuild;
 } # needsbuild
@@ -155,6 +167,10 @@ sub scan (@) {
     my %params=@_;
     my $page = $params{page};
 
+    if (!$Database)
+    {
+        error(gettext("sqlscrape failed, no database"));
+    }
     if (!$Transaction_On)
     {
 	my $ret = $Database->do("BEGIN TRANSACTION;");
@@ -166,14 +182,30 @@ sub scan (@) {
     }
     scrape_fields(%params);
     scrape_attachments(%params);
+    $Num_Trans++;
+    if ($Transaction_On and $Num_Trans > 100)
+    {
+	my $ret = $Database->do("COMMIT;");
+	if (!$ret)
+	{
+	    error(gettext("sqlscrape failed COMMIT : $DBI::errstr"));
+	}
+        debug("sqlscrape $Num_Trans transactions committed");
+	$Transaction_On = 0;
+        $Num_Trans = 0;
+    }
 } # scan
 
-sub filter (@) {
+sub format (@) {
     my %params=@_;
     my $page = $params{page};
 
     # This is a hack to commit transactions after all scanning is done
     # And to detach from the database because we're done.
+    if (!$Database)
+    {
+        return $params{content};
+    }
     if ($Transaction_On)
     {
 	my $ret = $Database->do("COMMIT;");
@@ -183,10 +215,11 @@ sub filter (@) {
 	}
 	$Database->disconnect();
 	$Transaction_On = 0;
+        debug("sqlscrape $Num_Trans transactions committed");
+        debug("sqlscrape database disconnected");
     }
     return $params{content};
-} # filter
-
+} # format
 
 # =================================================================
 # Private functions
