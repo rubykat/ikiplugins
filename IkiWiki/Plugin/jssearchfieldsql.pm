@@ -45,6 +45,8 @@ sub set_up_search {
     my $page=$params{page};
     delete $params{page};
 
+    my $result_tag = ($params{result_tag} ? $params{result_tag} : 'span');
+
     foreach my $p (qw(database table where fields))
     {
 	if (!exists $params{$p})
@@ -122,7 +124,7 @@ sub set_up_search {
 	    $tvars{fields_as_html} .=<<EOT;
 	if (typeof this.$fn != 'undefined' && this.$fn != 'NONE')
 	{
-	    out = out + "<span class=\\"result-$fn\\">";
+	    out = out + "<$result_tag class=\\"result-$fn\\">";
 	    if (\$.isArray(this.$fn))
 	    {
 		for (var x = 0; x < this.$fn.length; x++)
@@ -141,7 +143,7 @@ sub set_up_search {
 	    {
 		out = out + this.$fn;
 	    }
-	    out = out + "</span>\\n";
+	    out = out + "</$result_tag>\\n";
 	}
 EOT
 	}
