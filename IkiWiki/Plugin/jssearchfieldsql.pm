@@ -44,6 +44,8 @@ sub set_up_search {
     my %params=@_;
     my $page=$params{page};
     delete $params{page};
+    my $nopagecolumn = $params{nopagecolumn};
+    my $urlfield = $params{urlfield};
 
     my $result_tag = ($params{result_tag} ? $params{result_tag} : 'span');
 
@@ -181,6 +183,13 @@ EOT
 	join(', ', @fields),
 	$params{table},
 	$params{where});
+    if ($nopagecolumn)
+    {
+        $query = sprintf('SELECT %s FROM %s WHERE %s',
+                         join(', ', @fields),
+                         $params{table},
+                         $params{where});
+    }
     my @sort_by = (!defined $params{sort_by}
 	? ()
 	: (!ref $params{sort_by}
@@ -222,19 +231,16 @@ EOT
     my @row;
     while (@row = $sth->fetchrow_array)
     {
-	my $pn = $row[0]; # page is always the first column
 	$tvars{records} .=<<EOT;
 searchDB[$count] = new searchRec({
 EOT
-	my $title = IkiWiki::Plugin::field::field_get_value('title', $pn);
-	my $url = htmllink($params{page}, $params{destpage}, $pn, linktext=>$title);
-	$url =~ s/"/'/g; # use single quotes so as not to mess up the double quotes
-	$tvars{records} .= 'url:"'.$url.'",';
+        my $title = '';
+        my $url = '';
 	for (my $i=0; $i < @fields; $i++)
 	{
 	    my $fn = $fields[$i];
 	    $tagsets{$fn} = {} if ($is_tagfield{$fn} and !exists $tagsets{$fn});
-	    my $val = $row[$i+1];
+	    my $val = ($nopagecolumn ? $row[$i] : $row[$i+1]);
 	    if ($val and index($val, '|') >= 0)
 	    {
 		my @val_array = split(/\|/, $val);
@@ -251,15 +257,43 @@ EOT
 		}
 		$tvars{records} .= $fn.':['.join(',', @vals).'],';
 	    }
+	    elsif ($val and $is_tagfield{$fn} and $val =~ /[,\/]/)
+	    {
+		my @val_array = split(/[,\/]\s*/, $val);
+		my @vals = ();
+		foreach my $v (@val_array)
+		{
+		    $v =~ s/"/'/g;
+		    push @vals, '"'.$v.'"';
+		    if ($is_tagfield{$fn})
+		    {
+			$tagsets{$fn}{$v} = 0 if !exists $tagsets{$fn}{$v};
+			$tagsets{$fn}{$v}++;
+		    }
+		}
+		$tvars{records} .= $fn.':['.join(',', @vals).'],';
+	    }
+            elsif ($val
+                   and $urlfield
+                   and $nopagecolumn
+                   and $fn eq $urlfield)
+	    {
+		$url = $val;
+	    }
 	    elsif ($val)
 	    {
 		$val =~ s/"/'/g;
+                $val =~ s/\n/ /g;
 		$tvars{records} .= $fn.':"'.$val.'",';
 		if ($is_tagfield{$fn})
 		{
 		    $tagsets{$fn}{$val} = 0 if !exists $tagsets{$fn}{$val};
 		    $tagsets{$fn}{$val}++;
 		}
+                if ($fn eq 'title')
+                {
+                    $title = $val;
+                }
 	    }
 	    else # value is null
 	    {
@@ -271,7 +305,32 @@ EOT
 		    $tagsets{$fn}{$val}++;
 		}
 	    }
-	}
+	} # for each field
+        
+        # add the URL
+        if (!$nopagecolumn)
+        {
+            my $pn = $row[0]; # page is always the first column
+            $title = IkiWiki::Plugin::field::field_get_value('title', $pn);
+            $url = htmllink($params{page}, $params{destpage}, $pn, linktext=>$title);
+            $url =~ s/"/'/g; # use single quotes so as not to mess up the double quotes
+            $tvars{records} .= 'url:"'.$url.'",';
+        }
+        elsif ($title and $url)
+        {
+            my $link = "<a href='$url'>$title</a>";
+            $tvars{records} .= 'url:"'.$link.'",';
+        }
+        elsif ($url)
+        {
+            my $link = "<a href='$url'>$url</a>";
+            $tvars{records} .= 'url:"'.$link.'",';
+        }
+        elsif ($title)
+        {
+            $tvars{records} .= 'url:"'.$title.'",';
+        }
+
 	$tvars{records} .= "});\n";
 	$count++;
     } # for matching_pages
