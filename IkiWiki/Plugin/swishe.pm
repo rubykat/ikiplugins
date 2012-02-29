@@ -606,7 +606,7 @@ sub set_navigation {
         push @query_string, $dr, if $dr;
     }
 
-    $self->{query_href} = $q->script_name . '?' . join '&amp;', @query_string;
+    $self->{query_href} = $q->url() . '?' . join '&amp;', @query_string;
     $self->{my_url} = $q->script_name;
 
     my $hits = $self->hits;
