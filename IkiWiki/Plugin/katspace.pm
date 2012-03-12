@@ -219,12 +219,11 @@ sub do_finishathon_bunny_count {
 	    $bunny_count++;
 	}
     }
-    return ($wantarray ? ($bunny_count) : $bunny_count);
+    return $bunny_count;
 } # do_finishathon_bunny_count
 
 sub do_finishathon_fandom_list ($) {
     my $page = shift;
-    my $wantarray = shift;
 
     my %fandom_count = ();
     for (my $i=1; $i <= 10; $i++)
@@ -246,7 +245,7 @@ sub do_finishathon_fandom_list ($) {
     }
     my @fandoms = sort keys %fandom_count;
 
-    return ($wantarray ? @fandoms : join(', ', @fandoms));
+    return join(', ', @fandoms);
 }
 
 1;
