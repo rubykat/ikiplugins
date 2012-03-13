@@ -138,6 +138,45 @@ sub katplay_get_value ($$;@) {
 	    $value = $vals{$field_name};
 	}
     }
+    elsif ($field_name =~ /gutenberg_?(id|url)?/)
+    {
+        my $type = ($1 ? $1 : 'id');
+        if ($page =~ /stories/)
+        {
+            my $id;
+            my $basename = pagetitle(basename($page));
+            my $ext = '';
+            my $bn = $basename;
+            if ($basename =~ /(.*)\.(\w+)$/)
+            {
+                $bn = $1;
+                $ext = $2;
+            }
+            if ($basename =~ /^(\d+)\.txt$/)
+            {
+                $id = $1;
+            }
+            elsif ($bn =~ /-([1-9]\d+)$/)
+            {
+                $id = $1;
+            }
+            elsif ($bn =~ /-pg(\d+)$/)
+            {
+                $id = $1;
+            }
+            if ($id)
+            {
+                if ($type eq 'url')
+                {
+                    $value = "http://www.gutenberg.org/ebooks/$id";
+                }
+                else
+                {
+                    $value = $id;
+                }
+            }
+        }
+    }
     elsif ($field_name =~ /^section(\d+)$/)
     {
 	my $wanted_level = $1;
