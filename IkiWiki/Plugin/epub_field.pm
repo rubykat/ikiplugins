@@ -93,9 +93,12 @@ sub parse_epub_vars ($$) {
     my $page_type = pagetype($file);
     if ($file =~ /\.epub$/i or ($page_type and $page_type eq 'epub'))
     {
+        my $fullname = srcfile($file, 1);
+        return undef if (!$fullname);
+
 	my %values = ();
 	my $zip = Archive::Zip->new();
-	my $status = $zip->read( $config{srcdir} . '/' . $file );
+	my $status = $zip->read( $fullname );
 	if ($status != AZ_OK)
 	{
 	    return undef;
