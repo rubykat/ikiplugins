@@ -184,22 +184,29 @@ sub katplay_get_value ($$;@) {
         my @bits = split(/\//, $page);
         # remove the actual page-file from this list
         pop @bits;
-        my $found = 0;
-        my $level = 0;
-        while (@bits)
+        if ($page =~ /stories/)
         {
-            my $s = shift @bits;
-            if ($found)
+            my $found = 0;
+            my $level = 0;
+            while (@bits)
             {
-                $level++;
-                $vals{"section${level}"} = $s;
+                my $s = shift @bits;
+                if ($found)
+                {
+                    $level++;
+                    $vals{"section${level}"} = $s;
+                }
+                if ($s eq 'stories')
+                {
+                    $found = 1;
+                }
             }
-            if ($s eq 'stories')
-            {
-                $found = 1;
-            }
+            $value = $vals{$field_name};
         }
-        $value = $vals{$field_name};
+        else
+        {
+            $value = $bits[$wanted_level];
+        }
     }
     return $value;
 } # katplay_get_value
