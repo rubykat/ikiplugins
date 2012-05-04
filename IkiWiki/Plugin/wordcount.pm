@@ -44,6 +44,7 @@ sub preprocess (@) {
     my %params=@_;
     my $page = $params{page};
     my $pages=(defined $params{pages} ? $params{pages} : $page);
+    my $adjust=(defined $params{adjust} ? $params{adjust} : 0);
 
     my @matching_pages = ();
     if ($pages eq $page)
@@ -60,7 +61,7 @@ sub preprocess (@) {
         my $words = $pagestate{$pn}{wordcount}{words};
         $total += $words;
     }
-    return $total;
+    return $total + $adjust;
 } # preprocess
 
 1
