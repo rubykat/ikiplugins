@@ -42,7 +42,7 @@ sub preprocess (@) {
 # ----------------------------
 sub set_up_search {
     my %params=@_;
-    my $page=$params{page};
+    my $master_page=$params{page};
     delete $params{page};
     my $nopagecolumn = $params{nopagecolumn};
     my $urlfield = $params{urlfield};
@@ -225,6 +225,7 @@ EOT
 	return 0;
     }
 
+    my $deptype=IkiWiki::deptype($params{quick} ? 'presence' : 'content');
     $tvars{records} = '';
     my %tagsets = ();
     my $count = 0;
@@ -315,6 +316,7 @@ EOT
             $url = htmllink($params{page}, $params{destpage}, $pn, linktext=>$title);
             $url =~ s/"/'/g; # use single quotes so as not to mess up the double quotes
             $tvars{records} .= 'url:"'.$url.'",';
+            IkiWiki::add_depends($master_page, $pn, $deptype);
         }
         elsif ($title and $url)
         {
