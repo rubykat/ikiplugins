@@ -104,8 +104,20 @@ sub checkconfig () {
     # at least one table too
     if ($creating_db)
     {
+        my @field_defs = ();
+        foreach my $field (@{$config{sqlscrape_fields}})
+        {
+            if (exists $config{sqlscrape_field_types}->{$field})
+            {
+                push @field_defs, $field . ' ' . $config{sqlscrape_field_types}->{$field};
+            }
+            else
+            {
+                push @field_defs, $field;
+            }
+        }
 	my $q = "CREATE TABLE pagefields (page PRIMARY KEY, "
-	. join(", ", @{$config{sqlscrape_fields}}) .");";
+	. join(", ", @field_defs) .");";
 	my $ret = $dbh->do($q);
 	if (!$ret)
 	{
