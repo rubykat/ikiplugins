@@ -252,8 +252,13 @@ EOT
 		    push @vals, '"'.$v.'"';
 		    if ($is_tagfield{$fn})
 		    {
-			$tagsets{$fn}{$v} = 0 if !exists $tagsets{$fn}{$v};
+                        if (!exists $tagsets{$fn}{$v})
+                        {
+                            $tagsets{$fn}{$v} = 0;
+                            $tagsets{$fn}{"!$v"} = $total;
+                        }
 			$tagsets{$fn}{$v}++;
+			$tagsets{$fn}{"!$v"}--;
 		    }
 		}
 		$tvars{records} .= $fn.':['.join(',', @vals).'],';
@@ -268,8 +273,13 @@ EOT
 		    push @vals, '"'.$v.'"';
 		    if ($is_tagfield{$fn})
 		    {
-			$tagsets{$fn}{$v} = 0 if !exists $tagsets{$fn}{$v};
+                        if (!exists $tagsets{$fn}{$v})
+                        {
+                            $tagsets{$fn}{$v} = 0;
+                            $tagsets{$fn}{"!$v"} = $total;
+                        }
 			$tagsets{$fn}{$v}++;
+			$tagsets{$fn}{"!$v"}--;
 		    }
 		}
 		$tvars{records} .= $fn.':['.join(',', @vals).'],';
@@ -287,10 +297,15 @@ EOT
                 $val =~ s/\n/ /g;
 		$tvars{records} .= $fn.':"'.$val.'",';
 		if ($is_tagfield{$fn})
-		{
-		    $tagsets{$fn}{$val} = 0 if !exists $tagsets{$fn}{$val};
-		    $tagsets{$fn}{$val}++;
-		}
+                {
+                    if (!exists $tagsets{$fn}{$val})
+                    {
+                        $tagsets{$fn}{$val} = 0;
+                        $tagsets{$fn}{"!$val"} = $total;
+                    }
+                    $tagsets{$fn}{$val}++;
+                    $tagsets{$fn}{"!$val"}--;
+                }
                 if ($fn eq 'title')
                 {
                     $title = $val;
@@ -302,8 +317,13 @@ EOT
 		$tvars{records} .= $fn.':"'.$val.'",';
 		if ($is_tagfield{$fn})
 		{
-		    $tagsets{$fn}{$val} = 0 if !exists $tagsets{$fn}{$val};
-		    $tagsets{$fn}{$val}++;
+                    if (!exists $tagsets{$fn}{$val})
+                    {
+                        $tagsets{$fn}{$val} = 0;
+                        $tagsets{$fn}{"!$val"} = $total;
+                    }
+                    $tagsets{$fn}{$val}++;
+                    $tagsets{$fn}{"!$val"}--;
 		}
 	    }
 	} # for each field
@@ -367,8 +387,9 @@ EOT
 	if ($is_tagfield{$fn})
 	{
 	    my $null_tag = delete $tagsets{$fn}{"NONE"}; # show nulls separately
+	    my $not_null_tag = delete $tagsets{$fn}{"!NONE"};
 	    my @tagvals = keys %{$tagsets{$fn}};
-	    @tagvals = sort @tagvals;
+	    @tagvals = grep {! /^!/} sort @tagvals;
 	    my $num_tagvals = int @tagvals;
 
 	    $tvars{search_fields} .=<<EOT;
@@ -377,6 +398,7 @@ EOT
 <div class="taglists">
 <ul class="taglist">
 EOT
+            # first do the positives
 	    foreach my $tag (@tagvals)
 	    {
 		$tvars{search_fields} .=<<EOT;
@@ -389,6 +411,26 @@ EOT
 		$tvars{search_fields} .=<<EOT;
 <li><input name="$fn" type='checkbox' value="NONE" />
 <label for="$fn">NONE ($null_tag)</label></li>
+EOT
+	    }
+
+            # next do the negatives
+	    $tvars{search_fields} .=<<EOT;
+</ul>
+<ul class="taglist taglist2">
+EOT
+	    foreach my $tag (@tagvals)
+	    {
+		$tvars{search_fields} .=<<EOT;
+<li><input name="$fn" type='checkbox' value="!$tag" />
+<label for="$fn">!$tag ($tagsets{$fn}{"!$tag"})</label></li>
+EOT
+	    }
+	    if ($not_null_tag)
+	    {
+		$tvars{search_fields} .=<<EOT;
+<li><input name="$fn" type='checkbox' value="!NONE" />
+<label for="$fn">!NONE ($not_null_tag)</label></li>
 EOT
 	    }
 	    $tvars{search_fields} .= "</ul></div></div>\n";
@@ -454,19 +496,30 @@ searchRec.prototype.field_equals = function(fn,val) {
     {
 	return false;
     }
-    else if (typeof this[fn] == 'object')
+
+    // starts with ! means NOT match
+    var neg = val.indexOf('!'); 
+    if (neg == 0)
     {
-	for (var x = 0; x < this[fn].length; x++) {
-	    if (this[fn][x] == val)
-	    {
-		return true;
-	    }
-	};
-	return false;
+	var negval = val.substring(neg+1);
+        return !this.field_equals(fn,negval);
     }
-    else if (this[fn] == val)
+    else
     {
-	return true;
+        if (typeof this[fn] == 'object')
+        {
+            for (var x = 0; x < this[fn].length; x++) {
+                if (this[fn][x] == val)
+                {
+                    return true;
+                }
+            };
+            return false;
+        }
+        else if (this[fn] == val)
+        {
+            return true;
+        }
     }
     return false;
 }
@@ -508,16 +561,26 @@ searchRec.prototype.field_does_match = function(fn,qval) {
     {
 	return false;
     }
-    var pos = qval.indexOf('='); 
-    if (pos == 0) // starts with equals
+    // starts with ! means NOT match
+    var neg = qval.indexOf('!'); 
+    if (neg == 0)
     {
-	var eqval = qval.substring(pos+1);
-	return this.field_equals(fn,eqval);
+	var negval = qval.substring(neg+1);
+        return !this.field_does_match(fn,negval);
     }
     else
     {
-	var regex = new RegExp(qval,"i");
-	return this.field_matches(fn,regex);
+        var pos = qval.indexOf('='); 
+        if (pos == 0) // starts with equals
+        {
+            var eqval = qval.substring(pos+1);
+            return this.field_equals(fn,eqval);
+        }
+        else
+        {
+            var regex = new RegExp(qval,"i");
+            return this.field_matches(fn,regex);
+        }
     }
     return false;
 }
@@ -679,7 +742,7 @@ function query_from_form() {
     return false;
 }
 
-function filterTaglist(fn,results) {
+function filterTaglist(fn,results,query) {
     tagset = new Object();
     var tcount = 0;
     for (ri=0;ri < results.length;ri++)
@@ -694,10 +757,12 @@ function filterTaglist(fn,results) {
 		{
 		    tagset[vv] = 1;
 		    tcount++;
+                    tagset["!"+vv] = (results.length - 1);
 		}
 		else
 		{
 		    tagset[vv]++;
+                    tagset["!"+vv]--;
 		}
 	    }
 	}
@@ -707,10 +772,49 @@ function filterTaglist(fn,results) {
 	    {
 		tagset[val] = 1;
 		tcount++;
+                tagset["!"+val] = (results.length - 1);
 	    }
 	    else
 	    {
 		tagset[val]++;
+		tagset["!"+val]--;
+	    }
+	}
+    }
+    // need to include the query field if a value was negative
+    if (typeof query[fn] != 'undefined')
+    {
+        val = query[fn];
+	if (is_array(val))
+	{
+	    for (j=0;j < val.length;j++)
+	    {
+		vv = val[j];
+                var neg = vv.indexOf('!'); 
+                if (neg == 0)
+                {
+                    var negval = vv.substring(neg+1);
+                    if (typeof tagset[negval] == 'undefined')
+                    {
+                        tagset[negval] = 0;
+                        tcount++;
+                        tagset["!"+negval] = (results.length);
+                    }
+                }
+	    }
+	}
+	else
+	{
+            var neg = val.indexOf('!'); 
+            if (neg == 0)
+            {
+                var negval = val.substring(neg+1);
+                if (typeof tagset[negval] == 'undefined')
+                {
+                    tagset[negval] = 0;
+                    tcount++;
+                    tagset["!"+negval] = (results.length);
+                }
 	    }
 	}
     }
@@ -753,7 +857,7 @@ function initForm() {
 	}
 	for (i=0;i<tagFields.length;i++)
 	{
-	    filterTaglist(tagFields[i],results);
+	    filterTaglist(tagFields[i],results,query);
 	}
     });
     var search_form = document.getElementById('<TMPL_VAR FORMID>');
