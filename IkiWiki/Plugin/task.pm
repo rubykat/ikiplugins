@@ -281,6 +281,15 @@ sub get_task_value ($$) {
 	    $value = $pagestate{$page}{task}{task_proj_type};
 	}
     }
+    elsif ($field_name eq 'task_tagsp')
+    {
+	if (exists $pagestate{$page}{task}{task_tags}
+	       and defined $pagestate{$page}{task}{task_tags})
+	{
+	    $value = $pagestate{$page}{task}{task_tags};
+            $value =~ s/\s+/\|/g;
+	}
+    }
     return $value;
 } # get_task_value
 
