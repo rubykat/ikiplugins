@@ -89,7 +89,8 @@ sub checkconfig () {
 	    {
 		error(gettext("Can't connect to $file: $DBI::errstr"));
 	    }
-	    $Databases{$alias} = $rep;
+            $rep->{dbh}->{sqlite_unicode} = 1;
+            $Databases{$alias} = $rep;
 	    $DBs_Connected = 1;
 	}
     }

@@ -100,6 +100,7 @@ sub checkconfig () {
     {
 	error(gettext("Can't connect to $file: $DBI::errstr"));
     }
+    $dbh->{sqlite_unicode} = 1;
     # if we created the database, then we need to create
     # at least one table too
     if ($creating_db)

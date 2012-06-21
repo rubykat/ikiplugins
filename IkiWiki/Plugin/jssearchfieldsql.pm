@@ -71,6 +71,7 @@ sub set_up_search {
 	error("Can't connect to $dbfile: $DBI::errstr");
 	return 0;
     }
+    $dbh->{sqlite_unicode} = 1;
     my $total_query = "SELECT COUNT(*) FROM $table WHERE $where;";
 
     my $tot_sth = $dbh->prepare($total_query);
