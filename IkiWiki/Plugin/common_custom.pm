@@ -260,33 +260,39 @@ sub get_common_var ($$;@) {
     elsif ($field_name eq 'length')
     {
 	my $words = IkiWiki::Plugin::field::field_get_value('words', $page);
+        my $len = '';
         if ($words)
         {
-            my $len = '';
             if ($words == 100)
             {
                 $len = 'Drabble';
             } elsif ($words == 200)
             {
                 $len = 'Double Drabble';
+            } elsif ($words >= 75000)
+            {
+                $len = 'Long Novel';
             } elsif ($words >= 50000)
             {
                 $len = 'Novel';
-            } elsif ($words >= 20000)
+            } elsif ($words >= 25000)
             {
                 $len = 'Novella';
             } elsif ($words >= 7500)
             {
                 $len = 'Novelette';
-            } elsif ($words >= 1000)
+            } elsif ($words >= 2000)
             {
                 $len = 'Short Story';
-            } elsif ($words < 1000)
+            } elsif ($words > 500)
             {
-                $len = 'Vignette';
+                $len = 'Short Short';
+            } elsif ($words <= 500)
+            {
+                $len = 'Flash';
             }
-            $value = $len if $len;
         }
+        $value = $len if $len;
     }
     elsif ($field_name =~ /([-\w]+)-sqlescape$/)
     {

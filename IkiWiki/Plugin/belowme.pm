@@ -85,6 +85,7 @@ sub set_below_me ($;$) {
     {
 	$deleted{$df} = 1;
     }
+    my %reset_me_files = ();
     my %reset_me = ();
     foreach my $file (@{$needsbuild}, @{$deleted})
     {
@@ -92,6 +93,7 @@ sub set_below_me ($;$) {
 	if (!$deleted{$page})
 	{
 	    $reset_me{$page}++;
+            $reset_me_files{$page} = $file;
 	}
 
 	my $parent_page;
@@ -106,6 +108,7 @@ sub set_below_me ($;$) {
 	if ($parent_page and !$deleted{$parent_page})
 	{
 	    $reset_me{$parent_page}++;
+            $reset_me_files{$parent_page} = '' if !defined $reset_me_files{$parent_page};
 	}
     }
 
@@ -113,7 +116,7 @@ sub set_below_me ($;$) {
     foreach my $pp (keys %reset_me)
     {
 	my %values = ();
-	below_me($pp, \%values);
+	below_me($pp, $reset_me_files{$pp}, \%values);
 	if (%values)
 	{
 	    $pagestate{$pp}{belowme}{pages_below_me} = $values{pages_below_me} if exists $values{pages_below_me};
@@ -141,16 +144,43 @@ sub set_below_me ($;$) {
 
 sub below_me {
     my $page = shift;
+    my $pagefile = shift;
     my $values = shift;
 
     # This figures out what is "below" this page;
     # the files in the directory associated with this page.
-    # Note that this does NOT take account of underlays.
     my $srcdir = $config{srcdir};
+    my $topdir = $srcdir;
     my $page_dir = $srcdir . '/' . $page;
+    my $full_page_file = $srcdir . '/' . $pagefile;
     if ($page eq 'index')
     {
 	$page_dir = $srcdir;
+    }
+    if (!-d $page_dir and !-e $full_page_file) # try to find the real dir
+    {
+        foreach my $dir (@{$config{underlaydirs}}, $config{underlaydir})
+        {
+            my $newdir = $dir . '/' . $page;
+            if ($pagefile)
+            {
+                $full_page_file = $dir . '/' . $pagefile;
+            }
+            else
+            {
+                $full_page_file = $newdir;
+            }
+            if (-e $full_page_file)
+            {
+                # expect the directory to be below the file
+                if (-d $newdir)
+                {
+                    $page_dir = $newdir;
+                    $topdir = $dir;
+                }
+                last;
+            }
+        }
     }
     if (-d $page_dir) # there is a page directory
     {
@@ -161,7 +191,7 @@ sub below_me {
 	my $fn_count = 0;
 	foreach my $file (@files)
 	{
-	    if ($file =~ m!$srcdir/(.*)!)
+	    if ($file =~ m!$topdir/(.*)!)
 	    {
 		my $p = $1;
 		if (pagetype($p))

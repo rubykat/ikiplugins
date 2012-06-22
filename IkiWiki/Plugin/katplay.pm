@@ -208,6 +208,25 @@ sub katplay_get_value ($$;@) {
             $value = $bits[$wanted_level];
         }
     }
+    if ($page =~ /stories\/(Cally_Doc|Felina_Archer|Jenny_Hayward|Kathryn_Andersen|Multi_Lyric_Wheel)/)
+    {
+        if ($field_name eq 'elsewhere')
+        {
+            $value = "http://iwww.localhost/fiction/" . $page;
+        }
+        elsif ($field_name eq 'category')
+        {
+            my $work_type = IkiWiki::Plugin::field::field_get_value('worktype', $page);
+            if ($work_type and $work_type ne 'Prose')
+            {
+                $value = $work_type;
+            }
+        }
+        elsif ($field_name eq 'finis')
+        {
+            $value = 'Complete';
+        }
+    }
     return $value;
 } # katplay_get_value
 

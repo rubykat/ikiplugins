@@ -132,10 +132,10 @@ sub katspace_get_value ($$;@) {
     }
     if ($page =~ /stories/)
     {
-	if ($field_name =~ /^FicDate-(.*)/i)
+	if ($field_name =~ /^Date-(.*)/i)
 	{
 	    my $id = $1;
-	    my $date = IkiWiki::Plugin::field::field_get_value('FicDate', $page);
+	    my $date = IkiWiki::Plugin::field::field_get_value('Date', $page);
 	    if ($date)
 	    {
 		if ($id eq 'monthname')
