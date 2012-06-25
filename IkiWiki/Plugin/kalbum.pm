@@ -503,6 +503,7 @@ EOT
 
     # render as a simple page
     $rep = IkiWiki::Plugin::report::render_simple_page(%params,
+                              parent_page=>$params{page},
 			      new_page=>$new_page,
 			      content=>$rep);
     writefile($target, $config{destdir}, $rep);
@@ -683,6 +684,7 @@ EOT
 
 	    # render as a simple page
 	    $rep = IkiWiki::Plugin::report::render_simple_page(%params,
+                                      parent_page=>$params{page},
 				      new_page=>$new_page,
 				      content=>$rep);
 	    writefile($target, $config{destdir}, $rep);

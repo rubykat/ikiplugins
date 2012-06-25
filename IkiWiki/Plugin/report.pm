@@ -400,6 +400,7 @@ EOT
 
 	    # render as a simple page
 	    $rep = render_simple_page(%params,
+                                      parent_page=>$params{page},
 				      new_page=>$new_page,
 				      content=>$rep);
 	    writefile($target, $config{destdir}, $rep);
@@ -506,6 +507,7 @@ sub render_simple_page (@) {
     my %params=@_;
 
     my $new_page = $params{new_page};
+    my $parent_page = $params{parent_page};
     my $content = $params{content};
 
     # render as a simple page
@@ -521,8 +523,8 @@ sub render_simple_page (@) {
 
     IkiWiki::run_hooks(pagetemplate => sub {
 		       shift->(%params,
-			       page => $new_page,
-			       destpage => $new_page,
+			       page => $parent_page,
+			       destpage => $parent_page,
 			       template => $ptmpl);
 		       });
 
