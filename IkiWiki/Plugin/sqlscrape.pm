@@ -80,50 +80,47 @@ sub checkconfig () {
 
     if (!exists $config{sqlscrape_database})
     {
-	# set a default database
-	$config{sqlscrape_database} = 
-	"$config{wikistatedir}/ikiwiki.sqlite";
+        # set a default database
+        $config{sqlscrape_database} = 
+            "$config{wikistatedir}/ikiwiki.sqlite";
     }
     if (!exists $config{sqlscrape_fields})
     {
-	# set default fields
-	$config{sqlscrape_fields} = [qw(title pagetitle baseurl parent_page basename description)];
+        # set default fields
+        $config{sqlscrape_fields} = [qw(title pagetitle baseurl parent_page basename description)];
     }
     my $file = $config{sqlscrape_database};
     my $creating_db = 0;
     if (!-r $file)
     {
-	$creating_db = 1;
+        $creating_db = 1;
     }
     my $dbh = DBI->connect("dbi:SQLite:dbname=$file", "", "");
     if (!$dbh)
     {
-	error(gettext("Can't connect to $file: $DBI::errstr"));
+        error(gettext("Can't connect to $file: $DBI::errstr"));
     }
     $dbh->{sqlite_unicode} = 1;
-    # if we created the database, then we need to create
-    # at least one table too
-    if ($creating_db)
+
+    # Create the pagefields table if it doesn't exist
+    my @field_defs = ();
+    foreach my $field (@{$config{sqlscrape_fields}})
     {
-        my @field_defs = ();
-        foreach my $field (@{$config{sqlscrape_fields}})
+        if (exists $config{sqlscrape_field_types}->{$field})
         {
-            if (exists $config{sqlscrape_field_types}->{$field})
-            {
-                push @field_defs, $field . ' ' . $config{sqlscrape_field_types}->{$field};
-            }
-            else
-            {
-                push @field_defs, $field;
-            }
+            push @field_defs, $field . ' ' . $config{sqlscrape_field_types}->{$field};
         }
-	my $q = "CREATE TABLE pagefields (page PRIMARY KEY, "
-	. join(", ", @field_defs) .");";
-	my $ret = $dbh->do($q);
-	if (!$ret)
-	{
-	    error(gettext("sqlscrape failed '$q' : $DBI::errstr"));
-	}
+        else
+        {
+            push @field_defs, $field;
+        }
+    }
+    my $q = "CREATE TABLE IF NOT EXISTS pagefields (page PRIMARY KEY, "
+        . join(", ", @field_defs) .");";
+    my $ret = $dbh->do($q);
+    if (!$ret)
+    {
+        error(gettext("sqlscrape failed '$q' : $DBI::errstr"));
     }
     $Database = $dbh;
     $Transaction_On = 0;
