@@ -124,10 +124,11 @@ sub set_up_search {
     {
 	if ($fn ne 'url' and $fn ne 'title')
 	{
+            my $label = "<span class='label'>$fn: </span>";
 	    $tvars{fields_as_html} .=<<EOT;
 	if (typeof this.$fn != 'undefined' && this.$fn != 'NONE')
 	{
-	    out = out + "<$result_tag class=\\"result-$fn\\">";
+	    out = out + "<$result_tag class=\\"result-$fn\\">$label<span class='value'>";
 	    if (\$.isArray(this.$fn))
 	    {
 		for (var x = 0; x < this.$fn.length; x++)
@@ -146,7 +147,7 @@ sub set_up_search {
 	    {
 		out = out + this.$fn;
 	    }
-	    out = out + "</$result_tag>\\n";
+	    out = out + "</span></$result_tag>\\n";
 	}
 EOT
 	}
