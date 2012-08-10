@@ -102,6 +102,9 @@ sub set_up_search {
     my @tagfields = ($params{tagfields}
 	? split(' ', $params{tagfields})
 	: ());
+    my @sortfields = ($params{sortfields}
+	? split(' ', $params{sortfields})
+	: ());
     my %is_tagfield = ();
     foreach my $tag (@tagfields)
     {
@@ -446,6 +449,15 @@ EOT
 	$tvars{search_fields} .= "</td></tr>\n";
     }
 
+    # The sort form
+    $tvars{sort_fields} = '';
+    foreach my $fn (@sortfields)
+    {
+        $tvars{sort_fields} .=<<EOT;
+<input name="sort" type="radio" value="$fn"/><label for="sort">$fn</label>
+EOT
+    }
+
     my $t = HTML::Template->new(filehandle => *DATA);
     my @parameter_names = $t->param();
     foreach my $field (@parameter_names)
@@ -467,12 +479,67 @@ __DATA__
 ERR_NoSearchTerms	= "You didn't enter any terms to search for, please enter some terms to search for and try again.";
 ERR_NoResults		= "Your search found no results.";
 
+debug = function (log_txt) {
+    if (window.console != undefined) {
+        console.log(log_txt);
+    }
+}
+
 // To sort an array in random order
 Array.prototype.shuffle = function() {
 var s = [];
 while (this.length) s.push(this.splice(Math.random() * this.length, 1));
 while (s.length) this.push(s.pop());
 return this;
+}
+
+// sort by a field name
+function sortResults(results,fn) {
+    results.sort(function(a,b){
+        return (fieldCompare(searchDB[a][fn], searchDB[b][fn]));
+    });
+    return results;
+}
+
+// Comparison function returns -1, 0 or 1
+// With Null values at the end (high)
+function fieldCompare(valueA,valueB) {
+    if (typeof valueB == 'undefined'
+	|| valueB.length == 0)
+    {
+        if (typeof valueA == 'undefined'
+            || valueA.length == 0)
+        {
+            return 0; // nulls equal each other
+        }
+        else
+        {
+            return -1;
+        }
+    }
+    else if (typeof valueA == 'undefined'
+        || valueA.length == 0)
+    {
+	return 1;
+    }
+
+    var aVal = valueA;
+    var bVal = valueB;
+    if (typeof valueA == 'object')
+    {
+        aVal = '';
+        for (var x = 0; x < valueA.length; x++) {
+            aVal = aVal + valueA[x];
+        };
+    }
+    if (typeof valueB == 'object')
+    {
+        bVal = '';
+        for (var x = 0; x < valueB.length; x++) {
+            bVal = bVal + valueB[x];
+        };
+    }
+    return ((aVal < bVal) ? -1 : ((aVal > bVal) ? 1 : 0));
 }
 
 // Constructor for each search engine item.
@@ -723,6 +790,14 @@ function doSearch (query) {
 	    {
 		results.shuffle();
 	    }
+            else if (query['sort'] == 'default')
+            {
+                // no sort
+            }
+            else if (query['sort'].length > 0)
+            {
+                results = sortResults(results,query['sort']);
+            }
 	    return results;
 	}
 	else {
@@ -912,6 +987,7 @@ searchDB = new Array();
 <span class="label">Sort:</span>
 <input name="sort" type="radio" value="default" checked="yes"/><label for="sort">default</label>
 <input name="sort" type="radio" value="random"/><label for="sort">random</label>
+<TMPL_VAR SORT_FIELDS>
 <input type="submit" value="Search!" name="search" />
 <input type="reset" value="Reset" name="reset" />
 </form>
