@@ -911,6 +911,13 @@ sub cmp_field_natural {
     my $left = IkiWiki::Plugin::field::field_get_value($field, $a);
     my $right = IkiWiki::Plugin::field::field_get_value($field, $b);
 
+    if (ref($left) eq 'ARRAY') {
+        $left = join(' ', @$left);
+    }
+    if (ref($right) eq 'ARRAY') {
+        $right = join(' ', @$right);
+    }
+
     $left = "" unless defined $left;
     $right = "" unless defined $right;
     return Sort::Naturally::ncmp($left, $right);
