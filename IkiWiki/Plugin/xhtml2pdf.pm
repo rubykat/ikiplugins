@@ -164,8 +164,9 @@ sub create_pdf_file (@) {
         {
             $body = $1;
         }
+        my($v,$pagedir,$pf) = File::Spec->splitpath($in_file);
 
-	$fh = File::Temp->new(TMPDIR=>1,
+	$fh = File::Temp->new(DIR=>$pagedir,
 			      TEMPLATE=>'htpXXXXXX',
 			      SUFFIX=>'.html');
 	my $pdf_html = apply_pdf_template(%params,
