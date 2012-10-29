@@ -188,10 +188,11 @@ sub apply_pdf_template (@) {
     my %params = @_;
     my $page = $params{page};
 
+    my $basename = IkiWiki::basename($page);
     my $title = (
 	exists $pagestate{$page}{meta}{title}
 	? $pagestate{$page}{meta}{title}
-	: pagetitle(IkiWiki::basename($page))
+	: pagetitle($basename)
     );
     # capitalize the title
     $title =~ s/ (
@@ -200,7 +201,16 @@ sub apply_pdf_template (@) {
                  (\s\w)   #preceded by whitespace
                    )
                 /\U$1/xg;
-
+    my $baseurl = IkiWiki::baseurl($page);
+    my $parent_page = '';
+    if ($page =~ m{^(.*)/[-\.\w]+$}o)
+    {
+        $parent_page = $1;
+    }
+    else # top-level page
+    {
+        $parent_page = 'index';
+    }
 
     my $template;
     eval {
@@ -226,6 +236,10 @@ sub apply_pdf_template (@) {
 	}
     }
     $template->param('title' => $title,
+        page => $page,
+        basename => $basename,
+        parent_page => $parent_page,
+        baseurl => $baseurl,
         contents=>$params{contents});
 
     my $content = $template->output;

@@ -130,17 +130,27 @@ sub preprocess (@) {
 	    $pagestate{$page}{task}{$real_fn} = $fval;
 	    if ($fn =~ /^(start|end|wait|due)$/i)
 	    {
-		my ($sec,$min,$hour,$mday,$mon,$year,$wday,$yday,$isdst) =
-		    localtime($fval);
-		$year += 1900;
-		$mon++;
-		$pagestate{$page}{task}{"${real_fn}date"} = "${year}-${mon}-${mday}";
-		if ($fn eq 'start')
-		{
-		    $pagestate{$page}{task}{task_is_started} = 1;
-		}
+                if ($fval =~ /(\d\d\d\d)(\d\d)(\d\d)T(\d+)Z/)
+                {
+                    my $year = $1;
+                    my $mon = $2;
+                    my $mday = $3;
+                    $pagestate{$page}{task}{"${real_fn}date"} = "${year}-${mon}-${mday}";
+                }
+                else
+                {
+                    my ($sec,$min,$hour,$mday,$mon,$year,$wday,$yday,$isdst) =
+                        localtime($fval);
+                    $year += 1900;
+                    $mon++;
+                    $pagestate{$page}{task}{"${real_fn}date"} = "${year}-${mon}-${mday}";
+                }
+                if ($fn eq 'start')
+                {
+                    $pagestate{$page}{task}{task_is_started} = 1;
+                }
 	    }
-	    elsif ($fn =~ /annotation_(\d+)/)
+	    elsif ($fn =~ /annotation_(\d+)$/)
 	    {
 		my $secs = $1;
 		my ($sec,$min,$hour,$mday,$mon,$year,$wday,$yday,$isdst) =
@@ -149,6 +159,13 @@ sub preprocess (@) {
 		$mon++;
 		push @annotations, "${year}-${mon}-${mday} $fval";
 	    }
+	    elsif ($fn =~ /annotation_(\d\d\d\d)(\d\d)(\d\d)T(\d+)Z/)
+            {
+                my $year = $1;
+                my $mon = $2;
+                my $mday = $3;
+		push @annotations, "${year}-${mon}-${mday} $fval";
+            }
 	    elsif ($fn eq 'status')
 	    {
 		$pagestate{$page}{task}{task_is_done} = (
