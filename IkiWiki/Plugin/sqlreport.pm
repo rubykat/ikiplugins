@@ -364,6 +364,11 @@ sub do_report {
 	groups=>\@groups,
 	);
     $self->do_depends(%args);
+    $out =<<EOT;
+<div class="report">
+$out
+</div>
+EOT
     return $out;
 } # do_report
 
