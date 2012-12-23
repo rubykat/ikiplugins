@@ -94,7 +94,7 @@ sub set_up_search {
     }
     if ($total == 0)
     {
-	return '';
+	return '<div>No records found</div>';
     }
 
     my $fields=$params{fields};
@@ -120,6 +120,7 @@ sub set_up_search {
 
     my %tvars = ();
 
+    $tvars{total} = $total;
     $tvars{formid} = ($params{formid} ? $params{formid} : 'jssearchfieldsql');
 
     $tvars{fields_as_html} = '';
@@ -980,6 +981,7 @@ searchDB = new Array();
 </TMPL_IF>
 //-->
 </script>
+<p>Search through <TMPL_VAR TOTAL> records.</p>
 <form id="<TMPL_VAR FORMID>" name="search" action="" method="get">
 <table>
 <TMPL_VAR SEARCH_FIELDS>
