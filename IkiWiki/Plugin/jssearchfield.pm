@@ -7,6 +7,7 @@ package IkiWiki::Plugin::jssearchfield;
 use warnings;
 use strict;
 use IkiWiki 3.00;
+use Data::Handle;
 
 sub import {
 	hook(type => "getsetup", id => "jssearchfield", call => \&getsetup);
@@ -248,7 +249,8 @@ EOT
 	$tvars{search_fields} .= "</td></tr>\n";
     }
 
-    my $t = HTML::Template->new(filehandle => *DATA);
+    my $handle = Data::Handle->new( __PACKAGE__ );
+    my $t = HTML::Template->new(filehandle => $handle);
     my @parameter_names = $t->param();
     foreach my $field (@parameter_names)
     {

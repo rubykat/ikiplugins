@@ -9,6 +9,7 @@ use warnings;
 use strict;
 use IkiWiki 3.00;
 use DBI;
+use Data::Handle;
 
 sub import {
 	hook(type => "getsetup", id => "jssearchfieldsql", call => \&getsetup);
@@ -28,13 +29,14 @@ sub getsetup () {
 sub preprocess (@) {
     my %params=@_;
 
+    my $out = '';
     if ($params{page} eq $params{destpage}) {
-	return set_up_search(%params);
+	$out = set_up_search(%params);
     }
     else {
 	# disable in inlined pages
-	return "";
     }
+    return $out;
 }
 
 # ------------------------------------------------------------
@@ -459,7 +461,8 @@ EOT
 EOT
     }
 
-    my $t = HTML::Template->new(filehandle => *DATA);
+    my $handle = Data::Handle->new( __PACKAGE__ );
+    my $t = HTML::Template->new(filehandle => $handle);
     my @parameter_names = $t->param();
     foreach my $field (@parameter_names)
     {
@@ -468,7 +471,8 @@ EOT
 	    $t->param($field => $tvars{$field});
 	}
     }
-    return $t->output();
+    my $out = $t->output();
+    return $out;
 } # set_up_search
 
 1;
