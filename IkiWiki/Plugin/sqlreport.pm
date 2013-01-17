@@ -115,6 +115,14 @@ sub preprocess (@) {
     my $out = '';
 
     $out = $Databases{$params{database}}->do_report(%params, master_page=>$page);
+
+    if ($params{ltemplate}
+        and $out)
+    {
+        my $out2 = $params{ltemplate};
+        $out2 =~ s/CONTENTS/$out/g;
+        $out = $out2;
+    }
     return $out;
 } # preprocess
 
@@ -364,11 +372,14 @@ sub do_report {
 	groups=>\@groups,
 	);
     $self->do_depends(%args);
-    $out =<<EOT;
+    if ($out)
+    {
+        $out =<<EOT;
 <div class="report">
 $out
 </div>
 EOT
+    }
     return $out;
 } # do_report
 
