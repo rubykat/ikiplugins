@@ -109,7 +109,8 @@ sub get_other_page_field_value ($$$) {
     my $val = IkiWiki::Plugin::field::field_get_value($field, $use_page);
     if (!defined $val)
     {
-	return "${other_page}#$field";
+        # if there is no value, return nothing.
+	return '';
     }
     $val = join(' ', @{$val}) if ref $val eq 'ARRAY';
     return $val;
@@ -132,8 +133,8 @@ sub get_field_value ($$) {
 	return $value;
     }
 
-    # if there is no value, return the field name.
-    return $field;
+    # if there is no value, return nothing.
+    return '';
 } # get_field_value
 
 1;

@@ -119,6 +119,10 @@ sub scan (@) {
 	my $parsed_yml = parse_yml(%params, data=>$extracted_yml->{yml});
 	if (defined $parsed_yml)
 	{
+            # I am decreeing that one cannot mix the directive and the YML format
+            # Therefore clear the data if it exists
+            $pagestate{$page}{ymlfront} = {};
+
 	    # save the data to pagestate
 	    foreach my $fn (keys %{$parsed_yml})
 	    {
@@ -183,6 +187,9 @@ sub preprocess (@) {
     my $parsed_yml = parse_yml(%params);
     if (defined $parsed_yml)
     {
+        # I am decreeing that one cannot mix the directive and the YML format
+        # Therefore clear the data if it exists
+        $pagestate{$page}{ymlfront} = {};
 	# save the data to pagestate
 	foreach my $fn (keys %{$parsed_yml})
 	{
