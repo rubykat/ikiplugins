@@ -598,6 +598,55 @@ searchRec.prototype.field_equals = function(fn,val) {
     return false;
 }
 
+searchRec.prototype.field_cmp = function(fn,val,lessthan) {
+    if (typeof val == 'undefined'
+	|| val.length == 0)
+    {
+	return false;
+    }
+    else if (typeof this[fn] == 'undefined')
+    {
+	return false;
+    }
+
+    // starts with ! means NOT match
+    var neg = val.indexOf('!'); 
+    // starts with = means "or equals"
+    if (neg == 0)
+    {
+	var negval = val.substring(neg+1);
+        return !this.field_cmp(fn,negval,lessthan);
+    }
+    else
+    {
+        var eq = val.indexOf('=');
+        var orequals = (eq == 0);
+	var eqval = val.substring(eq+1);
+
+        if (typeof this[fn] == 'object')
+        {
+            for (var x = 0; x < this[fn].length; x++) {
+                if ((lessthan && orequals && this[fn][x] <= eqval)
+                    || (lessthan && !orequals && this[fn][x] < val)
+                    || (!lessthan && orequals && this[fn][x] >= eqval)
+                    || (!lessthan && !orequals && this[fn][x] > val))
+                {
+                    return true;
+                }
+            };
+            return false;
+        }
+        else if ((lessthan && orequals && this[fn] <= eqval)
+                 || (lessthan && !orequals && this[fn] < val)
+                 || (!lessthan && orequals && this[fn] >= eqval)
+                 || (!lessthan && !orequals && this[fn] > val))
+        {
+            return true;
+        }
+    }
+    return false;
+}
+
 // See if the given regex matches the value of the field
 // If the field's value is an array, this will return true
 // if ANY item of that array matches the given regex
@@ -652,8 +701,26 @@ searchRec.prototype.field_does_match = function(fn,qval) {
         }
         else
         {
-            var regex = new RegExp(qval,"i");
-            return this.field_matches(fn,regex);
+            pos = qval.indexOf('<'); 
+            if (pos == 0) // starts with lessthan
+            {
+                var cmpval = qval.substring(pos+1);
+                return this.field_cmp(fn,cmpval,true);
+            }
+            else
+            {
+                pos = qval.indexOf('>'); 
+                if (pos == 0) // starts with lessthan
+                {
+                    var cmpval = qval.substring(pos+1);
+                    return this.field_cmp(fn,cmpval,false);
+                }
+                else
+                {
+                    var regex = new RegExp(qval,"i");
+                    return this.field_matches(fn,regex);
+                }
+            }
         }
     }
     return false;
