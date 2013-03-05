@@ -48,6 +48,7 @@ sub set_up_search {
     delete $params{page};
     my $nopagecolumn = $params{nopagecolumn};
     my $urlfield = $params{urlfield};
+    my $titlefield = ($params{titlefield} ? $params{titlefield} : 'title');
 
     my $result_tag = ($params{result_tag} ? $params{result_tag} : 'span');
 
@@ -128,7 +129,7 @@ sub set_up_search {
     $tvars{fields_as_html} = '';
     foreach my $fn (@fields)
     {
-	if ($fn ne 'url' and $fn ne 'title')
+	if ($fn ne 'url' and $fn ne $titlefield)
 	{
             my $label = "<span class='label'>$fn: </span>";
 	    $tvars{fields_as_html} .=<<EOT;
@@ -314,7 +315,7 @@ EOT
                     $tagsets{$fn}{$val}++;
                     $tagsets{$fn}{"!$val"}--;
                 }
-                if ($fn eq 'title')
+                if ($fn eq $titlefield)
                 {
                     $title = $val;
                 }
@@ -340,7 +341,7 @@ EOT
         if (!$nopagecolumn)
         {
             my $pn = $row[0]; # page is always the first column
-            $title = IkiWiki::Plugin::field::field_get_value('title', $pn);
+            $title = IkiWiki::Plugin::field::field_get_value($titlefield, $pn);
             $url = htmllink($params{page}, $params{destpage}, $pn, linktext=>$title);
             $url =~ s/"/'/g; # use single quotes so as not to mess up the double quotes
             $tvars{records} .= 'url:"'.$url.'",';
