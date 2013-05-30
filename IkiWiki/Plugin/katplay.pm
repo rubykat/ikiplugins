@@ -208,7 +208,7 @@ sub katplay_get_value ($$;@) {
             $value = $bits[$wanted_level];
         }
     }
-    if ($page =~ /stories\/(Cally_Doc|Felina_Archer|Jenny_Hayward|Kathryn_Andersen|Multi_Lyric_Wheel)/)
+    if ($page =~ /stories\/(callydoc|felina_a|jenny_h|kathryn_a|multi_lyric_wheel)/)
     {
         if ($field_name eq 'elsewhere')
         {

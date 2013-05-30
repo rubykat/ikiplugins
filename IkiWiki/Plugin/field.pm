@@ -276,8 +276,7 @@ sub field_get_value ($$;@) {
     # without having to worry about the order in which the fields are defined.
 
     # check the cache in case we've already got this value
-    if (exists $Cache{$page}{$lc_field_name}
-	and defined $Cache{$page}{$lc_field_name})
+    if (defined $Cache{$page}{$lc_field_name})
     {
 	return $Cache{$page}{$lc_field_name};
     }
@@ -660,8 +659,37 @@ sub calculated_values {
     elsif ($field_name eq 'titlecaps')
     {
 	$value = (exists $pagestate{$page}{meta}{title}
-	    ? $pagestate{$page}{meta}{title}
-	    : field_get_value('title', $page));
+	    ? $pagestate{$page}{meta}{title} : undef);
+        if (!$value)
+        {
+            if (defined $Cache{$page}{title})
+            {
+                $value = $Cache{$page}{title};
+            }
+        }
+        if (!$value)
+        {
+            for (my $i = 0; (!$value && $i < @FieldsLookupOrder); $i++)
+            {
+                my $id = $FieldsLookupOrder[$i];
+                if (exists $pagestate{$page}{$id}{title})
+                {
+                    $value = $pagestate{$page}{$id}{title};
+                }
+                elsif (exists $Fields{$id}{get_value})
+                {
+                    $value = $Fields{$id}{get_value}->('title', $page);
+                }
+            }
+        }
+        if (!$value)
+        {
+            $value = pagetitle(IkiWiki::basename($page));
+        }
+        if ($value)
+        {
+            $Cache{$page}{title} = $value;
+        }
 
 	$value =~ s/\.\w+$//; # remove extension
 	$value =~ s/ (

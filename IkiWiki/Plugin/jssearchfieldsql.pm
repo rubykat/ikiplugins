@@ -10,6 +10,7 @@ use strict;
 use IkiWiki 3.00;
 use DBI;
 use Data::Handle;
+use Text::NeatTemplate;
 
 sub import {
 	hook(type => "getsetup", id => "jssearchfieldsql", call => \&getsetup);
@@ -237,6 +238,12 @@ EOT
     my $deptype=IkiWiki::deptype($params{quick} ? 'presence' : 'content');
     $tvars{records} = '';
     my %tagsets = ();
+    for (my $i=0; $i < @fields; $i++)
+    {
+        my $fn = $fields[$i];
+        $tagsets{$fn} = {} if ($is_tagfield{$fn});
+    }
+
     my $count = 0;
     my @row;
     while (@row = $sth->fetchrow_array)
@@ -249,49 +256,15 @@ EOT
 	for (my $i=0; $i < @fields; $i++)
 	{
 	    my $fn = $fields[$i];
-	    $tagsets{$fn} = {} if ($is_tagfield{$fn} and !exists $tagsets{$fn});
 	    my $val = ($nopagecolumn ? $row[$i] : $row[$i+1]);
+            my @val_array = ();
 	    if ($val and index($val, '|') >= 0)
 	    {
-		my @val_array = split(/\|/, $val);
-		my @vals = ();
-		foreach my $v (@val_array)
-		{
-		    $v =~ s/"/'/g;
-		    push @vals, '"'.$v.'"';
-		    if ($is_tagfield{$fn})
-		    {
-                        if (!exists $tagsets{$fn}{$v})
-                        {
-                            $tagsets{$fn}{$v} = 0;
-                            $tagsets{$fn}{"!$v"} = $total;
-                        }
-			$tagsets{$fn}{$v}++;
-			$tagsets{$fn}{"!$v"}--;
-		    }
-		}
-		$tvars{records} .= $fn.':['.join(',', @vals).'],';
+		@val_array = split(/\|/, $val);
 	    }
 	    elsif ($val and $is_tagfield{$fn} and $val =~ /[,\/]/)
 	    {
-		my @val_array = split(/[,\/]\s*/, $val);
-		my @vals = ();
-		foreach my $v (@val_array)
-		{
-		    $v =~ s/"/'/g;
-		    push @vals, '"'.$v.'"';
-		    if ($is_tagfield{$fn})
-		    {
-                        if (!exists $tagsets{$fn}{$v})
-                        {
-                            $tagsets{$fn}{$v} = 0;
-                            $tagsets{$fn}{"!$v"} = $total;
-                        }
-			$tagsets{$fn}{$v}++;
-			$tagsets{$fn}{"!$v"}--;
-		    }
-		}
-		$tvars{records} .= $fn.':['.join(',', @vals).'],';
+		@val_array = split(/[,\/]\s*/, $val);
 	    }
             elsif ($val
                    and $urlfield
@@ -302,19 +275,7 @@ EOT
 	    }
 	    elsif ($val)
 	    {
-		$val =~ s/"/'/g;
-                $val =~ s/\n/ /g;
-		$tvars{records} .= $fn.':"'.$val.'",';
-		if ($is_tagfield{$fn})
-                {
-                    if (!exists $tagsets{$fn}{$val})
-                    {
-                        $tagsets{$fn}{$val} = 0;
-                        $tagsets{$fn}{"!$val"} = $total;
-                    }
-                    $tagsets{$fn}{$val}++;
-                    $tagsets{$fn}{"!$val"}--;
-                }
+                push @val_array, $val;
                 if ($fn eq $titlefield)
                 {
                     $title = $val;
@@ -323,18 +284,35 @@ EOT
 	    else # value is null
 	    {
 		$val = "NONE";
-		$tvars{records} .= $fn.':"'.$val.'",';
-		if ($is_tagfield{$fn})
-		{
-                    if (!exists $tagsets{$fn}{$val})
-                    {
-                        $tagsets{$fn}{$val} = 0;
-                        $tagsets{$fn}{"!$val"} = $total;
-                    }
-                    $tagsets{$fn}{$val}++;
-                    $tagsets{$fn}{"!$val"}--;
-		}
+                push @val_array, $val;
 	    }
+            if (@val_array >= 1)
+            {
+                my @vals = ();
+		foreach my $v (@val_array)
+		{
+		    $v =~ tr{"}{'};
+		    push @vals, '"'.$v.'"';
+		    if ($is_tagfield{$fn})
+		    {
+                        if (!exists $tagsets{$fn}{$v})
+                        {
+                            $tagsets{$fn}{$v} = 0;
+                            $tagsets{$fn}{"!$v"} = $total;
+                        }
+			$tagsets{$fn}{$v}++;
+			$tagsets{$fn}{"!$v"}--;
+		    }
+		}
+                if (@vals > 1)
+                {
+                    $tvars{records} .= $fn.':['.join(',', @vals).'],';
+                }
+                else
+                {
+                    $tvars{records} .= $fn.':'.$vals[0].',';
+                }
+            }
 	} # for each field
         
         # add the URL
@@ -343,7 +321,7 @@ EOT
             my $pn = $row[0]; # page is always the first column
             $title = IkiWiki::Plugin::field::field_get_value($titlefield, $pn);
             $url = htmllink($params{page}, $params{destpage}, $pn, linktext=>$title);
-            $url =~ s/"/'/g; # use single quotes so as not to mess up the double quotes
+            $url =~ tr{"}{'}; # use single quotes so as not to mess up the double quotes
             $tvars{records} .= 'url:"'.$url.'",';
             IkiWiki::add_depends($master_page, $pn, $deptype);
         }
@@ -464,14 +442,8 @@ EOT
 
     my $handle = Data::Handle->new( __PACKAGE__ );
     my $t = HTML::Template->new(filehandle => $handle);
-    my @parameter_names = $t->param();
-    foreach my $field (@parameter_names)
-    {
-	if ($tvars{$field})
-	{
-	    $t->param($field => $tvars{$field});
-	}
-    }
+    $t->param(%tvars);
+
     my $out = $t->output();
     return $out;
 } # set_up_search

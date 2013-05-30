@@ -255,7 +255,14 @@ sub scrape_fields {
 	else
 	{
 	    $val =~ s/'/''/g; # sql-friendly quotes
-	    push @values, "'$val'";
+            if ($val =~ /^\d+$/)
+            {
+	        push @values, $val;
+            }
+            else
+            {
+	        push @values, "'$val'";
+            }
 	}
     }
 
