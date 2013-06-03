@@ -41,6 +41,7 @@ modify it under the same terms as Perl itself.
 =cut
 
 use IkiWiki 3.00;
+use Text::Wrap;
 use YAML;
 
 sub import {
@@ -80,39 +81,66 @@ sub do_filter (%) {
 #---------------------------------------------------------------
 # Private functions
 # --------------------------------
-sub parse_lines;
+sub parse_lines ($$$$);
 
-sub parse_lines {
+sub parse_lines ($$$$) {
     my $lines_ref = shift;
+    my $terms_ref = shift;
+    my $xref_ref = shift;
     my $prev_indent = shift;
 
     if (@{$lines_ref})
     {
+        local $Text::Wrap::columns = 20;
+
         my @siblings = ();
+        my $this_indent = 0;
+        my $next_line = undef;
+        my $next_indent = -1;
 
-        my $this_line = shift @{$lines_ref};
-
-        my ($term, $rest_of_line) = listprefix($this_line);
-        push @siblings, {term => $term, line => $rest_of_line};
-
-        # count the number of leading spaces
+        my $this_line = (@{$lines_ref} ? $lines_ref->[0] : undef);
         my ($ws) = $this_line =~ /^( *)[^ ]/;
-        my $this_indent = length($ws);
+        $this_indent = length($ws);
 
-        my $next_line = (@{$lines_ref} ? $lines_ref->[0] : undef);
-        my $next_indent = 0;
-        if ($next_line)
+        if ($this_indent < $prev_indent)
         {
-            ($ws) = $next_line =~ /^( *)[^ ]/;
-            $next_indent = length($ws);
+            # higher-level list
+            return ();
         }
 
-        while ($next_line
-               and $next_indent == $this_indent)
-        {
-            my $this_line = shift @{$lines_ref};
+        do {
+            $this_line = shift @{$lines_ref};
+            $this_line =~ tr{"}{'};
+
             my ($term, $rest_of_line) = listprefix($this_line);
-            push @siblings, {term => $term, line => $rest_of_line};
+            while ($rest_of_line =~ /\(See ([-\s\w]+)\)/)
+            {
+                my $xref = $1;
+                $rest_of_line =~ s/\s*\(See [-\s\w]+\)\s*//;
+                if (!$xref_ref->{$term})
+                {
+                    $xref_ref->{$term} = [];
+                }
+                push @{$xref_ref->{$term}},  $xref;
+            }
+            while ($rest_of_line =~ /\(Ref ([-\s\w]+)\)/)
+            {
+                my $xref = $1;
+                $rest_of_line =~ s/\s*\(Ref [-\s\w]+\)\s*//;
+                if (!$xref_ref->{$xref})
+                {
+                    $xref_ref->{$xref} = [];
+                }
+                push @{$xref_ref->{$xref}},  $term;
+            }
+            push @siblings, {term => $term,
+                line => $rest_of_line};
+            my $label = wrap('', '', $rest_of_line);
+            $terms_ref->{$term} = $label;
+
+            # count the number of leading spaces
+            my ($ws) = $this_line =~ /^( *)[^ ]/;
+            $this_indent = length($ws);
 
             $next_line = (@{$lines_ref} ? $lines_ref->[0] : undef);
             if ($next_line)
@@ -120,16 +148,18 @@ sub parse_lines {
                 ($ws) = $next_line =~ /^( *)[^ ]/;
                 $next_indent = length($ws);
             }
-        }
+        } until (!$next_line
+                 or $next_indent != $this_indent);
+
         # okay, no more siblings
         # next line must be (a) parent, (b) child, (c) empty
 
         if ($next_indent > $this_indent)
         {
             # next item is a child
-            my @children = parse_lines($lines_ref, $this_indent);
+            my @children = parse_lines($lines_ref, $terms_ref, $xref_ref, $this_indent);
             $siblings[$#siblings]->{children} = \@children;
-            return (@siblings, parse_lines($lines_ref, $this_indent));
+            return (@siblings, parse_lines($lines_ref, $terms_ref, $xref_ref, $this_indent));
         }
         else
         {
@@ -205,27 +235,44 @@ sub create_mindmap ($$) {
     my $map =<<EOT;
 [[!graph
 src="""
+graph [ aspect = 2 ];
+node [ fontsize = 10 ];
 EOT
     my @lines       = split(/^/, $string);
-    my @ret = parse_lines(\@lines, 0);
-    $map .= build_map_levels(\@ret, 0);
+    my %terms = ();
+    my %xref = ();
+    my @ret = parse_lines(\@lines, \%terms, \%xref, 0);
+    $map .= build_map_levels(\@ret, \%terms, \%xref, 0);
 
     $map .=<<EOT;
 """]]
 EOT
 
-    my $dump = Dump(\@ret);
-    return "\n\n" . $string . "\n\n" . $map . "\n\n" . "<pre>$dump</pre>\n\n";
+    return "\n\n" . $string . "\n\n" . $map . "\n\n" . "<pre>\\$map</pre>\n\n";
 } # create_mindmap
 
-sub build_map_levels;
+sub build_map_levels ($$$$);
 
-sub build_map_levels {
+sub build_map_levels ($$$$) {
     my $list_ref = shift;
+    my $terms_ref = shift;
+    my $xref_ref = shift;
     my $level = shift;
 
     my $map = '';
 
+    # first do all the terms + labels
+    if ($level == 0)
+    {
+        foreach my $term (sort keys %{$terms_ref})
+        {
+            my $label = $terms_ref->{$term};
+            if ($term ne $label)
+            {
+                $map .= '"' . $term . '" [ label="' . $label . '"' . " ];\n";
+            }
+        }
+    }
     my $top = "Map";
     for (my $i = 0; $i < @{$list_ref}; $i++)
     {
@@ -233,20 +280,10 @@ sub build_map_levels {
         my $term = $item->{term};
         my $line = $item->{line};
 
-        if ($term ne $line)
-        {
-            $map .= '"' . $term . '" [ label=<' . $line . '>' . "];\n";
-        }
-
         if ($level == 0)
         {
+            $map .= '"' . $term . '"' . " [ fontsize = 14 ];\n";
             $map .= '"' . $top . '" -> "' . $term . '"' . ";\n";
-        }
-        # check for cross-references
-        while ($line =~ /\(See ([-\s\w]+)\)/)
-        {
-            my $xref = $1;
-            $map .= '"' . $term . '" -> "' . $xref . '"' . ";\n";
         }
         # do child-items
         if ($item->{children})
@@ -256,7 +293,21 @@ sub build_map_levels {
             {
                 my $child = $item->{children}->[$j];
                 $map .= '"' . $term . '" -> "' . $child->{term} . '"' . ";\n";
-                $map .= build_map_levels($item->{children}, $level + 1);
+            }
+            $map .= build_map_levels($item->{children}, $terms_ref, $xref_ref, $level + 1);
+        }
+    }
+
+    # do the cross-references
+    my $xref_edge_colour = 'blue';
+    if ($level == 0)
+    {
+        foreach my $term (sort keys %{$xref_ref})
+        {
+            my $xref_array = $xref_ref->{$term};
+            foreach my $xref (@{$xref_array})
+            {
+                $map .= '"' . $term . '" -> "' . $xref . '"' . " [ color=$xref_edge_colour ];\n";
             }
         }
     }
