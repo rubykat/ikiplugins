@@ -136,6 +136,7 @@ sub parse_lines ($$$$) {
             push @siblings, {term => $term,
                 line => $rest_of_line};
             my $label = wrap('', '', $rest_of_line);
+            $label =~ s/\n/\\n/sg; # replace newlines with newline escapes
             $terms_ref->{$term} = $label;
 
             # count the number of leading spaces
