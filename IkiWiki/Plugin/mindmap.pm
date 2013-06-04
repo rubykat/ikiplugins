@@ -81,6 +81,9 @@ sub do_filter (%) {
 #---------------------------------------------------------------
 # Private functions
 # --------------------------------
+
+my $DEBUG = '';
+
 sub parse_lines ($$$$);
 
 sub parse_lines ($$$$) {
@@ -91,8 +94,6 @@ sub parse_lines ($$$$) {
 
     if (@{$lines_ref})
     {
-        local $Text::Wrap::columns = 20;
-
         my @siblings = ();
         my $this_indent = 0;
         my $next_line = undef;
@@ -112,7 +113,7 @@ sub parse_lines ($$$$) {
             $this_line = shift @{$lines_ref};
             $this_line =~ tr{"}{'};
 
-            my ($term, $rest_of_line) = listprefix($this_line);
+            my ($term, $rest_of_line, $number) = listprefix($this_line);
             while ($rest_of_line =~ /\(See ([-\s\w]+)\)/)
             {
                 my $xref = $1;
@@ -134,10 +135,9 @@ sub parse_lines ($$$$) {
                 push @{$xref_ref->{$xref}},  $term;
             }
             push @siblings, {term => $term,
-                line => $rest_of_line};
-            my $label = wrap('', '', $rest_of_line);
-            $label =~ s/\n/\\n/sg; # replace newlines with newline escapes
-            $terms_ref->{$term} = $label;
+                line => $rest_of_line,
+                number => $number};
+            $terms_ref->{$term} = $rest_of_line;
 
             # count the number of leading spaces
             my ($ws) = $this_line =~ /^( *)[^ ]/;
@@ -175,24 +175,25 @@ sub listprefix ($)
 {
     my $line = shift;
 
-    my ($prefix, $number, $rawprefix, $term);
+    my ($number, $term);
     my $rest_of_line = $line;
 
     my $bullets         = '*';
-    my $bullets_ordered = '#';
+    my $bullets_ordered = '';
     my $number_match    = '(\d+|[^\W\d])';
     if ($bullets_ordered)
     {
         $number_match = '(\d+|[[:alpha:]]|[' . "${bullets_ordered}])";
     }
-    my $term_match = '(\w\w+)';
-    return (0, 0, 0, 0, $rest_of_line)
+    return ('', $rest_of_line, 0)
       if ( !($line =~ /^\s*[${bullets}]\s+\S/)
-        && !($line =~ /^\s*${number_match}[\.\)\]:]\s+\S/)
-        && !($line =~ /^\s*${term_match}:/));
+        && !($line =~ /^\s*${number_match}[\.\)\]:]\s+\S/));
 
-    ($term)   = $line =~ /^\s*${term_match}:/;
-    ($number) = $line =~ /^\s*${number_match}\S\s+\S/;
+    if ($line =~ /^\s*${number_match}[\.\)\]:]\s+(\S.*)/)
+    {
+        $number = $1;
+        $rest_of_line = $2;
+    }
     $number = 0 unless defined($number);
     if (   $bullets_ordered
         && $number =~ /[${bullets_ordered}]/)
@@ -200,23 +201,14 @@ sub listprefix ($)
         $number = 1;
     }
 
-    if ($term)
+    if (!$number)
     {
-        ($rawprefix, $rest_of_line) = $line =~ /^(\s*${term_match}.)\s*(.*)/;
-        $prefix = $rawprefix;
-        $prefix =~ s/${term_match}//;    # Take the term out
+        if ($line =~ /^(\s*[${bullets}].)\s*(.*)/)
+        {
+            $rest_of_line = $2;
+        }
     }
-    elsif ($number)
-    {
-        ($rawprefix, $rest_of_line) = $line =~ /^(\s*${number_match}.)\s*(.*)/;
-        $prefix = $rawprefix;
-        $prefix =~ s/${number_match}//;    # Take the number out
-    }
-    else
-    {
-        ($rawprefix, $rest_of_line) = $line =~ /^(\s*[${bullets}].)\s*(.*)/;
-        $prefix = $rawprefix;
-    }
+    my $term_match = '(\w\w+)';
     if (!$term)
     {
         ($term)   = $rest_of_line =~ /^\s*${term_match}:/;
@@ -226,7 +218,7 @@ sub listprefix ($)
     {
         $term = $rest_of_line;
     }
-    ($term, $rest_of_line);
+    ($term, $rest_of_line, $number);
 }    # listprefix
 
 sub create_mindmap ($$) {
@@ -238,42 +230,105 @@ sub create_mindmap ($$) {
 src="""
 graph [ aspect = 2 ];
 node [ fontsize = 10 ];
+edge [ color = grey30 ];
 EOT
     my @lines       = split(/^/, $string);
     my %terms = ();
     my %xref = ();
     my @ret = parse_lines(\@lines, \%terms, \%xref, 0);
-    $map .= build_map_levels(\@ret, \%terms, \%xref, 0);
+    my %derived = derive_xrefs(\%terms);
+    $map .= start_map(\%terms);
+    $map .= build_map_levels(\@ret, 0);
+    $map .= build_xrefs(\%xref, 'blue3');
+    $map .= build_xrefs(\%derived, 'green3');
 
     $map .=<<EOT;
 """]]
 EOT
 
-    return "\n\n" . $string . "\n\n" . $map . "\n\n" . "<pre>\\$map</pre>\n\n";
+    my $dump = Dump(\@ret);
+    my $out = "\n\n" . $string . "\n\n" . $map . "\n\n";
+    if ($DEBUG)
+    {
+        $out .= "<pre>\\$map\n\n$dump\n\n$DEBUG</pre>\n\n";
+    }
+    return $out;
 } # create_mindmap
 
-sub build_map_levels ($$$$);
-
-sub build_map_levels ($$$$) {
-    my $list_ref = shift;
+sub derive_xrefs {
     my $terms_ref = shift;
+
+    my %derived = ();
+
+    # search for references to existing terms
+    # inside other nodes
+    foreach my $term (sort keys %{$terms_ref})
+    {
+        foreach my $term2 (sort keys %{$terms_ref})
+        {
+            if ($term2 ne $term)
+            {
+                my $line = $terms_ref->{$term2};
+                if ($line =~ /\b$term\b/i)
+                {
+                    if (!$derived{$term2})
+                    {
+                        $derived{$term2} = [];
+                    }
+                    push @{$derived{$term2}},  $term;
+                }
+            }
+        }
+    }
+
+    return %derived;
+} # derive_xrefs
+
+sub start_map ($) {
+    my $terms_ref = shift;
+
+    my $map = '';
+    # first do all the terms + labels
+    local $Text::Wrap::columns = 20;
+    foreach my $term (sort keys %{$terms_ref})
+    {
+        my $line = $terms_ref->{$term};
+        if ($term ne $line)
+        {
+            my $label = wrap('', '', $line);
+            $label =~ s/\n/\\n/sg; # replace newlines with newline escapes
+            $map .= '"' . $term . '" [ label="' . $label . '"' . " ];\n";
+        }
+    }
+    return $map;
+} # start_map
+
+sub build_xrefs {
     my $xref_ref = shift;
+    my $xref_edge_colour = shift;
+
+    my $map = '';
+    # do the cross-references
+    foreach my $term (sort keys %{$xref_ref})
+    {
+        my $xref_array = $xref_ref->{$term};
+        foreach my $xref (@{$xref_array})
+        {
+            $map .= '"' . $term . '" -> "' . $xref . '"' . " [ color=$xref_edge_colour ];\n";
+        }
+    }
+    return $map;
+} # end_map
+
+sub build_map_levels ($$);
+
+sub build_map_levels ($$) {
+    my $list_ref = shift;
     my $level = shift;
 
     my $map = '';
 
-    # first do all the terms + labels
-    if ($level == 0)
-    {
-        foreach my $term (sort keys %{$terms_ref})
-        {
-            my $label = $terms_ref->{$term};
-            if ($term ne $label)
-            {
-                $map .= '"' . $term . '" [ label="' . $label . '"' . " ];\n";
-            }
-        }
-    }
+    my $ordered_colour = 'red3';
     my $top = "Map";
     for (my $i = 0; $i < @{$list_ref}; $i++)
     {
@@ -289,29 +344,34 @@ sub build_map_levels ($$$$) {
         # do child-items
         if ($item->{children})
         {
-            # link to the children
+            # Link to the children
+            # If the children are an ordered list,
+            # link to the first and link them to each other
+            my $firstchild = $item->{children}->[0];
+            if ($firstchild->{number})
+            {
+                $map .= '"' . $term . '" -> "' . $firstchild->{term} . '"' . ";\n";
+            }
             for (my $j = 0; $j < @{$item->{children}}; $j++)
             {
                 my $child = $item->{children}->[$j];
-                $map .= '"' . $term . '" -> "' . $child->{term} . '"' . ";\n";
+                if ($firstchild->{number})
+                {
+                    $map .= '"' . $child->{term} . '"' . " [ shape = box ];\n";
+                    if ($j + 1 < @{$item->{children}})
+                    {
+                        $map .= '"' . $child->{term} . '" -> "' . $item->{children}->[$j+1]->{term} . '"' . " [ color = $ordered_colour ];\n";
+                    }
+                }
+                else
+                {
+                    $map .= '"' . $term . '" -> "' . $child->{term} . '"' . ";\n";
+                }
             }
-            $map .= build_map_levels($item->{children}, $terms_ref, $xref_ref, $level + 1);
+            $map .= build_map_levels($item->{children}, $level + 1);
         }
     }
 
-    # do the cross-references
-    my $xref_edge_colour = 'blue';
-    if ($level == 0)
-    {
-        foreach my $term (sort keys %{$xref_ref})
-        {
-            my $xref_array = $xref_ref->{$term};
-            foreach my $xref (@{$xref_array})
-            {
-                $map .= '"' . $term . '" -> "' . $xref . '"' . " [ color=$xref_edge_colour ];\n";
-            }
-        }
-    }
     return $map;
 } # build_map_levels
 
