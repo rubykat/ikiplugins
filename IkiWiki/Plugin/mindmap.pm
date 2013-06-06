@@ -84,13 +84,15 @@ sub do_filter (%) {
 
 my $DEBUG = '';
 
-sub parse_lines ($$$$);
+sub parse_lines ($$$$$$);
 
-sub parse_lines ($$$$) {
+sub parse_lines ($$$$$$) {
     my $lines_ref = shift;
     my $terms_ref = shift;
     my $xref_ref = shift;
+    my $inverted_ref = shift;
     my $prev_indent = shift;
+    my $parent = shift;
 
     if (@{$lines_ref})
     {
@@ -120,9 +122,13 @@ sub parse_lines ($$$$) {
                 $rest_of_line =~ s/\s*\(See [-\s\w]+\)\s*//;
                 if (!$xref_ref->{$term})
                 {
-                    $xref_ref->{$term} = [];
+                    $xref_ref->{$term} = {};
                 }
-                push @{$xref_ref->{$term}},  $xref;
+                if (!defined $xref_ref->{$term}->{$xref})
+                {
+                    $xref_ref->{$term}->{$xref} = 0;
+                }
+                $xref_ref->{$term}->{$xref}++;
             }
             while ($rest_of_line =~ /\(Ref ([-\s\w]+)\)/)
             {
@@ -130,14 +136,20 @@ sub parse_lines ($$$$) {
                 $rest_of_line =~ s/\s*\(Ref [-\s\w]+\)\s*//;
                 if (!$xref_ref->{$xref})
                 {
-                    $xref_ref->{$xref} = [];
+                    $xref_ref->{$xref} = {};
                 }
-                push @{$xref_ref->{$xref}},  $term;
+                if (!defined $xref_ref->{$xref}->{$term})
+                {
+                    $xref_ref->{$xref}->{$term} = 0;
+                }
+                $xref_ref->{$xref}->{$term}++;
             }
             push @siblings, {term => $term,
                 line => $rest_of_line,
+                parent => $parent,
                 number => $number};
             $terms_ref->{$term} = $rest_of_line;
+            $inverted_ref->{$term} = $parent;
 
             # count the number of leading spaces
             my ($ws) = $this_line =~ /^( *)[^ ]/;
@@ -158,9 +170,9 @@ sub parse_lines ($$$$) {
         if ($next_indent > $this_indent)
         {
             # next item is a child
-            my @children = parse_lines($lines_ref, $terms_ref, $xref_ref, $this_indent);
+            my @children = parse_lines($lines_ref, $terms_ref, $xref_ref, $inverted_ref, $this_indent, $siblings[$#siblings]->{term});
             $siblings[$#siblings]->{children} = \@children;
-            return (@siblings, parse_lines($lines_ref, $terms_ref, $xref_ref, $this_indent));
+            return (@siblings, parse_lines($lines_ref, $terms_ref, $xref_ref, $inverted_ref, $this_indent, $parent));
         }
         else
         {
@@ -235,8 +247,9 @@ EOT
     my @lines       = split(/^/, $string);
     my %terms = ();
     my %xref = ();
-    my @ret = parse_lines(\@lines, \%terms, \%xref, 0);
-    my %derived = derive_xrefs(\%terms);
+    my %inverted = ();
+    my @ret = parse_lines(\@lines, \%terms, \%xref, \%inverted, 0, '');
+    my %derived = derive_xrefs(\%terms, \%inverted);
     $map .= start_map(\%terms);
     $map .= build_map_levels(\@ret, 0);
     $map .= build_xrefs(\%xref, 'blue3');
@@ -257,11 +270,13 @@ EOT
 
 sub derive_xrefs {
     my $terms_ref = shift;
+    my $inverted_ref = shift;
 
     my %derived = ();
 
     # search for references to existing terms
     # inside other nodes
+    # but don't link a child to a parent
     foreach my $term (sort keys %{$terms_ref})
     {
         foreach my $term2 (sort keys %{$terms_ref})
@@ -271,11 +286,18 @@ sub derive_xrefs {
                 my $line = $terms_ref->{$term2};
                 if ($line =~ /\b$term\b/i)
                 {
-                    if (!$derived{$term2})
+                    if ($inverted_ref->{$term2} ne $term)
                     {
-                        $derived{$term2} = [];
+                        if (!$derived{$term2})
+                        {
+                            $derived{$term2} = {};
+                        }
+                        if (!defined $derived{$term2}->{$term})
+                        {
+                            $derived{$term2}->{$term} = 0;
+                        }
+                        $derived{$term2}->{$term}++;
                     }
-                    push @{$derived{$term2}},  $term;
                 }
             }
         }
@@ -311,8 +333,7 @@ sub build_xrefs {
     # do the cross-references
     foreach my $term (sort keys %{$xref_ref})
     {
-        my $xref_array = $xref_ref->{$term};
-        foreach my $xref (@{$xref_array})
+        foreach my $xref (sort keys %{$xref_ref->{$term}})
         {
             $map .= '"' . $term . '" -> "' . $xref . '"' . " [ color=$xref_edge_colour ];\n";
         }
@@ -329,7 +350,7 @@ sub build_map_levels ($$) {
     my $map = '';
 
     my $ordered_colour = 'red3';
-    my $top = "Map";
+    my $top = "Mindmap";
     for (my $i = 0; $i < @{$list_ref}; $i++)
     {
         my $item = $list_ref->[$i];
