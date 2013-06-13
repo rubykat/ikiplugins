@@ -110,9 +110,11 @@ sub set_up_search {
 	? split(' ', $params{sortfields})
 	: ());
     my %is_tagfield = ();
+    my %is_numeric_tagfield = ();
     foreach my $tag (@tagfields)
     {
 	$is_tagfield{$tag} = 1;
+	$is_numeric_tagfield{$tag} = 0;
     }
 
     # The Javascript.
@@ -128,6 +130,7 @@ sub set_up_search {
     $tvars{formid} = ($params{formid} ? $params{formid} : 'jssearchfieldsql');
 
     $tvars{fields_as_html} = '';
+    $tvars{fields_match} = '';
     foreach my $fn (@fields)
     {
 	if ($fn ne 'url' and $fn ne $titlefield)
@@ -159,11 +162,6 @@ sub set_up_search {
 	}
 EOT
 	}
-    }
-
-    $tvars{fields_match} = '';
-    foreach my $fn (@fields)
-    {
 	my $match_fn = ($is_tagfield{$fn}
 	    ? "field_equals"
 	    : "field_does_match");
@@ -286,13 +284,25 @@ EOT
 		$val = "NONE";
                 push @val_array, $val;
 	    }
+
             if (@val_array >= 1)
             {
                 my @vals = ();
 		foreach my $v (@val_array)
 		{
 		    $v =~ tr{"}{'};
-		    push @vals, '"'.$v.'"';
+                    if ($v =~ /^[\.\d]+$/)
+                    {
+                        push @vals, $v;
+                        if ($is_tagfield{$fn})
+                        {
+                            $is_numeric_tagfield{$fn} = 1;
+                        }
+                    }
+                    else
+                    {
+		        push @vals, '"'.$v.'"';
+                    }
 		    if ($is_tagfield{$fn})
 		    {
                         if (!exists $tagsets{$fn}{$v})
@@ -376,7 +386,15 @@ EOT
 	    my $null_tag = delete $tagsets{$fn}{"NONE"}; # show nulls separately
 	    my $not_null_tag = delete $tagsets{$fn}{"!NONE"};
 	    my @tagvals = keys %{$tagsets{$fn}};
-	    @tagvals = grep {! /^!/} sort @tagvals;
+            @tagvals = grep {! /^!/} @tagvals;
+            if ($is_numeric_tagfield{$fn})
+            {
+	        @tagvals = sort { $a <=> $b } @tagvals;
+            }
+            else
+            {
+	        @tagvals = sort @tagvals;
+            }
 	    my $num_tagvals = int @tagvals;
 
 	    $tvars{search_fields} .=<<EOT;
@@ -517,7 +535,14 @@ function fieldCompare(valueA,valueB) {
             bVal = bVal + valueB[x];
         };
     }
-    return ((aVal < bVal) ? -1 : ((aVal > bVal) ? 1 : 0));
+    if (typeof aVal == 'number' && typeof bVal == 'number')
+    {
+        return (aVal - bVal);
+    }
+    else
+    {
+        return ((aVal < bVal) ? -1 : ((aVal > bVal) ? 1 : 0));
+    }
 }
 
 // Constructor for each search engine item.
