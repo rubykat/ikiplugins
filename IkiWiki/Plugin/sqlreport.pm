@@ -335,10 +335,12 @@ sub do_report {
 	title=>'',
 	prev_file=>'',
 	next_file=>'',
+        report_class=>'report',
 	@_
     );
     my $table = $args{table};
     my $command = $args{command};
+    my $report_class = $args{report_class};
     my @headers = (ref $args{headers} ? @{$args{headers}}
 	: split(/\|/, $args{headers}));
     my @groups = (ref $args{groups} ? @{$args{groups}}
@@ -375,7 +377,7 @@ sub do_report {
     if ($out)
     {
         $out =<<EOT;
-<div class="report">
+<div class="$report_class">
 $out
 </div>
 EOT
