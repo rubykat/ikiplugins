@@ -46,7 +46,6 @@ sub preprocess (@) {
 sub set_up_search {
     my %params=@_;
     my $master_page=$params{page};
-    delete $params{page};
     my $nopagecolumn = $params{nopagecolumn};
     my $urlfield = $params{urlfield};
     my $titlefield = ($params{titlefield} ? $params{titlefield} : 'title');
