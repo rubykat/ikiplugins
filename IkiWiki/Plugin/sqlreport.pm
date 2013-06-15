@@ -374,7 +374,7 @@ sub do_report {
 	groups=>\@groups,
 	);
     $self->do_depends(%args);
-    if ($out)
+    if ($out and $report_class)
     {
         $out =<<EOT;
 <div class="$report_class">
