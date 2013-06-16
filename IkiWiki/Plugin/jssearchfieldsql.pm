@@ -15,8 +15,19 @@ use Text::NeatTemplate;
 sub import {
 	hook(type => "getsetup", id => "jssearchfieldsql", call => \&getsetup);
 	hook(type => "preprocess", id => "jssearchfieldsql", call => \&preprocess);
-    IkiWiki::loadplugin("field");
+	hook(type => "format", id => "jssearchfieldsql", call => \&format);
+        IkiWiki::loadplugin("field");
 }
+
+# ------------------------------------------------------------
+# Globals
+# ----------------------------
+
+my %PagesJS = ();
+
+# ------------------------------------------------------------
+# Hooks
+# ----------------------------
 
 sub getsetup () {
 	return
@@ -39,6 +50,31 @@ sub preprocess (@) {
     }
     return $out;
 }
+
+sub format (@) {
+    my %params=@_;
+    my $content=$params{content};
+    my $page=$params{page};
+
+    # don't add the javascript if there isn't any
+    if (!exists $PagesJS{$page}
+        or !$PagesJS{$page})
+    {
+	return $content;
+    }
+    # if there is no </head> tag then we're probably in preview mode
+    if (index($content, '</head>') < 0)
+    {
+	return $content;
+    }
+
+    my $scripting = $PagesJS{$page};
+
+    # add the CSS and Javascript at the end of the head section
+    $content=~s!(</head>)!${scripting}$1!s;
+
+    return $content;
+} # format
 
 # ------------------------------------------------------------
 # Private Functions
@@ -125,7 +161,6 @@ sub set_up_search {
 
     my %tvars = ();
 
-    $tvars{total} = $total;
     $tvars{formid} = ($params{formid} ? $params{formid} : 'jssearchfieldsql');
 
     $tvars{fields_as_html} = '';
@@ -301,6 +336,10 @@ EOT
                     else
                     {
 		        push @vals, '"'.$v.'"';
+                        if ($is_tagfield{$fn})
+                        {
+                            $is_numeric_tagfield{$fn} = 0;
+                        }
                     }
 		    if ($is_tagfield{$fn})
 		    {
@@ -376,10 +415,10 @@ EOT
     }
 
     # The search form
-    $tvars{search_fields} = '';
+    my $search_fields = '';
     foreach my $fn (@fields)
     {
-	$tvars{search_fields} .= "<tr><td class='label'>$fn:</td><td class='q-$fn'>";
+	$search_fields .= "<tr><td class='label'>$fn:</td><td class='q-$fn'>";
 	if ($is_tagfield{$fn})
 	{
 	    my $null_tag = delete $tagsets{$fn}{"NONE"}; # show nulls separately
@@ -396,7 +435,7 @@ EOT
             }
 	    my $num_tagvals = int @tagvals;
 
-	    $tvars{search_fields} .=<<EOT;
+	    $search_fields .=<<EOT;
 <div class="tagcoll"><span class="toggle">&#9654;</span>
 <span class="count">(tags: $num_tagvals)</span>
 <div class="taglists">
@@ -405,54 +444,54 @@ EOT
             # first do the positives
 	    foreach my $tag (@tagvals)
 	    {
-		$tvars{search_fields} .=<<EOT;
+		$search_fields .=<<EOT;
 <li><input name="$fn" type='checkbox' value="$tag" />
 <label for="$fn">$tag ($tagsets{$fn}{$tag})</label></li>
 EOT
 	    }
 	    if ($null_tag)
 	    {
-		$tvars{search_fields} .=<<EOT;
+		$search_fields .=<<EOT;
 <li><input name="$fn" type='checkbox' value="NONE" />
 <label for="$fn">NONE ($null_tag)</label></li>
 EOT
 	    }
 
             # next do the negatives
-	    $tvars{search_fields} .=<<EOT;
+	    $search_fields .=<<EOT;
 </ul>
 <ul class="taglist taglist2">
 EOT
 	    foreach my $tag (@tagvals)
 	    {
-		$tvars{search_fields} .=<<EOT;
+		$search_fields .=<<EOT;
 <li><input name="$fn" type='checkbox' value="!$tag" />
 <label for="$fn">!$tag ($tagsets{$fn}{"!$tag"})</label></li>
 EOT
 	    }
 	    if ($not_null_tag)
 	    {
-		$tvars{search_fields} .=<<EOT;
+		$search_fields .=<<EOT;
 <li><input name="$fn" type='checkbox' value="!NONE" />
 <label for="$fn">!NONE ($not_null_tag)</label></li>
 EOT
 	    }
-	    $tvars{search_fields} .= "</ul></div></div>\n";
+	    $search_fields .= "</ul></div></div>\n";
 	}
 	else
 	{
-	    $tvars{search_fields} .=<<EOT
+	    $search_fields .=<<EOT
 <input type="text" name="$fn" size="60"/>
 EOT
 	}
-	$tvars{search_fields} .= "</td></tr>\n";
+	$search_fields .= "</td></tr>\n";
     }
 
     # The sort form
-    $tvars{sort_fields} = '';
+    my $sort_fields = '';
     foreach my $fn (@sortfields)
     {
-        $tvars{sort_fields} .=<<EOT;
+        $sort_fields .=<<EOT;
 <input name="sort" type="radio" value="$fn"/><label for="sort">$fn</label>
 EOT
     }
@@ -460,8 +499,32 @@ EOT
     my $handle = Data::Handle->new( __PACKAGE__ );
     my $t = HTML::Template->new(filehandle => $handle);
     $t->param(%tvars);
+    my $js = $t->output();
+    $PagesJS{$master_page} = $js;
 
-    my $out = $t->output();
+    # restrict the output to the actual search field
+    # as the javascript above is going into the <head> section
+    my $out =<<EOT;
+<p>Search through ${total} records.</p>
+<form id="$tvars{formid}" name="search" action="" method="get">
+<table>
+${search_fields}
+</table>
+<span class="label">Sort:</span>
+<input name="sort" type="radio" value="default" checked="yes"/><label for="sort">default</label>
+<input name="sort" type="radio" value="random"/><label for="sort">random</label>
+${sort_fields}
+<input type="submit" value="Search!" name="search" />
+<input type="reset" value="Reset" name="reset" />
+</form>
+<div id="message"></div>
+
+<script type='text/javascript'>
+<!--
+initForm();
+//-->
+</script>
+EOT
     return $out;
 } # set_up_search
 
@@ -1047,24 +1110,5 @@ searchDB = new Array();
 <TMPL_IF TAGSETS>
 <TMPL_VAR TAGSETS>
 </TMPL_IF>
-//-->
-</script>
-<p>Search through <TMPL_VAR TOTAL> records.</p>
-<form id="<TMPL_VAR FORMID>" name="search" action="" method="get">
-<table>
-<TMPL_VAR SEARCH_FIELDS>
-</table>
-<span class="label">Sort:</span>
-<input name="sort" type="radio" value="default" checked="yes"/><label for="sort">default</label>
-<input name="sort" type="radio" value="random"/><label for="sort">random</label>
-<TMPL_VAR SORT_FIELDS>
-<input type="submit" value="Search!" name="search" />
-<input type="reset" value="Reset" name="reset" />
-</form>
-<div id="message"></div>
-
-<script type='text/javascript'>
-<!--
-initForm();
 //-->
 </script>
