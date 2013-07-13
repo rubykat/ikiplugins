@@ -336,7 +336,7 @@ EOT
                     else
                     {
 		        push @vals, '"'.$v.'"';
-                        if ($is_tagfield{$fn})
+                        if ($is_tagfield{$fn} and $v ne 'NONE')
                         {
                             $is_numeric_tagfield{$fn} = 0;
                         }
