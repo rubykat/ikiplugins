@@ -436,8 +436,8 @@ EOT
 	    my $num_tagvals = int @tagvals;
 
 	    $search_fields .=<<EOT;
-<div class="tagcoll"><span class="toggle">&#9654;</span>
-<span class="count">(tags: $num_tagvals)</span>
+<div class="tagcoll"><span class="toggle">&#9654;
+<span class="count">(tags: $num_tagvals)</span></span>
 <div class="taglists">
 <ul class="taglist">
 EOT
