@@ -436,7 +436,7 @@ EOT
 	    my $num_tagvals = int @tagvals;
 
 	    $search_fields .=<<EOT;
-<div class="tagcoll"><span class="toggle">&#9654;
+<div class="tagcoll"><span class="toggle"><span class="togglearrow">&#9654;</span>
 <span class="count">(tags: $num_tagvals)</span></span>
 <div class="taglists">
 <ul class="taglist">
@@ -1049,12 +1049,13 @@ function filterTaglist(fn,results,query) {
 function initForm() {
     $("#<TMPL_VAR FORMID> .tagcoll .taglists").hide();
     $("#<TMPL_VAR FORMID> .tagcoll .toggle").click(function(){
-	tl = $(this).siblings(".taglists");
+	var tl = $(this).siblings(".taglists");
+        var lab = $(this).children(".togglearrow");
 	if (tl.is(":hidden")) {
-	    this.innerHTML = "&#9660;"
+	    lab[0].innerHTML = "&#9660;"
 	    tl.show();
 	} else {
-	    this.innerHTML = "&#9654;"
+	    lab[0].innerHTML = "&#9654;"
 	    tl.hide();
 	}
     });
