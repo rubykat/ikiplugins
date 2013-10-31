@@ -49,7 +49,7 @@ my $DBs_Connected = 0;
 sub import {
     hook(type => "getsetup", id => "sqlsearch",  call => \&getsetup);
     hook(type => "checkconfig", id => "sqlsearch", call => \&checkconfig);
-    hook(type => "preprocess", id => "sqlsearch", call => \&preprocess, scan=>1);
+    hook(type => "preprocess", id => "sqlsearch", call => \&preprocess);
     hook(type => "change", id => "sqlsearch", call => \&hang_up);
     hook(type => "cgi", id => "sqlsearch", call => \&cgi);
 }
@@ -103,41 +103,36 @@ sub checkconfig () {
 sub preprocess (@) {
     my %params=@_;
 
-    if (!defined wantarray) # scanning
+    my $page = $params{page};
+    foreach my $p (qw(database table where))
     {
-	foreach my $key (keys %params)
-	{
-	    if ($key =~ /^(page|destpage|preview|_raw)$/) # skip non-parameters
-	    {
-		next;
-	    }
-	    my $value = $params{$key};
-	    $pagestate{$params{page}}{sqlsearch}{$key} = $value;
-	}
+        if (!exists $params{$p})
+        {
+            error gettext("sqlsearch: missing $p parameter");
+        }
     }
-    else
+    if (!exists $config{sqlreport_databases}->{$params{database}})
     {
-        my $page = $params{page};
-        foreach my $p (qw(database table where))
-        {
-            if (!exists $params{$p})
-            {
-                error gettext("sqlsearch: missing $p parameter");
-            }
-        }
-        if (!exists $config{sqlreport_databases}->{$params{database}})
-        {
-            error(gettext(sprintf('sqlsearch: database %s does not exist',
-                                  $params{database})));
-        }
-
-        my $out = '';
-
-        $out = $Databases{$params{database}}->make_search_form($params{table}, page=>$page, %params);
-
-        return $out;
+        error(gettext(sprintf('sqlsearch: database %s does not exist',
+                              $params{database})));
     }
-    return '';
+
+    # remember the parameters
+    foreach my $key (keys %params)
+    {
+        if ($key =~ /^(page|destpage|preview|_raw)$/) # skip non-parameters
+        {
+            next;
+        }
+        my $value = $params{$key};
+        $pagestate{$params{page}}{sqlsearch}{$key} = $value;
+    }
+
+    my $out = '';
+
+    $out = $Databases{$params{database}}->make_search_form($params{table}, page=>$page, %params);
+
+    return $out;
 } # preprocess
 
 sub hang_up {
@@ -299,8 +294,7 @@ EOT
 	$out_str .= "</tr>\n";
 }
     $out_str .=<<EOT;
-</table>
-</td><td>
+</table> <!--end of columns -->
 EOT
     for (my $i = 0; $i < @columns; $i++) {
 	my $col = $columns[$i];
@@ -325,19 +319,12 @@ EOT
 <p><strong>Page:</strong>
 <input type="text" name="Page" value="1"/>
 </p>
-EOT
-
-    $out_str .=<<EOT;
-</td></tr></table>
-<table border="0">
-<tr><td>
 <p><strong>Sort by:</strong> To set the sort order, select the column names.
 To sort that column in reverse order, click on the <strong>Reverse</strong>
 checkbox.
 </p>
 <table border="0">
 EOT
-
     my $num_sort_fields = ($self->{max_sort_fields} < @columns
 	? $self->{max_sort_fields} : @columns);
     for (my $i=0; $i < $num_sort_fields; $i++)
@@ -356,14 +343,10 @@ EOT
 	$out_str .= "</td>\n";
 	$out_str .= "</tr>";
     }
-    $out_str .=<<EOT;
-</table>
-</td><td>
-EOT
 
     $out_str .=<<EOT;
-</td></tr>
 </table>
+</td></tr></table>
 <p><strong><input type="submit" name="$command" value="$command"/> <input type="reset"/></strong>
 EOT
     $out_str .=<<EOT;
@@ -474,14 +457,12 @@ sub do_select {
     my $show_label = $self->{show_label};
     my $sort_label = $self->{sort_label};
     my $sort_reversed_prefix = $self->{sort_reversed_prefix};
-    my $headers_label = $self->{headers_label};
     my @columns = ();
     my %where = ();
     my %not_where = ();
     my @sort_by = ();
     my @sort_r = ();
     my %sort_reverse = ();
-    my @headers = ();
     my $form_page = $self->{cgi}->param('form_page');
 
 
@@ -492,6 +473,7 @@ sub do_select {
     my $row_id_name = $self->get_id_colname($table);
 
     my $pre_where = $IkiWiki::pagestate{$form_page}{sqlsearch}{'where'};
+    my $pre_sort = $IkiWiki::pagestate{$form_page}{sqlsearch}{'sort_by'};
     my $layout = $IkiWiki::pagestate{$form_page}{sqlsearch}{'report_layout'};
     my $report_style = $IkiWiki::pagestate{$form_page}{sqlsearch}{'report_style'};
     my %predefined_args = ();
@@ -540,19 +522,6 @@ sub do_select {
 		}
 	    }
 	}
-	elsif ($pfield eq 'Edit_Row')
-	{
-	    # show the row given in the Edit_Row value
-	    if ($pval)
-	    {
-		$pval =~ m#Edit Row ([\d]+)#;
-		my $where_val = $1;
-		if ($where_val)
-		{
-		    $where{$row_id_name} = $where_val;
-		}
-	    }
-	}
 	elsif ($pfield eq $sort_label)
 	{
 	    my (@vals) = $self->{cgi}->param($pfield);
@@ -562,18 +531,6 @@ sub do_select {
 		if ($val)
 		{
 		    push @sort_by, $val;
-		}
-	    }
-	}
-	elsif ($pfield eq $headers_label)
-	{
-	    my (@vals) = $self->{cgi}->param($pfield);
-	    foreach my $val (@vals)
-	    {
-		# only non-empty values!
-		if ($val)
-		{
-		    push @headers, $val;
 		}
 	    }
 	}
@@ -594,6 +551,18 @@ sub do_select {
 	    }
 	}
     }
+    if ($pre_sort)
+    {
+        my @pre_sort = split(' ', $pre_sort);
+        if (@sort_by)
+        {
+            unshift @sort_by, @pre_sort;
+        }
+        else
+        {
+            @sort_by = @pre_sort;
+        }
+    }
 
     $self->do_report(
         %predefined_args,
@@ -606,7 +575,6 @@ sub do_select {
 	sort_by=>\@sort_by,
 	sort_reversed=>\%sort_reverse,
 	show=>\@columns,
-	headers=>\@headers,
 	limit=>$limit,
 	page=>$page,
 	report_style=>($report_style ? $report_style : 'full'),
@@ -772,6 +740,10 @@ sub print_select {
     {
 	my $num_pages = ceil($args{total} / $args{limit});
 	$res_info .= "<p>Page $page of $num_pages.</p>\n";
+    }
+    if (@sort_by)
+    {
+        $res_info .= "<p>Sort by: " . join(', ', @sort_by) . "</p>\n";
     }
 
     my @result = ();
