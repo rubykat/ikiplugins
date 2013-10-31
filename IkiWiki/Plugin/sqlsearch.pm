@@ -181,7 +181,7 @@ sub new {
     my %parameters = (@_);
     my $self = SQLite::Work::CGI->new(%parameters);
 
-    $self->{where_prefix} ||= 'where_';
+    $self->{where_tag_prefix} ||= 'where_tag_';
     bless ($self, ref ($class) || $class);
 } # new
 
@@ -248,12 +248,100 @@ sub search_form {
     my $form_page = $args{page};
     my $command = $args{command};
     my $where_prefix = $self->{where_prefix};
+    my $where_tag_prefix = $self->{where_tag_prefix};
     my $not_prefix = $self->{not_prefix};
     my $show_label = $self->{show_label};
     my $sort_label = $self->{sort_label};
     my $sort_reversed_prefix = $self->{sort_reversed_prefix};
     my $headers_label = $self->{headers_label};
 
+    #
+    # Get data for tagfields
+    #
+    my @tagfields = ($args{tagfields} ? split(' ', $args{tagfields}) : ());
+    my %is_tagfield = ();
+    my %is_numeric_tagfield = ();
+    foreach my $fn (@tagfields)
+    {
+        $is_tagfield{$fn} = 1;
+    }
+    my %tagsets = ();
+    for (my $i=0; $i < @columns; $i++)
+    {
+        my $fn = $columns[$i];
+        $tagsets{$fn} = {} if ($is_tagfield{$fn});
+    }
+
+    my $total = $self->get_total_matching(%args);
+
+    my ($sth1, $sth2) = $self->make_selections(%args,
+	show=>\@columns,
+        sort_by=>[],
+	total=>$total);
+    my $count = 0;
+    my @row;
+    while (@row = $sth1->fetchrow_array)
+    {
+	for (my $i=0; $i < @columns; $i++)
+        {
+	    my $fn = $columns[$i];
+	    my $val = $row[$i];
+            my @val_array = ();
+	    if ($val and index($val, '|') >= 0)
+	    {
+		@val_array = split(/\|/, $val);
+	    }
+	    elsif ($val and $is_tagfield{$fn} and $val =~ /[,\/]/)
+	    {
+		@val_array = split(/[,\/]\s*/, $val);
+	    }
+	    elsif ($val)
+	    {
+                push @val_array, $val;
+	    }
+	    else # value is null
+	    {
+		$val = "NONE";
+                push @val_array, $val;
+	    }
+            if (@val_array >= 1)
+            {
+                my @vals = ();
+		foreach my $v (@val_array)
+		{
+		    $v =~ tr{"}{'};
+                    if ($v =~ /^[\.\d]+$/)
+                    {
+                        push @vals, $v;
+                        if ($is_tagfield{$fn})
+                        {
+                            $is_numeric_tagfield{$fn} = 1;
+                        }
+                    }
+                    else
+                    {
+		        push @vals, '"'.$v.'"';
+                        if ($is_tagfield{$fn} and $v ne 'NONE')
+                        {
+                            $is_numeric_tagfield{$fn} = 0;
+                        }
+                    }
+		    if ($is_tagfield{$fn})
+		    {
+                        if (!exists $tagsets{$fn}{$v})
+                        {
+                            $tagsets{$fn}{$v} = 0;
+                        }
+			$tagsets{$fn}{$v}++;
+		    }
+		}
+            }
+        }
+    }
+
+    #
+    # Build the form
+    #
     my $action = IkiWiki::cgiurl();
     my $out_str =<<EOT;
 <form action="$action" method="get">
@@ -282,13 +370,52 @@ EOT
     for (my $i = 0; $i < @columns; $i++) {
 	my $col = $columns[$i];
 	my $wcol_label = "${where_prefix}${col}";
+	my $tcol_label = "${where_tag_prefix}${col}";
 	my $ncol_label = "${not_prefix}${col}";
 
 	$out_str .= "<tr><td>";
 	$out_str .= "<strong>$col</strong>";
 	$out_str .= "</td>\n<td>";
-	$out_str .= "<input type='text' name='$wcol_label'/>";
-	$out_str .= "</td>\n<td>";
+        if ($is_tagfield{$col})
+        {
+	    my $null_tag = delete $tagsets{$col}{"NONE"}; # show nulls separately
+	    my @tagvals = keys %{$tagsets{$col}};
+            if ($is_numeric_tagfield{$col})
+            {
+	        @tagvals = sort { $a <=> $b } @tagvals;
+            }
+            else
+            {
+	        @tagvals = sort @tagvals;
+            }
+	    my $num_tagvals = int @tagvals;
+	    $out_str .=<<EOT;
+<div><span class="toggle"><span class="togglearrow">&#9654;</span>
+<span class="count">(tags: $num_tagvals)</span></span>
+<ul>
+EOT
+            # first do the positives
+	    foreach my $tag (@tagvals)
+	    {
+		$out_str .=<<EOT;
+<li><input name="$tcol_label" type='checkbox' value="$tag" />
+<label for="$tcol_label">$tag ($tagsets{$col}{$tag})</label></li>
+EOT
+	    }
+	    if ($null_tag)
+	    {
+		$out_str .=<<EOT;
+<li><input name="$tcol_label" type='checkbox' value="NONE" />
+<label for="$tcol_label">NONE ($null_tag)</label></li>
+EOT
+	    }
+	    $out_str .=<<EOT;
+</ul>
+</div>
+EOT
+        }
+        $out_str .= "<input type='text' name='$wcol_label'/>";
+        $out_str .= "</td>\n<td>";
 	$out_str .= "<input type='checkbox' name='$ncol_label'>NOT</input>";
 	$out_str .= "</td>";
 	$out_str .= "</tr>\n";
@@ -453,6 +580,7 @@ sub do_select {
     my $command = $args{command};
 
     my $where_prefix = $self->{where_prefix};
+    my $where_tag_prefix = $self->{where_tag_prefix};
     my $not_prefix = $self->{not_prefix};
     my $show_label = $self->{show_label};
     my $sort_label = $self->{sort_label};
