@@ -88,6 +88,7 @@ sub checkconfig () {
 	    my $rep = SQLite::Work::CGI::IkiWiki->new(database=>$file,
                         alias   => $alias,
 	                config    => \$IkiWiki::config,
+                        where_prefix => 'where_COL_'
             );
 	    if (!$rep or !$rep->do_connect())
 	    {
@@ -181,7 +182,33 @@ sub new {
     my %parameters = (@_);
     my $self = SQLite::Work::CGI->new(%parameters);
 
-    $self->{where_tag_prefix} ||= 'where_tag_';
+    my $form_id = 'sqls1';
+    $self->{where_tag_prefix} ||= 'where_tag_COL_';
+    $self->{report_template} =<<EOT;
+<div id="${form_id}" class="sqlsearch">
+<!--sqlr_contents-->
+</div>
+<script type='text/javascript'>
+<!--
+function initForm() {
+    \$("#${form_id} .tagcoll ul").hide();
+    \$("#${form_id} .tagcoll .toggle").click(function(){
+	var tl = \$(this).siblings("ul");
+        var lab = \$(this).children(".togglearrow");
+	if (tl.is(":hidden")) {
+	    lab[0].innerHTML = "&#9660;"
+	    tl.show();
+	} else {
+	    lab[0].innerHTML = "&#9654;"
+	    tl.hide();
+	}
+    });
+}
+
+initForm();
+//-->
+</script>
+EOT
     bless ($self, ref ($class) || $class);
 } # new
 
@@ -277,7 +304,8 @@ sub search_form {
     my ($sth1, $sth2) = $self->make_selections(%args,
 	show=>\@columns,
         sort_by=>[],
-	total=>$total);
+	total=>$total,
+        page=>1);
     my $count = 0;
     my @row;
     while (@row = $sth1->fetchrow_array)
@@ -390,7 +418,7 @@ EOT
             }
 	    my $num_tagvals = int @tagvals;
 	    $out_str .=<<EOT;
-<div><span class="toggle"><span class="togglearrow">&#9654;</span>
+<div class="tagcoll"><span class="toggle"><span class="togglearrow">&#9654;</span>
 <span class="count">(tags: $num_tagvals)</span></span>
 <ul>
 EOT
@@ -617,7 +645,6 @@ sub do_select {
     # build up the data
     foreach my $pfield ($self->{cgi}->param())
     {
-	my $pval = $self->{cgi}->param($pfield);
 	if ($pfield eq $show_label)
 	{
 	    my (@show) = $self->{cgi}->param($pfield);
@@ -633,10 +660,12 @@ sub do_select {
 	elsif ($pfield =~ /^${where_prefix}(.*)/o)
 	{
 	    my $colname = $1;
-	    if ($pval)
+            my $pval = $self->{cgi}->param($pfield);
+            if ($pval)
 	    {
 		my $not_where_field = "${not_prefix}${colname}";
 		$pval =~ m#([^`]*)#;
+                $pval =~ s/^NONE$/NULL/;
 		my $where_val = $1;
 		$where_val =~ s/\s$//;
 		$where_val =~ s/^\s//;
@@ -648,6 +677,20 @@ sub do_select {
 			$not_where{$colname} = 1;
 		    }
 		}
+	    }
+	}
+	elsif ($pfield =~ /^${where_tag_prefix}(.*)/o)
+	{
+	    my $colname = $1;
+	    my (@tags) = $self->{cgi}->param($pfield);
+            if (@tags)
+	    {
+		my $not_where_field = "${not_prefix}${colname}";
+                $where{$colname} = \@tags;
+                if ($self->{cgi}->param($not_where_field))
+                {
+                    $not_where{$colname} = 1;
+                }
 	    }
 	}
 	elsif ($pfield eq $sort_label)
@@ -664,7 +707,8 @@ sub do_select {
 	}
 	elsif ($pfield =~ /^${sort_reversed_prefix}(.*)/o)
 	{
-	    my $ind = $1;
+            my $pval = $self->{cgi}->param($pfield);
+            my $ind = $1;
 	    $sort_r[$ind] = ($pval ? 1 : 0);
 	}
     }
@@ -716,9 +760,7 @@ sub do_select {
 
 =head2 build_where_conditions
 
-If "where" is not a hash. treat it like a query.
-
-Otherwise do the default of the superclass.
+Take the given hashes and make an array of SQL conditions.
 
 =cut
 sub build_where_conditions {
@@ -728,7 +770,30 @@ sub build_where_conditions {
     my @where = ();
     if (ref $args{where} eq 'HASH')
     {
-	@where = $self->SUPER::build_where_conditions(%args);
+        while (my ($col, $val) = each(%{$args{where}}))
+        {
+            if (ref $val eq 'ARRAY')
+            {
+                foreach my $v (@{$val})
+                {
+                    push @where, $self->build_one_where_condition(
+                        colname=>$col,
+                        value=>$v,
+                        not_flag=>$args{not_where}->{$col},
+                        is_tag=>1,
+                        );
+                }
+            }
+            else
+            {
+                push @where, $self->build_one_where_condition(
+                    colname=>$col,
+                    value=>$val,
+                    not_flag=>$args{not_where}->{$col},
+                    is_tag=>0,
+                );
+            }
+        }
     }
     else
     {
@@ -742,6 +807,90 @@ sub build_where_conditions {
 
     return @where;
 } # build_where_conditions
+
+=head2 build_one_where_condition
+
+Take a column, a value, a not-flag, and whether it is a tag,
+and return one SQL condition.
+
+    $cond = $self->build_one_where_condition(
+	not_where=>\%not_where);
+
+=cut
+sub build_one_where_condition {
+    my $self = shift;
+    my %args = (
+        colname=>undef,
+        value=>undef,
+        not_flag=>0,
+        is_tag=>0,
+        @_
+        );
+
+    my $where = '';
+    my $val = $args{value};
+    my $col = $args{colname};
+    if (!defined $val or $val eq 'NULL' or $val eq 'NONE')
+    {
+        if ($args{not_flag})
+        {
+            $where = "$col IS NOT NULL";
+        }
+        else
+        {
+            $where = "$col IS NULL";
+        }
+    }
+    elsif (!$val or $val eq "''")
+    {
+        if ($args{not_flag})
+        {
+            $where = "$col != ''";
+        }
+        else
+        {
+            $where = "$col = ''";
+        }
+    }
+    elsif ($val =~ /^(=|<|<=|<>|>|>=)\s*(.*)/)
+    {
+        my $op = $1;
+        my $v = $2;
+        $where = "$col $op " . $self->{dbh}->quote($v);
+        if ($args{not_flag})
+        {
+            $where = "NOT ($where)";
+        }
+    }
+    elsif ($args{is_tag})
+    {
+        $where = "($col LIKE "
+        . $self->{dbh}->quote('%|' . $val)
+        . " OR $col LIKE "
+        . $self->{dbh}->quote('%|' . $val . '|%')
+        . " OR $col LIKE "
+        . $self->{dbh}->quote($val . '|%')
+        . " OR $col = "
+        . $self->{dbh}->quote($val)
+        . ")";
+        if ($args{not_flag})
+        {
+            $where = "NOT $where";
+        }
+    }
+    else
+    {
+        if ($args{not_flag})
+        {
+            $where = "$col NOT GLOB " . $self->{dbh}->quote($val);
+        }
+        else
+        {
+            $where = "$col GLOB " . $self->{dbh}->quote($val);
+        }
+    }
+    return $where;
+} # build_one_where_condition
 
 =head2 do_report
 
