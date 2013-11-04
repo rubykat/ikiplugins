@@ -372,6 +372,7 @@ sub search_form {
     #
     my $action = IkiWiki::cgiurl();
     my $out_str =<<EOT;
+<p>Searching $total records.</p>
 <form action="$action" method="get">
 <p>
 <strong><input type="submit" name="$command" value="$command"/> <input type="reset"/></strong>
@@ -852,7 +853,7 @@ sub build_one_where_condition {
             $where = "$col = ''";
         }
     }
-    elsif ($val =~ /^(=|<|<=|<>|>|>=)\s*(.*)/)
+    elsif ($val =~ /^(<=|<>|>=|<|>|=)\s*(.*)/)
     {
         my $op = $1;
         my $v = $2;
