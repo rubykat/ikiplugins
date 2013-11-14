@@ -184,6 +184,7 @@ sub new {
 
     my $form_id = 'sqls1';
     $self->{where_tag_prefix} ||= 'where_tag_COL_';
+    $self->{or_prefix} ||= 'OR_where_COL_';
     $self->{report_template} =<<EOT;
 <div id="${form_id}" class="sqlsearch">
 <!--sqlr_contents-->
@@ -277,6 +278,7 @@ sub search_form {
     my $where_prefix = $self->{where_prefix};
     my $where_tag_prefix = $self->{where_tag_prefix};
     my $not_prefix = $self->{not_prefix};
+    my $or_prefix = $self->{or_prefix};
     my $show_label = $self->{show_label};
     my $sort_label = $self->{sort_label};
     my $sort_reversed_prefix = $self->{sort_reversed_prefix};
@@ -401,6 +403,7 @@ EOT
 	my $wcol_label = "${where_prefix}${col}";
 	my $tcol_label = "${where_tag_prefix}${col}";
 	my $ncol_label = "${not_prefix}${col}";
+	my $orcol_label = "${or_prefix}${col}";
 
 	$out_str .= "<tr><td>";
 	$out_str .= "<strong>$col</strong>";
@@ -446,6 +449,10 @@ EOT
         $out_str .= "<input type='text' name='$wcol_label'/>";
         $out_str .= "</td>\n<td>";
 	$out_str .= "<input type='checkbox' name='$ncol_label'>NOT</input>";
+        if ($is_tagfield{$col})
+        {
+	    $out_str .= "<input type='checkbox' name='$orcol_label'>OR</input>";
+        }
 	$out_str .= "</td>";
 	$out_str .= "</tr>\n";
 }
@@ -611,12 +618,14 @@ sub do_select {
     my $where_prefix = $self->{where_prefix};
     my $where_tag_prefix = $self->{where_tag_prefix};
     my $not_prefix = $self->{not_prefix};
+    my $or_prefix = $self->{or_prefix};
     my $show_label = $self->{show_label};
     my $sort_label = $self->{sort_label};
     my $sort_reversed_prefix = $self->{sort_reversed_prefix};
     my @columns = ();
     my %where = ();
     my %not_where = ();
+    my %or_where = ();
     my @sort_by = ();
     my @sort_r = ();
     my %sort_reverse = ();
@@ -665,6 +674,7 @@ sub do_select {
             if ($pval)
 	    {
 		my $not_where_field = "${not_prefix}${colname}";
+		my $or_where_field = "${or_prefix}${colname}";
 		$pval =~ m#([^`]*)#;
                 $pval =~ s/^NONE$/NULL/;
 		my $where_val = $1;
@@ -677,6 +687,10 @@ sub do_select {
 		    {
 			$not_where{$colname} = 1;
 		    }
+		    if ($self->{cgi}->param($or_where_field))
+		    {
+			$or_where{$colname} = 1;
+		    }
 		}
 	    }
 	}
@@ -687,10 +701,15 @@ sub do_select {
             if (@tags)
 	    {
 		my $not_where_field = "${not_prefix}${colname}";
+		my $or_where_field = "${or_prefix}${colname}";
                 $where{$colname} = \@tags;
                 if ($self->{cgi}->param($not_where_field))
                 {
                     $not_where{$colname} = 1;
+                }
+                if ($self->{cgi}->param($or_where_field))
+                {
+                    $or_where{$colname} = 1;
                 }
 	    }
 	}
@@ -745,6 +764,7 @@ sub do_select {
 	command=>$command,
 	where=>\%where,
 	not_where=>\%not_where,
+	or_where=>\%or_where,
 	sort_by=>\@sort_by,
 	sort_reversed=>\%sort_reverse,
 	show=>\@columns,
@@ -775,14 +795,38 @@ sub build_where_conditions {
         {
             if (ref $val eq 'ARRAY')
             {
+                # Tags can be ORed together
+                # If tags are ORed together apply the NOT afterwards
+                my @tag_where = ();
                 foreach my $v (@{$val})
                 {
-                    push @where, $self->build_one_where_condition(
+                    push @tag_where, $self->build_one_where_condition(
                         colname=>$col,
                         value=>$v,
-                        not_flag=>$args{not_where}->{$col},
+                        not_flag=>($args{or_where}->{$col}
+                                   ? 0
+                                   : $args{not_where}->{$col}),
                         is_tag=>1,
                         );
+                }
+                if ($args{or_where}->{$col})
+                {
+                    my @tw = ();
+                    foreach my $tc (@tag_where)
+                    {
+                        push @tw, "($tc)";
+                    }
+                    my $all_tw = join(' OR ', @tw);
+                    $all_tw = "($all_tw)";
+                    if ($args{not_where}->{$col})
+                    {
+                        $all_tw = "NOT $all_tw";
+                    }
+                    push @where, $all_tw;
+                }
+                else
+                {
+                    push @where, @tag_where;
                 }
             }
             else
@@ -815,7 +859,10 @@ Take a column, a value, a not-flag, and whether it is a tag,
 and return one SQL condition.
 
     $cond = $self->build_one_where_condition(
-	not_where=>\%not_where);
+            colname=>$colname,
+            value=>$value,
+            not_flag=>$not_flag,
+            is_tag=>$is_tag);
 
 =cut
 sub build_one_where_condition {
