@@ -185,6 +185,7 @@ sub new {
     my $form_id = 'sqls1';
     $self->{where_tag_prefix} ||= 'where_tag_COL_';
     $self->{or_prefix} ||= 'OR_where_COL_';
+    $self->{extra_where_label} ||= 'EXTRA_where';
     $self->{report_template} =<<EOT;
 <div id="${form_id}" class="sqlsearch">
 <!--sqlr_contents-->
@@ -279,6 +280,7 @@ sub search_form {
     my $where_tag_prefix = $self->{where_tag_prefix};
     my $not_prefix = $self->{not_prefix};
     my $or_prefix = $self->{or_prefix};
+    my $extra_where_label = $self->{extra_where_label};
     my $show_label = $self->{show_label};
     my $sort_label = $self->{sort_label};
     my $sort_reversed_prefix = $self->{sort_reversed_prefix};
@@ -384,6 +386,7 @@ EOT
 <input type="hidden" name="form_page" value="${form_page}"/>
 <input type="hidden" name="Table" value="$table"/>
 </p>
+<p><strong>WHERE:</strong> <input type='text' size=60 name='$extra_where_label'/></p>
 <table border="0">
 <tr><td>
 <p>Match by column: use <b>*</b> as a wildcard match,
@@ -619,6 +622,7 @@ sub do_select {
     my $where_tag_prefix = $self->{where_tag_prefix};
     my $not_prefix = $self->{not_prefix};
     my $or_prefix = $self->{or_prefix};
+    my $extra_where_label = $self->{extra_where_label};
     my $show_label = $self->{show_label};
     my $sort_label = $self->{sort_label};
     my $sort_reversed_prefix = $self->{sort_reversed_prefix};
@@ -626,6 +630,7 @@ sub do_select {
     my %where = ();
     my %not_where = ();
     my %or_where = ();
+    my $extra_where = '';
     my @sort_by = ();
     my @sort_r = ();
     my %sort_reverse = ();
@@ -667,6 +672,14 @@ sub do_select {
 		}
 	    }
 	}
+        elsif ($pfield eq $extra_where_label)
+        {
+            my $pval = $self->{cgi}->param($pfield);
+            if ($pval)
+            {
+                $extra_where = $pval;
+            }
+        }
 	elsif ($pfield =~ /^${where_prefix}(.*)/o)
 	{
 	    my $colname = $1;
@@ -765,6 +778,7 @@ sub do_select {
 	where=>\%where,
 	not_where=>\%not_where,
 	or_where=>\%or_where,
+        extra_where=>$extra_where,
 	sort_by=>\@sort_by,
 	sort_reversed=>\%sort_reverse,
 	show=>\@columns,
@@ -847,7 +861,11 @@ sub build_where_conditions {
     }
     if ($args{pre_where})
     {
-        push @where, $args{pre_where};
+        push @where, "($args{pre_where})";
+    }
+    if ($args{extra_where})
+    {
+        push @where, "($args{extra_where})";
     }
 
     return @where;
