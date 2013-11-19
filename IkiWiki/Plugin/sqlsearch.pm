@@ -922,7 +922,14 @@ sub build_one_where_condition {
     {
         my $op = $1;
         my $v = $2;
-        $where = "$col $op " . $self->{dbh}->quote($v);
+        if ($v =~ /^[0-9.]+$/)
+        {
+            $where = "$col $op $v";
+        }
+        else
+        {
+            $where = "$col $op " . $self->{dbh}->quote($v);
+        }
         if ($args{not_flag})
         {
             $where = "NOT ($where)";
@@ -942,6 +949,17 @@ sub build_one_where_condition {
         if ($args{not_flag})
         {
             $where = "NOT $where";
+        }
+    }
+    elsif ($val =~ /^[0-9.]+$/)
+    {
+        if ($args{not_flag})
+        {
+            $where = "NOT ($col = $val)";
+        }
+        else
+        {
+            $where = "$col = $val";
         }
     }
     else
