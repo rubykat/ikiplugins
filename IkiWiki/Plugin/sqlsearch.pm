@@ -633,7 +633,6 @@ sub do_select {
     my $extra_where = '';
     my @sort_by = ();
     my @sort_r = ();
-    my %sort_reverse = ();
     my $form_page = $self->{cgi}->param('form_page');
 
 
@@ -752,7 +751,8 @@ sub do_select {
 	{
 	    if ($sort_r[$i])
 	    {
-		$sort_reverse{$sort_by[$i]} = 1;
+                my $col = $sort_by[$i];
+                $sort_by[$i] = "-$col";
 	    }
 	}
     }
@@ -780,7 +780,6 @@ sub do_select {
 	or_where=>\%or_where,
         extra_where=>$extra_where,
 	sort_by=>\@sort_by,
-	sort_reversed=>\%sort_reverse,
 	show=>\@columns,
 	limit=>$limit,
 	page=>$page,
