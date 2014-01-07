@@ -8,11 +8,24 @@ use warnings;
 use strict;
 use IkiWiki 3.00;
 use Data::Handle;
+use Text::NeatTemplate;
 
 sub import {
 	hook(type => "getsetup", id => "jssearchfield", call => \&getsetup);
 	hook(type => "preprocess", id => "jssearchfield", call => \&preprocess);
+	hook(type => "format", id => "jssearchfield", call => \&format);
+        IkiWiki::loadplugin("field");
 }
+
+# ------------------------------------------------------------
+# Globals
+# ----------------------------
+
+my %PagesJS = ();
+
+# ------------------------------------------------------------
+# Hooks
+# ----------------------------
 
 sub getsetup () {
 	return
@@ -35,11 +48,37 @@ sub preprocess (@) {
     }
 }
 
+sub format (@) {
+    my %params=@_;
+    my $content=$params{content};
+    my $page=$params{page};
+
+    # don't add the javascript if there isn't any
+    if (!exists $PagesJS{$page}
+        or !$PagesJS{$page})
+    {
+	return $content;
+    }
+    # if there is no </head> tag then we're probably in preview mode
+    if (index($content, '</head>') < 0)
+    {
+	return $content;
+    }
+
+    my $scripting = $PagesJS{$page};
+
+    # add the CSS and Javascript at the end of the head section
+    $content=~s!(</head>)!${scripting}$1!s;
+
+    return $content;
+} # format
+
 # ------------------------------------------------------------
 # Private Functions
 # ----------------------------
 sub set_up_search {
     my %params=@_;
+    my $master_page=$params{page};
     my $page=$params{page};
 
     my $pages=$params{pages};
@@ -54,14 +93,20 @@ sub set_up_search {
 	return '';
     }
 
+    my $result_tag = ($params{result_tag} ? $params{result_tag} : 'span');
     my @fields = split(' ', $fields);
     my @tagfields = ($params{tagfields}
 	? split(' ', $params{tagfields})
 	: ());
+    my @sortfields = ($params{sortfields}
+	? split(' ', $params{sortfields})
+	: ());
     my %is_tagfield = ();
+    my %is_numeric_tagfield = ();
     foreach my $tag (@tagfields)
     {
 	$is_tagfield{$tag} = 1;
+	$is_numeric_tagfield{$tag} = 0;
     }
 
     # The Javascript.
@@ -76,14 +121,16 @@ sub set_up_search {
     $tvars{formid} = ($params{formid} ? $params{formid} : 'jssearchfield');
 
     $tvars{fields_as_html} = '';
+    $tvars{fields_match} = '';
     foreach my $fn (@fields)
     {
 	if ($fn ne 'url' and $fn ne 'title')
 	{
+            my $label = "<span class='label'>$fn: </span>";
 	    $tvars{fields_as_html} .=<<EOT;
 	if (typeof this.$fn != 'undefined' && this.$fn != 'NONE')
 	{
-	    out = out + "<span class=\\"result-$fn\\">";
+	    out = out + "<$result_tag class=\\"result-$fn\\">$label<span class='value'>";
 	    if (\$.isArray(this.$fn))
 	    {
 		for (var x = 0; x < this.$fn.length; x++)
@@ -102,15 +149,10 @@ sub set_up_search {
 	    {
 		out = out + this.$fn;
 	    }
-	    out = out + "</span>\\n";
+	    out = out + "</span></$result_tag>\\n";
 	}
 EOT
 	}
-    }
-
-    $tvars{fields_match} = '';
-    foreach my $fn (@fields)
-    {
 	my $match_fn = ($is_tagfield{$fn}
 	    ? "field_equals"
 	    : "field_does_match");
@@ -134,8 +176,10 @@ EOT
     }
 
     # the array of records
+    my $count = 0;
     $tvars{records} = '';
     my %tagsets = ();
+    my $total = @matching_pages;
     for (my $i = 0; $i < @matching_pages; $i++)
     {
 	my $pn = $matching_pages[$i];
@@ -150,43 +194,65 @@ EOT
 	{
 	    $tagsets{$fn} = {} if ($is_tagfield{$fn} and !exists $tagsets{$fn});
 	    my $val = IkiWiki::Plugin::field::field_get_value($fn, $pn);
+            my @val_array = ();
 	    if (ref $val eq 'ARRAY')
 	    {
-		my @vals = ();
-		foreach my $v (@{$val})
-		{
-		    $v =~ s/"/'/g;
-		    push @vals, '"'.$v.'"';
-		    if ($is_tagfield{$fn})
-		    {
-			$tagsets{$fn}{$v} = 0 if !exists $tagsets{$fn}{$v};
-			$tagsets{$fn}{$v}++;
-		    }
-		}
-		$tvars{records} .= $fn.':['.join(',', @vals).'],';
+		@val_array = @{$val};
 	    }
 	    elsif ($val)
 	    {
-		$val =~ s/"/'/g;
-		$tvars{records} .= $fn.':"'.$val.'",';
-		if ($is_tagfield{$fn})
-		{
-		    $tagsets{$fn}{$val} = 0 if !exists $tagsets{$fn}{$val};
-		    $tagsets{$fn}{$val}++;
-		}
+                push @val_array, $val;
 	    }
 	    else # value is null
 	    {
 		$val = "NONE";
-		$tvars{records} .= $fn.':"'.$val.'",';
-		if ($is_tagfield{$fn})
-		{
-		    $tagsets{$fn}{$val} = 0 if !exists $tagsets{$fn}{$val};
-		    $tagsets{$fn}{$val}++;
-		}
+                push @val_array, $val;
 	    }
+            if (@val_array >= 1)
+            {
+                my @vals = ();
+		foreach my $v (@val_array)
+		{
+		    $v =~ tr{"}{'};
+                    if ($v =~ /^[\.\d]+$/)
+                    {
+                        push @vals, $v;
+                        if ($is_tagfield{$fn})
+                        {
+                            $is_numeric_tagfield{$fn} = 1;
+                        }
+                    }
+                    else
+                    {
+		        push @vals, '"'.$v.'"';
+                        if ($is_tagfield{$fn} and $v ne 'NONE')
+                        {
+                            $is_numeric_tagfield{$fn} = 0;
+                        }
+                    }
+		    if ($is_tagfield{$fn})
+		    {
+                        if (!exists $tagsets{$fn}{$v})
+                        {
+                            $tagsets{$fn}{$v} = 0;
+                            $tagsets{$fn}{"!$v"} = $total;
+                        }
+			$tagsets{$fn}{$v}++;
+			$tagsets{$fn}{"!$v"}--;
+		    }
+		}
+                if (@vals > 1)
+                {
+                    $tvars{records} .= $fn.':['.join(',', @vals).'],';
+                }
+                else
+                {
+                    $tvars{records} .= $fn.':'.$vals[0].',';
+                }
+            }
 	}
 	$tvars{records} .= "});\n";
+        $count++;
     } # for matching_pages
 
     # and the tagsets
@@ -207,59 +273,117 @@ EOT
     }
 
     # The search form
-    $tvars{search_fields} = '';
+    my $search_fields = '';
     foreach my $fn (@fields)
     {
-	$tvars{search_fields} .= "<tr><td class='label'>$fn:</td><td class='q-$fn'>";
+	$search_fields .= "<tr><td class='label'>$fn:</td><td class='q-$fn'>";
 	if ($is_tagfield{$fn})
 	{
 	    my $null_tag = delete $tagsets{$fn}{"NONE"}; # show nulls separately
+	    my $not_null_tag = delete $tagsets{$fn}{"!NONE"};
 	    my @tagvals = keys %{$tagsets{$fn}};
-	    @tagvals = sort @tagvals;
+            @tagvals = grep {! /^!/} @tagvals;
+            if ($is_numeric_tagfield{$fn})
+            {
+	        @tagvals = sort { $a <=> $b } @tagvals;
+            }
+            else
+            {
+	        @tagvals = sort @tagvals;
+            }
 	    my $num_tagvals = int @tagvals;
 
-	    $tvars{search_fields} .=<<EOT;
-<div class="tagcoll"><span class="toggle">&#9654;</span>
-<span class="count">(tags: $num_tagvals)</span>
+	    $search_fields .=<<EOT;
+<div class="tagcoll"><span class="toggle"><span class="togglearrow">&#9654;</span>
+<span class="count">(tags: $num_tagvals)</span></span>
 <div class="taglists">
 <ul class="taglist">
 EOT
+            # first do the positives
 	    foreach my $tag (@tagvals)
 	    {
-		$tvars{search_fields} .=<<EOT;
+		$search_fields .=<<EOT;
 <li><input name="$fn" type='checkbox' value="$tag" />
 <label for="$fn">$tag ($tagsets{$fn}{$tag})</label></li>
 EOT
 	    }
 	    if ($null_tag)
 	    {
-		$tvars{search_fields} .=<<EOT;
+		$search_fields .=<<EOT;
 <li><input name="$fn" type='checkbox' value="NONE" />
 <label for="$fn">NONE ($null_tag)</label></li>
 EOT
 	    }
-	    $tvars{search_fields} .= "</ul></div></div>\n";
+
+            # next do the negatives
+	    $search_fields .=<<EOT;
+</ul>
+<ul class="taglist taglist2">
+EOT
+	    foreach my $tag (@tagvals)
+	    {
+		$search_fields .=<<EOT;
+<li><input name="$fn" type='checkbox' value="!$tag" />
+<label for="$fn">!$tag ($tagsets{$fn}{"!$tag"})</label></li>
+EOT
+	    }
+	    if ($not_null_tag)
+	    {
+		$search_fields .=<<EOT;
+<li><input name="$fn" type='checkbox' value="!NONE" />
+<label for="$fn">!NONE ($not_null_tag)</label></li>
+EOT
+	    }
+	    $search_fields .= "</ul></div></div>\n";
 	}
 	else
 	{
-	    $tvars{search_fields} .=<<EOT
+	    $search_fields .=<<EOT
 <input type="text" name="$fn" size="60"/>
 EOT
 	}
-	$tvars{search_fields} .= "</td></tr>\n";
+	$search_fields .= "</td></tr>\n";
+    }
+
+    # The sort form
+    my $sort_fields = '';
+    foreach my $fn (@sortfields)
+    {
+        $sort_fields .=<<EOT;
+<input name="sort" type="radio" value="$fn"/><label for="sort">$fn</label>
+EOT
     }
 
     my $handle = Data::Handle->new( __PACKAGE__ );
     my $t = HTML::Template->new(filehandle => $handle);
-    my @parameter_names = $t->param();
-    foreach my $field (@parameter_names)
-    {
-	if ($tvars{$field})
-	{
-	    $t->param($field => $tvars{$field});
-	}
-    }
-    return $t->output();
+    $t->param(%tvars);
+    my $js = $t->output();
+    $PagesJS{$master_page} = $js;
+
+    # restrict the output to the actual search field
+    # as the javascript above is going into the <head> section
+    my $out =<<EOT;
+<p>Search through ${total} records.</p>
+<form id="$tvars{formid}" name="search" action="" method="get">
+<table>
+${search_fields}
+</table>
+<span class="label">Sort:</span>
+<input name="sort" type="radio" value="default" checked="yes"/><label for="sort">default</label>
+<input name="sort" type="radio" value="random"/><label for="sort">random</label>
+${sort_fields}
+<input type="submit" value="Search!" name="search" />
+<input type="reset" value="Reset" name="reset" />
+</form>
+<div id="message"></div>
+
+<script type='text/javascript'>
+<!--
+initForm();
+//-->
+</script>
+EOT
+    return $out;
 } # set_up_search
 
 1;
@@ -271,12 +395,74 @@ __DATA__
 ERR_NoSearchTerms	= "You didn't enter any terms to search for, please enter some terms to search for and try again.";
 ERR_NoResults		= "Your search found no results.";
 
+debug = function (log_txt) {
+    if (window.console != undefined) {
+        console.log(log_txt);
+    }
+}
+
 // To sort an array in random order
 Array.prototype.shuffle = function() {
 var s = [];
 while (this.length) s.push(this.splice(Math.random() * this.length, 1));
 while (s.length) this.push(s.pop());
 return this;
+}
+
+// sort by a field name
+function sortResults(results,fn) {
+    results.sort(function(a,b){
+        return (fieldCompare(searchDB[a][fn], searchDB[b][fn]));
+    });
+    return results;
+}
+
+// Comparison function returns -1, 0 or 1
+// With Null values at the end (high)
+function fieldCompare(valueA,valueB) {
+    if (typeof valueB == 'undefined'
+	|| valueB.length == 0)
+    {
+        if (typeof valueA == 'undefined'
+            || valueA.length == 0)
+        {
+            return 0; // nulls equal each other
+        }
+        else
+        {
+            return -1;
+        }
+    }
+    else if (typeof valueA == 'undefined'
+        || valueA.length == 0)
+    {
+	return 1;
+    }
+
+    var aVal = valueA;
+    var bVal = valueB;
+    if (typeof valueA == 'object')
+    {
+        aVal = '';
+        for (var x = 0; x < valueA.length; x++) {
+            aVal = aVal + valueA[x];
+        };
+    }
+    if (typeof valueB == 'object')
+    {
+        bVal = '';
+        for (var x = 0; x < valueB.length; x++) {
+            bVal = bVal + valueB[x];
+        };
+    }
+    if (typeof aVal == 'number' && typeof bVal == 'number')
+    {
+        return (aVal - bVal);
+    }
+    else
+    {
+        return ((aVal < bVal) ? -1 : ((aVal > bVal) ? 1 : 0));
+    }
 }
 
 // Constructor for each search engine item.
@@ -302,19 +488,79 @@ searchRec.prototype.field_equals = function(fn,val) {
     {
 	return false;
     }
-    else if (typeof this[fn] == 'object')
+
+    // starts with ! means NOT match
+    var neg = val.indexOf('!'); 
+    if (neg == 0)
     {
-	for (var x = 0; x < this[fn].length; x++) {
-	    if (this[fn][x] == val)
-	    {
-		return true;
-	    }
-	};
+	var negval = val.substring(neg+1);
+        return !this.field_equals(fn,negval);
+    }
+    else
+    {
+        if (typeof this[fn] == 'object')
+        {
+            for (var x = 0; x < this[fn].length; x++) {
+                if (this[fn][x] == val)
+                {
+                    return true;
+                }
+            };
+            return false;
+        }
+        else if (this[fn] == val)
+        {
+            return true;
+        }
+    }
+    return false;
+}
+
+searchRec.prototype.field_cmp = function(fn,val,lessthan) {
+    if (typeof val == 'undefined'
+	|| val.length == 0)
+    {
 	return false;
     }
-    else if (this[fn] == val)
+    else if (typeof this[fn] == 'undefined')
     {
-	return true;
+	return false;
+    }
+
+    // starts with ! means NOT match
+    var neg = val.indexOf('!'); 
+    // starts with = means "or equals"
+    if (neg == 0)
+    {
+	var negval = val.substring(neg+1);
+        return !this.field_cmp(fn,negval,lessthan);
+    }
+    else
+    {
+        var eq = val.indexOf('=');
+        var orequals = (eq == 0);
+	var eqval = val.substring(eq+1);
+
+        if (typeof this[fn] == 'object')
+        {
+            for (var x = 0; x < this[fn].length; x++) {
+                if ((lessthan && orequals && this[fn][x] <= eqval)
+                    || (lessthan && !orequals && this[fn][x] < val)
+                    || (!lessthan && orequals && this[fn][x] >= eqval)
+                    || (!lessthan && !orequals && this[fn][x] > val))
+                {
+                    return true;
+                }
+            };
+            return false;
+        }
+        else if ((lessthan && orequals && this[fn] <= eqval)
+                 || (lessthan && !orequals && this[fn] < val)
+                 || (!lessthan && orequals && this[fn] >= eqval)
+                 || (!lessthan && !orequals && this[fn] > val))
+        {
+            return true;
+        }
     }
     return false;
 }
@@ -356,16 +602,44 @@ searchRec.prototype.field_does_match = function(fn,qval) {
     {
 	return false;
     }
-    var pos = qval.indexOf('='); 
-    if (pos == 0) // starts with equals
+    // starts with ! means NOT match
+    var neg = qval.indexOf('!'); 
+    if (neg == 0)
     {
-	var eqval = qval.substring(pos+1);
-	return this.field_equals(fn,eqval);
+	var negval = qval.substring(neg+1);
+        return !this.field_does_match(fn,negval);
     }
     else
     {
-	var regex = new RegExp(qval,"i");
-	return this.field_matches(fn,regex);
+        var pos = qval.indexOf('='); 
+        if (pos == 0) // starts with equals
+        {
+            var eqval = qval.substring(pos+1);
+            return this.field_equals(fn,eqval);
+        }
+        else
+        {
+            pos = qval.indexOf('<'); 
+            if (pos == 0) // starts with lessthan
+            {
+                var cmpval = qval.substring(pos+1);
+                return this.field_cmp(fn,cmpval,true);
+            }
+            else
+            {
+                pos = qval.indexOf('>'); 
+                if (pos == 0) // starts with lessthan
+                {
+                    var cmpval = qval.substring(pos+1);
+                    return this.field_cmp(fn,cmpval,false);
+                }
+                else
+                {
+                    var regex = new RegExp(qval,"i");
+                    return this.field_matches(fn,regex);
+                }
+            }
+        }
     }
     return false;
 }
@@ -506,6 +780,14 @@ function doSearch (query) {
 	    {
 		results.shuffle();
 	    }
+            else if (query['sort'] == 'default')
+            {
+                // no sort
+            }
+            else if (query['sort'].length > 0)
+            {
+                results = sortResults(results,query['sort']);
+            }
 	    return results;
 	}
 	else {
@@ -527,7 +809,7 @@ function query_from_form() {
     return false;
 }
 
-function filterTaglist(fn,results) {
+function filterTaglist(fn,results,query) {
     tagset = new Object();
     var tcount = 0;
     for (ri=0;ri < results.length;ri++)
@@ -542,10 +824,12 @@ function filterTaglist(fn,results) {
 		{
 		    tagset[vv] = 1;
 		    tcount++;
+                    tagset["!"+vv] = (results.length - 1);
 		}
 		else
 		{
 		    tagset[vv]++;
+                    tagset["!"+vv]--;
 		}
 	    }
 	}
@@ -555,10 +839,49 @@ function filterTaglist(fn,results) {
 	    {
 		tagset[val] = 1;
 		tcount++;
+                tagset["!"+val] = (results.length - 1);
 	    }
 	    else
 	    {
 		tagset[val]++;
+		tagset["!"+val]--;
+	    }
+	}
+    }
+    // need to include the query field if a value was negative
+    if (typeof query[fn] != 'undefined')
+    {
+        val = query[fn];
+	if (is_array(val))
+	{
+	    for (j=0;j < val.length;j++)
+	    {
+		vv = val[j];
+                var neg = vv.indexOf('!'); 
+                if (neg == 0)
+                {
+                    var negval = vv.substring(neg+1);
+                    if (typeof tagset[negval] == 'undefined')
+                    {
+                        tagset[negval] = 0;
+                        tcount++;
+                        tagset["!"+negval] = (results.length);
+                    }
+                }
+	    }
+	}
+	else
+	{
+            var neg = val.indexOf('!'); 
+            if (neg == 0)
+            {
+                var negval = val.substring(neg+1);
+                if (typeof tagset[negval] == 'undefined')
+                {
+                    tagset[negval] = 0;
+                    tcount++;
+                    tagset["!"+negval] = (results.length);
+                }
 	    }
 	}
     }
@@ -584,12 +907,13 @@ function filterTaglist(fn,results) {
 function initForm() {
     $("#<TMPL_VAR FORMID> .tagcoll .taglists").hide();
     $("#<TMPL_VAR FORMID> .tagcoll .toggle").click(function(){
-	tl = $(this).siblings(".taglists");
+	var tl = $(this).siblings(".taglists");
+        var lab = $(this).children(".togglearrow");
 	if (tl.is(":hidden")) {
-	    this.innerHTML = "&#9660;"
+	    lab[0].innerHTML = "&#9660;"
 	    tl.show();
 	} else {
-	    this.innerHTML = "&#9654;"
+	    lab[0].innerHTML = "&#9654;"
 	    tl.hide();
 	}
     });
@@ -601,7 +925,7 @@ function initForm() {
 	}
 	for (i=0;i<tagFields.length;i++)
 	{
-	    filterTaglist(tagFields[i],results);
+	    filterTaglist(tagFields[i],results,query);
 	}
     });
     var search_form = document.getElementById('<TMPL_VAR FORMID>');
@@ -645,22 +969,5 @@ searchDB = new Array();
 <TMPL_IF TAGSETS>
 <TMPL_VAR TAGSETS>
 </TMPL_IF>
-//-->
-</script>
-<form id="<TMPL_VAR FORMID>" name="search" action="" method="get">
-<table>
-<TMPL_VAR SEARCH_FIELDS>
-</table>
-<span class="label">Sort:</span>
-<input name="sort" type="radio" value="default" checked="yes"/><label for="sort">default</label>
-<input name="sort" type="radio" value="random"/><label for="sort">random</label>
-<input type="submit" value="Search!" name="search" />
-<input type="reset" value="Reset" name="reset" />
-</form>
-<div id="message"></div>
-
-<script type='text/javascript'>
-<!--
-initForm();
 //-->
 </script>

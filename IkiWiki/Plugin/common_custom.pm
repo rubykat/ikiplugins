@@ -216,6 +216,17 @@ sub get_common_var ($$;@) {
     {
 	$value = pagetype($pagesources{$page});
     }
+    elsif ($field_name eq 'page_ext')
+    {
+	if ($page =~ /\.(\w+)$/)
+        {
+            $value = $1;
+        }
+        else
+        {
+            $value = pagetype($pagesources{$page});
+        }
+    }
     elsif ($field_name eq 'grandparent_page')
     {
 	if ($page =~ m{^(.*)/[-\.\w]+/[-\.\w]+$}o)
