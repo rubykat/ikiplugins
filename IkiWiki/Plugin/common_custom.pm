@@ -137,7 +137,6 @@ sub my_htmllink ($$$;@) {
 	}
 	
 	$bestlink=IkiWiki::abs2rel($bestlink, IkiWiki::dirname(htmlpage($page)));
-	$bestlink=IkiWiki::beautify_urlpath($bestlink);
 	
 	if (! $opts{noimageinline} && IkiWiki::isinlinableimage($bestlink)) {
 		return "<img src=\"$bestlink\" alt=\"$linktext\" />";
