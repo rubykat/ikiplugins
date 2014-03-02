@@ -386,7 +386,8 @@ EOT
 <input type="hidden" name="form_page" value="${form_page}"/>
 <input type="hidden" name="Table" value="$table"/>
 </p>
-<p><strong>WHERE:</strong> <input type='text' size=60 name='$extra_where_label'/></p>
+<p><strong>WHERE:</strong><br />
+<textarea name="$extra_where_label" cols=60 rows=8></textarea></p>
 <table border="0">
 <tr><td>
 <p>Match by column: use <b>*</b> as a wildcard match,
