@@ -802,6 +802,10 @@ sub build_where_conditions {
     my %args = @_;
 
     my @where = ();
+    if ($args{pre_where})
+    {
+        push @where, "($args{pre_where})";
+    }
     if (ref $args{where} eq 'HASH')
     {
         while (my ($col, $val) = each(%{$args{where}}))
@@ -857,10 +861,6 @@ sub build_where_conditions {
     {
         $args{where} =~ s/;//g; # crude prevention of injection
         $where[0] = $args{where};
-    }
-    if ($args{pre_where})
-    {
-        push @where, "($args{pre_where})";
     }
     if ($args{extra_where})
     {
