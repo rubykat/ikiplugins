@@ -289,6 +289,11 @@ EOT
 	{
 	    my $fn = $fields[$i];
 	    my $val = ($nopagecolumn ? $row[$i] : $row[$i+1]);
+            if ($val)
+            {
+                $val =~ s/\n/ /sg; # remove blank lines
+                $val =~ s/\s$//s; #remove trailing blanks
+            }
             my @val_array = ();
 	    if ($val and index($val, '|') >= 0)
 	    {
