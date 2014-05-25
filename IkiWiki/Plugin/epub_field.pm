@@ -154,7 +154,7 @@ sub parse_one_node {
 	foreach my $att (@atts)
 	{
 	    my $n = $att->localname;
-	    my $v = $att->textContent;
+	    my $v = $att->value;
 	    $v =~ s/^\s+//s;
 	    $v =~ s/\s+$//s;
 	    if ($n eq 'name')
@@ -175,7 +175,7 @@ sub parse_one_node {
 	foreach my $att (@atts)
 	{
 	    my $n = $att->localname;
-	    my $v = $att->textContent;
+	    my $v = $att->value;
 	    $v =~ s/^\s+//s;
 	    $v =~ s/\s+$//s;
 	    $newvals{$name}->{$n} = $v;
