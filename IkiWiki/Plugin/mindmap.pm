@@ -72,7 +72,8 @@ sub do_filter (%) {
     if (defined $page_type)
     {
         # Look for a "mindmap" list, and create a graphviz directive for it.
-        $params{content} =~ s/\n[*]\s*mindmap\n(.*?)\n\n/create_mindmap($1,$page)/sieg;
+        $params{content} =~ s/\n[*]\s*mindmap\s*\((.*?)\)\n(.*?)\n\n/create_mindmap($page,$2,$1)/sieg;
+        $params{content} =~ s/\n[*]\s*mindmap\n(.*?)\n\n/create_mindmap($page,$1)/sieg;
     }
 
     return $params{content};
@@ -233,12 +234,14 @@ sub listprefix ($)
     ($term, $rest_of_line, $number);
 }    # listprefix
 
-sub create_mindmap ($$) {
-    my $string = shift;
+sub create_mindmap ($$;$) {
     my $page = shift;
+    my $string = shift;
+    my $prog = (@_ ? shift : 'dot');
 
     my $map =<<EOT;
 [[!graph
+prog=$prog
 src="""
 graph [ aspect = 2 ];
 node [ fontsize = 10 ];
