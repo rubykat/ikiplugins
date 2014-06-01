@@ -243,7 +243,6 @@ sub create_mindmap ($$;$) {
 [[!graph
 prog=$prog
 src="""
-graph [ aspect = 2 ];
 node [ fontsize = 10 ];
 edge [ color = grey30 ];
 EOT
