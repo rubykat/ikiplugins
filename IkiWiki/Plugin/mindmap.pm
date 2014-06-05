@@ -243,6 +243,7 @@ sub create_mindmap ($$;$) {
 [[!graph
 prog=$prog
 src="""
+rankdir=LR;
 node [ fontsize = 10 ];
 edge [ color = grey30 ];
 EOT
