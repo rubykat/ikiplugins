@@ -336,11 +336,13 @@ sub do_report {
 	prev_file=>'',
 	next_file=>'',
         report_class=>'report',
+        report_div=>'div',
 	@_
     );
     my $table = $args{table};
     my $command = $args{command};
     my $report_class = $args{report_class};
+    my $report_div = $args{report_div};
     my @headers = (ref $args{headers} ? @{$args{headers}}
 	: split(/\|/, $args{headers}));
     my @groups = (ref $args{groups} ? @{$args{groups}}
@@ -374,12 +376,20 @@ sub do_report {
 	groups=>\@groups,
 	);
     $self->do_depends(%args);
-    if ($out and $report_class)
+    if ($out and $report_div and $report_class)
     {
         $out =<<EOT;
-<div class="$report_class">
+<$report_div class="$report_class">
 $out
-</div>
+</$report_div>
+EOT
+    }
+    elsif ($out and $report_div)
+    {
+        $out =<<EOT;
+<$report_div>
+$out
+</$report_div>
 EOT
     }
     return $out;
