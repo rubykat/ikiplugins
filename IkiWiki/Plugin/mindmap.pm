@@ -237,7 +237,56 @@ sub listprefix ($)
 sub create_mindmap ($$;$) {
     my $page = shift;
     my $string = shift;
-    my $prog = (@_ ? shift : 'dot');
+
+    my $params = (@_ ? shift : '');
+    my %params;
+    while ($params =~ m{
+        (?:([-.\w]+)=)?		# 1: named parameter key?
+        (?:
+         """(.*?)"""	# 2: triple-quoted value
+         |
+         "([^"]*?)"	# 3: single-quoted value
+         |
+         '''(.*?)'''     # 4: triple-single-quote
+         |
+         <<([a-zA-Z]+)\n # 5: heredoc start
+         (.*?)\n\5	# 6: heredoc value
+         |
+         (\S+)		# 7: unquoted value
+        )
+            (?:\s+|$)		# delimiter to next param
+    }msgx) {
+        my $key=$1;
+        my $val;
+        if (defined $2) {
+            $val=$2;
+            $val=~s/\r\n/\n/mg;
+            $val=~s/^\n+//g;
+            $val=~s/\n+$//g;
+        }
+        elsif (defined $3) {
+            $val=$3;
+        }
+        elsif (defined $4) {
+            $val=$4;
+        }
+        elsif (defined $7) {
+            $val=$7;
+        }
+        elsif (defined $6) {
+            $val=$6;
+        }
+
+        if (defined $key) {
+            $params{$key} = $val;
+        }
+        else {
+            $params{$val} = '';
+        }
+    }
+
+    my $prog = (exists $params{'prog'} ? $params{'prog'} : 'dot');
+    $params{top} = 'Mindmap' if !defined $params{top};
 
     my $map =<<EOT;
 [[!graph
@@ -254,7 +303,7 @@ EOT
     my @ret = parse_lines(\@lines, \%terms, \%xref, \%inverted, 0, '');
     my %derived = derive_xrefs(\%terms, \%inverted);
     $map .= start_map(\%terms);
-    $map .= build_map_levels(\@ret, 0);
+    $map .= build_map_levels(\@ret, 0, %params);
     $map .= build_xrefs(\%xref, 'blue3');
     $map .= build_xrefs(\%derived, 'green3');
 
@@ -344,16 +393,17 @@ sub build_xrefs {
     return $map;
 } # end_map
 
-sub build_map_levels ($$);
+sub build_map_levels ($$;%);
 
-sub build_map_levels ($$) {
+sub build_map_levels ($$;%) {
     my $list_ref = shift;
     my $level = shift;
+    my %params = @_;
 
     my $map = '';
 
     my $ordered_colour = 'red3';
-    my $top = "Mindmap";
+    my $top = $params{top};
     for (my $i = 0; $i < @{$list_ref}; $i++)
     {
         my $item = $list_ref->[$i];
@@ -363,7 +413,10 @@ sub build_map_levels ($$) {
         if ($level == 0)
         {
             $map .= '"' . $term . '"' . " [ fontsize = 14 ];\n";
-            $map .= '"' . $top . '" -> "' . $term . '"' . ";\n";
+            if ($top)
+            {
+                $map .= '"' . $top . '" -> "' . $term . '"' . ";\n";
+            }
         }
         # do child-items
         if ($item->{children})
@@ -392,7 +445,7 @@ sub build_map_levels ($$) {
                     $map .= '"' . $term . '" -> "' . $child->{term} . '"' . ";\n";
                 }
             }
-            $map .= build_map_levels($item->{children}, $level + 1);
+            $map .= build_map_levels($item->{children}, $level + 1, %params);
         }
     }
 
