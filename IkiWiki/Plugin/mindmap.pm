@@ -83,7 +83,7 @@ sub do_filter (%) {
 # Private functions
 # --------------------------------
 
-my $DEBUG = '';
+my $DEBUG = 1;
 
 my @X11_colours = (qw(
 GhostWhite
@@ -1036,7 +1036,7 @@ sub start_map ($) {
         my $bg = $terms_ref->{$term}->{bg};
         my @nodeargs = ();
         push @nodeargs, "fontcolor = $fg" if $fg;
-        push @nodeargs, "bgcolor = $bg" if $bg;
+        push @nodeargs, "fillcolor = $bg, style = filled" if $bg;
         my $line = $terms_ref->{$term}->{line};
         if ($term ne $line)
         {
@@ -1138,17 +1138,17 @@ sub parse_X11_colours ($) {
     my $bg = '';
     my $rest_of_line = $line;
 
-    my $cmatch = '%(' . join('|', @X11_colours) . ')%';
-    if ($line =~ /${cmatch}\/${cmatch}/)
+    my $cmatch = '(' . join('|', @X11_colours) . ')';
+    if ($line =~ /%${cmatch}\/${cmatch}%/)
     {
         $fg = $1;
         $bg = $2;
-        $rest_of_line =~ s/${cmatch}\${cmatch}//;
+        $rest_of_line =~ s/%${cmatch}\/${cmatch}%//;
     }
-    elsif ($line =~ /${cmatch}/)
+    elsif ($line =~ /%${cmatch}%/)
     {
         $fg = $1;
-        $rest_of_line =~ s/${cmatch}//;
+        $rest_of_line =~ s/%${cmatch}%//;
     }
     return ($fg, $bg, $rest_of_line);
 } # parse_X11_colours
