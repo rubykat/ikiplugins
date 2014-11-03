@@ -83,7 +83,7 @@ sub do_filter (%) {
 # Private functions
 # --------------------------------
 
-my $DEBUG = 1;
+my $DEBUG = '';
 
 my @X11_colours = (qw(
 GhostWhite
@@ -744,6 +744,8 @@ DarkRed
 LightGreen
 ));
 
+my $X11_col_match = '(' . join('|', @X11_colours) . ')';
+
 sub parse_lines ($$$$$$);
 
 sub parse_lines ($$$$$$) {
@@ -775,10 +777,7 @@ sub parse_lines ($$$$$$) {
             $this_line = shift @{$lines_ref};
             $this_line =~ tr{"}{'};
 
-            my ($term, $rest_of_line, $number) = listprefix($this_line);
-            my $fg;
-            my $bg;
-            ($fg, $bg, $rest_of_line) = parse_X11_colours($rest_of_line);
+            my ($term, $rest_of_line, $number, $fg, $bg) = listprefix($this_line);
             while ($rest_of_line =~ /\(See ([-\s\w]+)\)/)
             {
                 my $xref = $1;
@@ -856,6 +855,8 @@ sub listprefix ($)
 
     my ($number, $term);
     my $rest_of_line = $line;
+    my $fg = '';
+    my $bg = '';
 
     my $bullets         = '*';
     my $bullets_ordered = '';
@@ -893,16 +894,29 @@ sub listprefix ($)
         ($term)   = $rest_of_line =~ /^\s*${term_match}:/;
         $rest_of_line =~ s/^\s*${term_match}:\s*//;
     }
+
+    if ($rest_of_line =~ /%${X11_col_match}\/${X11_col_match}%/)
+    {
+        $fg = $1;
+        $bg = $2;
+        $rest_of_line =~ s/%${X11_col_match}\/${X11_col_match}%//;
+    }
+    elsif ($rest_of_line =~ /%${X11_col_match}%/)
+    {
+        $fg = $1;
+        $rest_of_line =~ s/%${X11_col_match}%//;
+    }
+
     if (!$term)
     {
         $term = $rest_of_line;
     }
-    ($term, $rest_of_line, $number);
+    ($term, $rest_of_line, $number, $fg, $bg);
 }    # listprefix
 
 sub create_mindmap ($$;$) {
     my $page = shift;
-    my $string = shift;
+    my $list_str = shift;
 
     my $params = (@_ ? shift : '');
     my %params;
@@ -962,7 +976,7 @@ rankdir=LR;
 node [ fontsize = 10 ];
 edge [ color = grey30 ];
 EOT
-    my @lines       = split(/^/, $string);
+    my @lines       = split(/^/, $list_str);
     my %terms = ();
     my %xref = ();
     my %inverted = ();
@@ -977,10 +991,14 @@ EOT
 """]]
 EOT
 
-    my $dump = Dump(\@ret);
-    my $out = "\n\n" . $string . "\n\n" . $map . "\n\n";
+    # remove the colours from the list
+    $list_str =~ s/%${X11_col_match}\/${X11_col_match}%//g;
+    $list_str =~ s/%${X11_col_match}%//g;
+    
+    my $out = "\n\n" . $list_str . "\n\n" . $map . "\n\n";
     if ($DEBUG)
     {
+        my $dump = Dump(\@ret);
         $out .= "<pre>\\$map\n\n$dump\n\n$DEBUG</pre>\n\n";
     }
     return $out;
@@ -1130,27 +1148,5 @@ sub build_map_levels ($$;%) {
 
     return $map;
 } # build_map_levels
-
-sub parse_X11_colours ($) {
-    my $line = shift;
-
-    my $fg = '';
-    my $bg = '';
-    my $rest_of_line = $line;
-
-    my $cmatch = '(' . join('|', @X11_colours) . ')';
-    if ($line =~ /%${cmatch}\/${cmatch}%/)
-    {
-        $fg = $1;
-        $bg = $2;
-        $rest_of_line =~ s/%${cmatch}\/${cmatch}%//;
-    }
-    elsif ($line =~ /%${cmatch}%/)
-    {
-        $fg = $1;
-        $rest_of_line =~ s/%${cmatch}%//;
-    }
-    return ($fg, $bg, $rest_of_line);
-} # parse_X11_colours
 
 1;
