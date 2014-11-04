@@ -310,7 +310,7 @@ EOT
     my %inverted = ();
     my @ret = parse_lines(\@lines, \%terms, \%xref, \%inverted, 0, '');
     my %legend = extract_legend(\@ret, \%terms, %params);
-    apply_legend(\%terms, \%legend);
+    apply_legend(\%terms, \%legend, \%inverted);
     my %derived = derive_xrefs(\%terms, \%inverted);
     $map .= start_map(\%terms);
     $map .= build_map_levels(\@ret, 0, %params);
@@ -425,6 +425,7 @@ sub extract_legend ($$;%) {
 sub apply_legend {
     my $terms_ref = shift;
     my $legend_ref = shift;
+    my $inverted_ref = shift;
 
     # search for references to Legend terms
     # inside other nodes
@@ -434,11 +435,30 @@ sub apply_legend {
         foreach my $term (sort keys %{$terms_ref})
         {
             my $line = $terms_ref->{$term}->{line};
-            if (($lterm eq $term)
-                or ($line =~ /\b$lterm\b/i))
+            if (($line =~ /\b${lterm}s?\b/i)
+                or ($term =~ /^${lterm}s?$/i)
+                )
             {
                 $terms_ref->{$term}->{fg} = $legend_ref->{$lterm}->{fg};
                 $terms_ref->{$term}->{bg} = $legend_ref->{$lterm}->{bg};
+            }
+        }
+    }
+
+    # make terms have the colours of their parent
+    # if they don't already have a colour
+    foreach my $term (sort keys %{$terms_ref})
+    {
+        my $iterm = $inverted_ref->{$term};
+        if ($iterm and $term and !$terms_ref->{$term}->{fg})
+        {
+            if ($terms_ref->{$iterm}->{fg})
+            {
+                $terms_ref->{$term}->{fg} = $terms_ref->{$iterm}->{fg};
+            }
+            if ($terms_ref->{$iterm}->{bg})
+            {
+                $terms_ref->{$term}->{bg} = $terms_ref->{$iterm}->{bg};
             }
         }
     }
