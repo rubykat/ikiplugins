@@ -45,6 +45,7 @@ use IkiWiki 3.00;
 sub import {
 	hook(type => "getsetup", id => "ymlfront", call => \&getsetup);
 	hook(type => "checkconfig", id => "ymlfront", call => \&checkconfig);
+	hook(type => "needsbuild", id => "ymlfront", call => \&needsbuild);
 	hook(type => "filter", id => "ymlfront", call => \&filter, first=>1);
 	hook(type => "preprocess", id => "ymlfront", call => \&preprocess, scan=>1);
 	hook(type => "scan", id => "ymlfront", call => \&scan);
@@ -101,6 +102,24 @@ sub checkconfig () {
 	$config{ymlfront_set_content} = 0;
     }
 } # checkconfig
+
+# Without this, pages get refreshed with one-refresh-old values of their
+# metadata, found in %pagestate. Or perhaps that only happens for a certain
+# order of scanning pages - but that's not defined or predictable. Also
+# without this, a deleted metadata field never disappears until a rebuild.
+sub needsbuild() {
+	my $chgd = shift;
+	my $deld = shift;
+	for my $fns ( $chgd, $deld ) {
+		for my $fn ( @$fns ) {
+			my $type = pagetype($fn);
+			next unless defined $type;
+			my $page = pagename($fn);
+			undef %{$pagestate{$page}{ymlfront}};
+		}
+	}
+	return;
+}
 
 sub scan (@) {
     my %params=@_;
