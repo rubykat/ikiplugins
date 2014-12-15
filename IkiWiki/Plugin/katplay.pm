@@ -233,7 +233,7 @@ sub katplay_get_value ($$;@) {
         {
             my $tdesc = IkiWiki::Plugin::field::field_get_value('task_description', $page);
             if ($tdesc
-                and $tdesc =~ /present for ([\w-]+)/)
+                and $tdesc =~ /present for\s+(.*)$/)
             {
                 $value = $1
             }
