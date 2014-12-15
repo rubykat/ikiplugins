@@ -212,7 +212,7 @@ sub katplay_get_value ($$;@) {
     {
         if ($field_name eq 'elsewhere')
         {
-            $value = "http://iwww.localhost/fiction/" . $page;
+            $value = "http://localhost/fiction/" . $page;
         }
         elsif ($field_name eq 'category')
         {
@@ -225,6 +225,18 @@ sub katplay_get_value ($$;@) {
         elsif ($field_name eq 'finis')
         {
             $value = 'Complete';
+        }
+    }
+    if ($page =~ /agito/)
+    {
+        if ($field_name eq 'giftee')
+        {
+            my $tdesc = IkiWiki::Plugin::field::field_get_value('task_description', $page);
+            if ($tdesc
+                and $tdesc =~ /present for ([\w-]+)/)
+            {
+                $value = $1
+            }
         }
     }
     return $value;
