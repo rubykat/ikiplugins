@@ -37,6 +37,7 @@ use IkiWiki 3.00;
 use File::Basename;
 use File::Spec;
 use Sort::Naturally;
+use Date::Parse;
 
 my %OrigSubs = ();
 
@@ -48,8 +49,8 @@ sub import {
     IkiWiki::Plugin::field::field_register(id=>'common_custom',
 	get_value=>\&get_common_var);
 
-    $OrigSubs{htmllink} = \&htmllink;
-    inject(name => 'IkiWiki::htmllink', call => \&my_htmllink);
+    ##$OrigSubs{htmllink} = \&htmllink;
+    ##inject(name => 'IkiWiki::htmllink', call => \&my_htmllink);
 }
 
 #-------------------------------------------------------
@@ -303,6 +304,15 @@ sub get_common_var ($$;@) {
             }
         }
         $value = $len if $len;
+    }
+    elsif ($field_name =~ /^([-\w]+)_datetime$/i)
+    {
+        my $fn = $1;
+	my $the_date = IkiWiki::Plugin::field::field_get_value("${fn}_date", $page);
+        if ($the_date)
+        {
+            $value = str2time($the_date);
+        }
     }
     elsif ($field_name =~ /([-\w]+)-sqlescape$/)
     {
