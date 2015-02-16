@@ -10,7 +10,7 @@ use Carp;
 require CGI;
 
 sub import {
-	hook(type => "getopt", id => "tag", call => \&getopt);
+	hook(type => "getopt", id => "swishe", call => \&getopt);
 	hook(type => "getsetup", id => "swishe", call => \&getsetup);
 	hook(type => "checkconfig", id => "swishe", call => \&checkconfig);
 	hook(type => "preprocess", id => "swishe", call => \&preprocess);
