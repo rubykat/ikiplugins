@@ -952,7 +952,7 @@ sub cmp_field {
 
 sub cmp_field_natural {
     my $field = shift;
-    error(gettext("sort=field requires a parameter")) unless defined $field;
+    error(gettext("sort=field_natural requires a parameter")) unless defined $field;
 
     eval {use Sort::Naturally};
     error $@ if $@;
@@ -965,6 +965,26 @@ sub cmp_field_natural {
     $left = join(' ', @{$left}) if ref $left eq 'ARRAY';
     $right = join(' ', @{$right}) if ref $right eq 'ARRAY';
     return Sort::Naturally::ncmp($left, $right);
+}
+
+sub cmp_field_number {
+    my $field = shift;
+    error(gettext("sort=field_number requires a parameter")) unless defined $field;
+
+    error $@ if $@;
+
+    my $left = IkiWiki::Plugin::field::field_get_value($field, $a);
+    my $right = IkiWiki::Plugin::field::field_get_value($field, $b);
+
+    $left = 0 unless defined $left;
+    $right = 0 unless defined $right;
+
+    $left = 0 if ref $left eq 'ARRAY';
+    $right = 0 if ref $right eq 'ARRAY';
+    # Multiply by a hundred to deal with floating-point problems
+    $left = $left * 100;
+    $right = $right * 100;
+    return $left <=> $right;
 }
 
 1;
