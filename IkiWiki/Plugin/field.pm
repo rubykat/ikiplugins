@@ -276,8 +276,7 @@ sub field_get_value ($$;@) {
     # without having to worry about the order in which the fields are defined.
 
     # check the cache in case we've already got this value
-    if (exists $Cache{$page}{$lc_field_name}
-	and defined $Cache{$page}{$lc_field_name})
+    if (defined $Cache{$page}{$lc_field_name})
     {
 	return $Cache{$page}{$lc_field_name};
     }
@@ -660,8 +659,37 @@ sub calculated_values {
     elsif ($field_name eq 'titlecaps')
     {
 	$value = (exists $pagestate{$page}{meta}{title}
-	    ? $pagestate{$page}{meta}{title}
-	    : field_get_value('title', $page));
+	    ? $pagestate{$page}{meta}{title} : undef);
+        if (!$value)
+        {
+            if (defined $Cache{$page}{title})
+            {
+                $value = $Cache{$page}{title};
+            }
+        }
+        if (!$value)
+        {
+            for (my $i = 0; (!$value && $i < @FieldsLookupOrder); $i++)
+            {
+                my $id = $FieldsLookupOrder[$i];
+                if (exists $pagestate{$page}{$id}{title})
+                {
+                    $value = $pagestate{$page}{$id}{title};
+                }
+                elsif (exists $Fields{$id}{get_value})
+                {
+                    $value = $Fields{$id}{get_value}->('title', $page);
+                }
+            }
+        }
+        if (!$value)
+        {
+            $value = pagetitle(IkiWiki::basename($page));
+        }
+        if ($value)
+        {
+            $Cache{$page}{title} = $value;
+        }
 
 	$value =~ s/\.\w+$//; # remove extension
 	$value =~ s/ (
@@ -691,6 +719,25 @@ sub calculated_values {
     elsif ($field_name eq 'basename')
     {
 	$value = IkiWiki::basename($page);
+    }
+    # apply the "titlepage" function to the field value(s)
+    elsif ($field_name =~ /^(.*)-titlepage$/)
+    {
+	my $basename = $1;
+	$value = field_get_value($basename, $page);
+	if (ref $value eq 'ARRAY')
+	{
+	    my @values = ();
+	    foreach my $v (@{$value})
+	    {
+		push @values, IkiWiki::titlepage($v);
+	    }
+	    $value = \@values;
+	}
+	elsif (!ref $value)
+	{
+	    $value = IkiWiki::basename($value);
+	}
     }
     elsif ($config{field_allow_config}
 	and $field_name =~ /^config-(.*)/)
@@ -898,12 +945,14 @@ sub cmp_field {
 
     $left = "" unless defined $left;
     $right = "" unless defined $right;
+    $left = join(' ', @{$left}) if ref $left eq 'ARRAY';
+    $right = join(' ', @{$right}) if ref $right eq 'ARRAY';
     return $left cmp $right;
 }
 
 sub cmp_field_natural {
     my $field = shift;
-    error(gettext("sort=field requires a parameter")) unless defined $field;
+    error(gettext("sort=field_natural requires a parameter")) unless defined $field;
 
     eval {use Sort::Naturally};
     error $@ if $@;
@@ -913,7 +962,29 @@ sub cmp_field_natural {
 
     $left = "" unless defined $left;
     $right = "" unless defined $right;
+    $left = join(' ', @{$left}) if ref $left eq 'ARRAY';
+    $right = join(' ', @{$right}) if ref $right eq 'ARRAY';
     return Sort::Naturally::ncmp($left, $right);
+}
+
+sub cmp_field_number {
+    my $field = shift;
+    error(gettext("sort=field_number requires a parameter")) unless defined $field;
+
+    error $@ if $@;
+
+    my $left = IkiWiki::Plugin::field::field_get_value($field, $a);
+    my $right = IkiWiki::Plugin::field::field_get_value($field, $b);
+
+    $left = 0 unless defined $left;
+    $right = 0 unless defined $right;
+
+    $left = 0 if ref $left eq 'ARRAY';
+    $right = 0 if ref $right eq 'ARRAY';
+    # Multiply by a hundred to deal with floating-point problems
+    $left = $left * 100;
+    $right = $right * 100;
+    return $left <=> $right;
 }
 
 1;
