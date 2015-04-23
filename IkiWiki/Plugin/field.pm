@@ -971,8 +971,6 @@ sub cmp_field_number {
     my $field = shift;
     error(gettext("sort=field_number requires a parameter")) unless defined $field;
 
-    error $@ if $@;
-
     my $left = IkiWiki::Plugin::field::field_get_value($field, $a);
     my $right = IkiWiki::Plugin::field::field_get_value($field, $b);
 
