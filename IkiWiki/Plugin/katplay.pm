@@ -208,6 +208,21 @@ sub katplay_get_value ($$;@) {
             $value = $bits[$wanted_level];
         }
     }
+    elsif ($field_name eq 'story_class')
+    {
+	if ($page =~ m{/stories/}o)
+	{
+	    $value = 'A Stories';
+	}
+	elsif ($page =~ m{/limbo/}o)
+	{
+	    $value = 'B Limbo';
+	}
+	elsif ($page =~ m{/zoo/}o)
+	{
+	    $value = 'Z Zoo';
+	}
+    }
     if ($page =~ /agito/)
     {
         if ($field_name eq 'giftee')
