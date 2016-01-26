@@ -210,15 +210,15 @@ sub katplay_get_value ($$;@) {
     }
     elsif ($field_name eq 'story_class')
     {
-	if ($page =~ m{/stories/}o)
+	if ($page =~ m{stories/}o)
 	{
 	    $value = 'A Stories';
 	}
-	elsif ($page =~ m{/limbo/}o)
+	elsif ($page =~ m{limbo/}o)
 	{
 	    $value = 'B Limbo';
 	}
-	elsif ($page =~ m{/zoo/}o)
+	elsif ($page =~ m{zoo/}o)
 	{
 	    $value = 'Z Zoo';
 	}
