@@ -83,8 +83,8 @@ sub getsetup () {
 }
 
 sub checkconfig () {
-    eval {use YAML::Any};
-    eval {use YAML} if $@;
+    eval {require YAML::Any; import YAML::Any;};
+    eval {require YAML; import YAML;} if $@;
     if ($@)
     {
 	return error ("ymlfront: failed to use YAML::Any or YAML");
