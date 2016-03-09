@@ -49,7 +49,7 @@ my $DBs_Connected = 0;
 sub import {
     hook(type => "getsetup", id => "sqlreport",  call => \&getsetup);
     hook(type => "checkconfig", id => "sqlreport", call => \&checkconfig);
-    hook(type => "preprocess", id => "sqlreport", first=>1, call => \&preprocess);
+    hook(type => "preprocess", id => "sqlreport", call => \&preprocess);
     hook(type => "change", id => "sqlreport", call => \&hang_up);
 }
 
