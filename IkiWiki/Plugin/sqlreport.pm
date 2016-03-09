@@ -13,7 +13,7 @@ This describes version B<1.20120204> of IkiWiki::Plugin::sqlreport
 
 =cut
 
-our $VERSION = '1.20120204';
+our $VERSION = '1.20160309';
 
 =head1 PREREQUISITES
 
@@ -49,7 +49,7 @@ my $DBs_Connected = 0;
 sub import {
     hook(type => "getsetup", id => "sqlreport",  call => \&getsetup);
     hook(type => "checkconfig", id => "sqlreport", call => \&checkconfig);
-    hook(type => "preprocess", id => "sqlreport", call => \&preprocess);
+    hook(type => "preprocess", id => "sqlreport", first=>1, call => \&preprocess);
     hook(type => "change", id => "sqlreport", call => \&hang_up);
 }
 
