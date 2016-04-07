@@ -504,6 +504,7 @@ EOT
 	{
 	    $out_str .= "<option value='${fname}'>${fname}</option>\n";
 	}
+	$out_str .= "<option value='RANDOM()'>RANDOM</option>\n";
 	$out_str .= "</select>";
 	$out_str .= "</td>";
 	$out_str .= "<td>Reverse <input type='checkbox' name='${sort_reversed_prefix}${i}' value='1'/>";
