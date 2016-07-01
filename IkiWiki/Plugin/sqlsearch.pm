@@ -323,10 +323,10 @@ sub search_form {
 	    {
 		@val_array = split(/\|/, $val);
 	    }
-	    elsif ($val and $is_tagfield{$fn} and $val =~ /[,\/]/)
-	    {
-		@val_array = split(/[,\/]\s*/, $val);
-	    }
+#	    elsif ($val and $is_tagfield{$fn} and $val =~ /[,\/]/)
+#	    {
+#		@val_array = split(/[,\/]\s*/, $val);
+#	    }
 	    elsif ($val)
 	    {
                 push @val_array, $val;
