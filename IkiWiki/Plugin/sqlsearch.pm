@@ -336,36 +336,27 @@ sub search_form {
 		$val = "NONE";
                 push @val_array, $val;
 	    }
-            if (@val_array >= 1)
+            if (@val_array >= 1 and $is_tagfield{$fn})
             {
-                my @vals = ();
 		foreach my $v (@val_array)
 		{
 		    $v =~ tr{"}{'};
                     if ($v =~ /^[\.\d]+$/)
                     {
-                        push @vals, $v;
-                        if ($is_tagfield{$fn})
-                        {
-                            $is_numeric_tagfield{$fn} = 1;
-                        }
+                        $is_numeric_tagfield{$fn} = 1;
                     }
                     else
                     {
-		        push @vals, '"'.$v.'"';
-                        if ($is_tagfield{$fn} and $v ne 'NONE')
+                        if ($v ne 'NONE')
                         {
                             $is_numeric_tagfield{$fn} = 0;
                         }
                     }
-		    if ($is_tagfield{$fn})
-		    {
-                        if (!exists $tagsets{$fn}{$v})
-                        {
-                            $tagsets{$fn}{$v} = 0;
-                        }
-			$tagsets{$fn}{$v}++;
-		    }
+                    if (!exists $tagsets{$fn}{$v})
+                    {
+                        $tagsets{$fn}{$v} = 0;
+                    }
+                    $tagsets{$fn}{$v}++;
 		}
             }
         }
