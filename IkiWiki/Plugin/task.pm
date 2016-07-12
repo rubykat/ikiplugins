@@ -175,6 +175,7 @@ sub preprocess (@) {
 	}
 	if (@annotations)
 	{
+            @annotations = sort(@annotations);
 	    $pagestate{$page}{task}{task_annotations} = \@annotations;
 	}
 
