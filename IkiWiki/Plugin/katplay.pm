@@ -138,6 +138,89 @@ sub katplay_get_value ($$;@) {
 	    $value = $vals{$field_name};
 	}
     }
+    elsif ($field_name =~ /^era$/i)
+    {
+        my $universe = IkiWiki::Plugin::field::field_get_value('universe', $page);
+        if ($universe =~ /Doctor Who/)
+        {
+            my $characters = IkiWiki::Plugin::field::field_get_value('characters', $page);
+            if (!$characters)
+            {
+                $value = '99 Unknown Doctor';
+            }
+            else
+            {
+                if ($characters =~ /First Doctor/)
+                {
+                    $value = '01 First Doctor';
+                }
+                elsif ($characters =~ /Second Doctor/)
+                {
+                    $value = '02 Second Doctor';
+                }
+                elsif ($characters =~ /(Third Doctor|Jo Grant)/)
+                {
+                    $value = '03 Third Doctor';
+                }
+                elsif ($characters =~ /(Fourth Doctor|Leela|Romana)/)
+                {
+                    $value = '04 Fourth Doctor';
+                }
+                elsif ($characters =~ /(Fifth Doctor|Tegan|Turlough|Adric|Nyssa)/)
+                {
+                    $value = '05 Fifth Doctor';
+                }
+                elsif ($characters =~ /(Sixth Doctor|Peri|Mel|Evelyn)/)
+                {
+                    $value = '06 Sixth Doctor';
+                }
+                elsif ($characters =~ /(Seventh Doctor|Ace)/)
+                {
+                    $value = '07 Seventh Doctor';
+                }
+                elsif ($characters =~ /(Eighth Doctor|Charley|Grace)/)
+                {
+                    $value = '08 Eighth Doctor';
+                }
+                elsif ($characters =~ /Ninth Doctor/)
+                {
+                    $value = '09 Ninth Doctor';
+                }
+                elsif ($characters =~ /(Tenth Doctor|Donna|Martha)/)
+                {
+                    $value = '10 Tenth Doctor';
+                }
+                elsif ($characters =~ /(Eleventh Doctor|Amy|Amelia|Rory)/)
+                {
+                    $value = '11 Eleventh Doctor';
+                }
+                elsif ($characters =~ /Twelfth Doctor/)
+                {
+                    $value = '12 Twelfth Doctor';
+                }
+                elsif ($characters =~ /Thirteenth Doctor/)
+                {
+                    $value = '13 Thirteenth Doctor';
+                }
+                else
+                {
+                    $value = '99 Unknown Doctor';
+                }
+            }
+        }
+        elsif ($universe =~ /Harry Potter/)
+        {
+            my $category = IkiWiki::Plugin::field::field_get_value('category', $page);
+            if ($category =~ /(Post-Voldemort|Marauders|pre-Hogwarts|Hogwarts-era)/)
+            {
+                $value = $1
+            }
+            elsif ($category =~ /(First Year|Second Year|Third Year|Fourth Year|Fifth Year|Sixth Year|Seventh Year)/)
+            {
+                $value = 'Hogwarts-era';
+            }
+        }
+    }
     elsif ($field_name =~ /gutenberg_?(id|url)?/)
     {
         my $type = ($1 ? $1 : 'id');
