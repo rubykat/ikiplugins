@@ -141,6 +141,7 @@ sub katplay_get_value ($$;@) {
     elsif ($field_name =~ /^era$/i)
     {
         my $universe = IkiWiki::Plugin::field::field_get_value('universe', $page);
+        $universe = join(' ', @{$universe}) if ref $universe eq 'ARRAY';
         if (!$universe)
         {
             $value = '';
@@ -148,6 +149,7 @@ sub katplay_get_value ($$;@) {
         elsif ($universe =~ /Doctor Who/)
         {
             my $characters = IkiWiki::Plugin::field::field_get_value('characters', $page);
+            $characters = join(' ', @{$characters}) if ref $characters eq 'ARRAY';
             if (!$characters)
             {
                 $value = '99 Unknown Doctor';
@@ -162,27 +164,27 @@ sub katplay_get_value ($$;@) {
                 {
                     $value = '02 Second Doctor';
                 }
-                elsif ($characters =~ /(Third Doctor|Jo Grant)/)
+                elsif ($characters =~ /Third Doctor/)
                 {
                     $value = '03 Third Doctor';
                 }
-                elsif ($characters =~ /(Fourth Doctor|Leela|Romana)/)
+                elsif ($characters =~ /Fourth Doctor/)
                 {
                     $value = '04 Fourth Doctor';
                 }
-                elsif ($characters =~ /(Fifth Doctor|Tegan|Turlough|Adric|Nyssa)/)
+                elsif ($characters =~ /Fifth Doctor/)
                 {
                     $value = '05 Fifth Doctor';
                 }
-                elsif ($characters =~ /(Sixth Doctor|Peri|Mel|Evelyn)/)
+                elsif ($characters =~ /Sixth Doctor/)
                 {
                     $value = '06 Sixth Doctor';
                 }
-                elsif ($characters =~ /(Seventh Doctor|Ace)/)
+                elsif ($characters =~ /Seventh Doctor/)
                 {
                     $value = '07 Seventh Doctor';
                 }
-                elsif ($characters =~ /(Eighth Doctor|Charley|Grace)/)
+                elsif ($characters =~ /Eighth Doctor/)
                 {
                     $value = '08 Eighth Doctor';
                 }
@@ -190,11 +192,11 @@ sub katplay_get_value ($$;@) {
                 {
                     $value = '09 Ninth Doctor';
                 }
-                elsif ($characters =~ /(Tenth Doctor|Donna|Martha)/)
+                elsif ($characters =~ /Tenth Doctor/)
                 {
                     $value = '10 Tenth Doctor';
                 }
-                elsif ($characters =~ /(Eleventh Doctor|Amy|Amelia|Rory)/)
+                elsif ($characters =~ /Eleventh Doctor/)
                 {
                     $value = '11 Eleventh Doctor';
                 }
@@ -206,6 +208,42 @@ sub katplay_get_value ($$;@) {
                 {
                     $value = '13 Thirteenth Doctor';
                 }
+                elsif ($characters =~ /Other Doctor/)
+                {
+                    $value = '30 Other Doctor';
+                }
+                elsif ($characters =~ /Jo Grant/)
+                {
+                    $value = '03 Third Doctor';
+                }
+                elsif ($characters =~ /(Leela|Romana|Harry Sullivan)/)
+                {
+                    $value = '04 Fourth Doctor';
+                }
+                elsif ($characters =~ /(Tegan|Turlough|Adric|Nyssa)/)
+                {
+                    $value = '05 Fifth Doctor';
+                }
+                elsif ($characters =~ /(Peri|Mel|Evelyn)/)
+                {
+                    $value = '06 Sixth Doctor';
+                }
+                elsif ($characters =~ /(Ace|Benny)/)
+                {
+                    $value = '07 Seventh Doctor';
+                }
+                elsif ($characters =~ /(Charley|Sam)/)
+                {
+                    $value = '08 Eighth Doctor';
+                }
+                elsif ($characters =~ /(Donna|Martha)/)
+                {
+                    $value = '10 Tenth Doctor';
+                }
+                elsif ($characters =~ /(Amy|Amelia|Rory)/)
+                {
+                    $value = '11 Eleventh Doctor';
+                }
                 else
                 {
                     $value = '99 Unknown Doctor';
@@ -215,6 +253,7 @@ sub katplay_get_value ($$;@) {
         elsif ($universe =~ /Harry Potter/)
         {
             my $category = IkiWiki::Plugin::field::field_get_value('category', $page);
+            $category = join(' ', @{$category}) if ref $category eq 'ARRAY';
             if ($category =~ /(Post-Voldemort|Marauders|pre-Hogwarts|Hogwarts-era)/)
             {
                 $value = $1
