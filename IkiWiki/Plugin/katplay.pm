@@ -142,7 +142,7 @@ sub katplay_get_value ($$;@) {
     {
         my $universe = IkiWiki::Plugin::field::field_get_value('universe', $page);
         my $crossover = 0;
-        if ($universe eq 'ARRAY')
+        if (ref $universe eq 'ARRAY')
         {
             $universe = join(' ', @{$universe}) if ref $universe eq 'ARRAY';
             $crossover = 1;
