@@ -141,10 +141,32 @@ sub katplay_get_value ($$;@) {
     elsif ($field_name =~ /^era$/i)
     {
         my $universe = IkiWiki::Plugin::field::field_get_value('universe', $page);
-        $universe = join(' ', @{$universe}) if ref $universe eq 'ARRAY';
-        if (!$universe)
+        my $crossover = 0;
+        if ($universe eq 'ARRAY')
         {
-            $value = '';
+            $universe = join(' ', @{$universe}) if ref $universe eq 'ARRAY';
+            $crossover = 1;
+        }
+        if ($universe =~ /Harry Potter/)
+        {
+            my $category = IkiWiki::Plugin::field::field_get_value('category', $page);
+            $category = join(' ', @{$category}) if ref $category eq 'ARRAY';
+            if ($category =~ /(Post-Voldemort|Voldemort-wins|Marauders|pre-Hogwarts|Hogwarts-era|Pre-Canon)/i)
+            {
+                $value = $1
+            }
+            elsif ($category =~ /(First Year|Second Year|Third Year|Fourth Year|Fifth Year|Sixth Year|Seventh Year)/)
+            {
+                $value = 'Hogwarts-era';
+            }
+            elsif ($category =~ /(Alternate Reality|Post-Apocalypse)/)
+            {
+                $value = $1
+            }
+            elsif ($crossover)
+            {
+                $value = 'Crossover';
+            }
         }
         elsif ($universe =~ /Doctor Who/)
         {
@@ -248,19 +270,6 @@ sub katplay_get_value ($$;@) {
                 {
                     $value = '99 Unknown Doctor';
                 }
-            }
-        }
-        elsif ($universe =~ /Harry Potter/)
-        {
-            my $category = IkiWiki::Plugin::field::field_get_value('category', $page);
-            $category = join(' ', @{$category}) if ref $category eq 'ARRAY';
-            if ($category =~ /(Post-Voldemort|Marauders|pre-Hogwarts|Hogwarts-era)/)
-            {
-                $value = $1
-            }
-            elsif ($category =~ /(First Year|Second Year|Third Year|Fourth Year|Fifth Year|Sixth Year|Seventh Year)/)
-            {
-                $value = 'Hogwarts-era';
             }
         }
     }
