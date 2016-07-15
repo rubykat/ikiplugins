@@ -159,7 +159,7 @@ sub katplay_get_value ($$;@) {
             {
                 $value = 'Hogwarts-era';
             }
-            elsif ($category =~ /(Alternate Reality|Post-Apocalypse)/)
+            elsif ($category =~ /(Alternate Reality|Post-Apocalypse|Crossover)/)
             {
                 $value = $1
             }
