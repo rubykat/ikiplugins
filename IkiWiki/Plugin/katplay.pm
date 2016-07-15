@@ -141,7 +141,11 @@ sub katplay_get_value ($$;@) {
     elsif ($field_name =~ /^era$/i)
     {
         my $universe = IkiWiki::Plugin::field::field_get_value('universe', $page);
-        if ($universe =~ /Doctor Who/)
+        if (!$universe)
+        {
+            $value = '';
+        }
+        elsif ($universe =~ /Doctor Who/)
         {
             my $characters = IkiWiki::Plugin::field::field_get_value('characters', $page);
             if (!$characters)
