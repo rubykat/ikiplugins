@@ -141,134 +141,137 @@ sub katplay_get_value ($$;@) {
     elsif ($field_name =~ /^era$/i)
     {
         my $universe = IkiWiki::Plugin::field::field_get_value('universe', $page);
-        my $crossover = 0;
-        if (ref $universe eq 'ARRAY')
+        if (defined $universe)
         {
-            $universe = join(' ', @{$universe}) if ref $universe eq 'ARRAY';
-            $crossover = 1;
-        }
-        if ($universe =~ /Harry Potter/)
-        {
-            my $category = IkiWiki::Plugin::field::field_get_value('category', $page);
-            $category = join(' ', @{$category}) if ref $category eq 'ARRAY';
-            if ($category =~ /(Post-Voldemort|Voldemort-wins|Marauders|pre-Hogwarts|Hogwarts-era|Pre-Canon)/i)
+            my $crossover = 0;
+            if (ref $universe eq 'ARRAY')
             {
-                $value = $1
+                $universe = join(' ', @{$universe}) if ref $universe eq 'ARRAY';
+                $crossover = 1;
             }
-            elsif ($category =~ /(First Year|Second Year|Third Year|Fourth Year|Fifth Year|Sixth Year|Seventh Year)/)
+            if ($universe =~ /Harry Potter/)
             {
-                $value = 'Hogwarts-era';
+                my $category = IkiWiki::Plugin::field::field_get_value('category', $page);
+                $category = join(' ', @{$category}) if ref $category eq 'ARRAY';
+                if ($category =~ /(Post-Voldemort|Voldemort-wins|Marauders|pre-Hogwarts|Hogwarts-era|Pre-Canon)/i)
+                {
+                    $value = $1
+                }
+                elsif ($category =~ /(First Year|Second Year|Third Year|Fourth Year|Fifth Year|Sixth Year|Seventh Year)/)
+                {
+                    $value = 'Hogwarts-era';
+                }
+                elsif ($category =~ /(Alternate Reality|Post-Apocalypse|Crossover)/)
+                {
+                    $value = $1
+                }
+                elsif ($crossover)
+                {
+                    $value = 'Crossover';
+                }
             }
-            elsif ($category =~ /(Alternate Reality|Post-Apocalypse|Crossover)/)
+            elsif ($universe =~ /Doctor Who/)
             {
-                $value = $1
-            }
-            elsif ($crossover)
-            {
-                $value = 'Crossover';
-            }
-        }
-        elsif ($universe =~ /Doctor Who/)
-        {
-            my $characters = IkiWiki::Plugin::field::field_get_value('characters', $page);
-            $characters = join(' ', @{$characters}) if ref $characters eq 'ARRAY';
-            if (!$characters)
-            {
-                $value = '99 Unknown Doctor';
-            }
-            else
-            {
-                if ($characters =~ /First Doctor/)
+                my $characters = IkiWiki::Plugin::field::field_get_value('characters', $page);
+                $characters = join(' ', @{$characters}) if ref $characters eq 'ARRAY';
+                if (!$characters)
                 {
-                    $value = '01 First Doctor';
-                }
-                elsif ($characters =~ /Second Doctor/)
-                {
-                    $value = '02 Second Doctor';
-                }
-                elsif ($characters =~ /Third Doctor/)
-                {
-                    $value = '03 Third Doctor';
-                }
-                elsif ($characters =~ /Fourth Doctor/)
-                {
-                    $value = '04 Fourth Doctor';
-                }
-                elsif ($characters =~ /Fifth Doctor/)
-                {
-                    $value = '05 Fifth Doctor';
-                }
-                elsif ($characters =~ /Sixth Doctor/)
-                {
-                    $value = '06 Sixth Doctor';
-                }
-                elsif ($characters =~ /Seventh Doctor/)
-                {
-                    $value = '07 Seventh Doctor';
-                }
-                elsif ($characters =~ /Eighth Doctor/)
-                {
-                    $value = '08 Eighth Doctor';
-                }
-                elsif ($characters =~ /Ninth Doctor/)
-                {
-                    $value = '09 Ninth Doctor';
-                }
-                elsif ($characters =~ /Tenth Doctor/)
-                {
-                    $value = '10 Tenth Doctor';
-                }
-                elsif ($characters =~ /Eleventh Doctor/)
-                {
-                    $value = '11 Eleventh Doctor';
-                }
-                elsif ($characters =~ /Twelfth Doctor/)
-                {
-                    $value = '12 Twelfth Doctor';
-                }
-                elsif ($characters =~ /Thirteenth Doctor/)
-                {
-                    $value = '13 Thirteenth Doctor';
-                }
-                elsif ($characters =~ /Other Doctor/)
-                {
-                    $value = '30 Other Doctor';
-                }
-                elsif ($characters =~ /Jo Grant/)
-                {
-                    $value = '03 Third Doctor';
-                }
-                elsif ($characters =~ /(Leela|Romana|Harry Sullivan)/)
-                {
-                    $value = '04 Fourth Doctor';
-                }
-                elsif ($characters =~ /(Tegan|Turlough|Adric|Nyssa)/)
-                {
-                    $value = '05 Fifth Doctor';
-                }
-                elsif ($characters =~ /(Peri|Mel|Evelyn)/)
-                {
-                    $value = '06 Sixth Doctor';
-                }
-                elsif ($characters =~ /(Ace|Benny)/)
-                {
-                    $value = '07 Seventh Doctor';
-                }
-                elsif ($characters =~ /(Charley|Sam)/)
-                {
-                    $value = '08 Eighth Doctor';
-                }
-                elsif ($characters =~ /(Donna|Martha)/)
-                {
-                    $value = '10 Tenth Doctor';
-                }
-                elsif ($characters =~ /(Amy|Amelia|Rory)/)
-                {
-                    $value = '11 Eleventh Doctor';
+                    $value = '99 Unknown Doctor';
                 }
                 else
                 {
-                    $value = '99 Unknown Doctor';
+                    if ($characters =~ /First Doctor/)
+                    {
+                        $value = '01 First Doctor';
+                    }
+                    elsif ($characters =~ /Second Doctor/)
+                    {
+                        $value = '02 Second Doctor';
+                    }
+                    elsif ($characters =~ /Third Doctor/)
+                    {
+                        $value = '03 Third Doctor';
+                    }
+                    elsif ($characters =~ /Fourth Doctor/)
+                    {
+                        $value = '04 Fourth Doctor';
+                    }
+                    elsif ($characters =~ /Fifth Doctor/)
+                    {
+                        $value = '05 Fifth Doctor';
+                    }
+                    elsif ($characters =~ /Sixth Doctor/)
+                    {
+                        $value = '06 Sixth Doctor';
+                    }
+                    elsif ($characters =~ /Seventh Doctor/)
+                    {
+                        $value = '07 Seventh Doctor';
+                    }
+                    elsif ($characters =~ /Eighth Doctor/)
+                    {
+                        $value = '08 Eighth Doctor';
+                    }
+                    elsif ($characters =~ /Ninth Doctor/)
+                    {
+                        $value = '09 Ninth Doctor';
+                    }
+                    elsif ($characters =~ /Tenth Doctor/)
+                    {
+                        $value = '10 Tenth Doctor';
+                    }
+                    elsif ($characters =~ /Eleventh Doctor/)
+                    {
+                        $value = '11 Eleventh Doctor';
+                    }
+                    elsif ($characters =~ /Twelfth Doctor/)
+                    {
+                        $value = '12 Twelfth Doctor';
+                    }
+                    elsif ($characters =~ /Thirteenth Doctor/)
+                    {
+                        $value = '13 Thirteenth Doctor';
+                    }
+                    elsif ($characters =~ /Other Doctor/)
+                    {
+                        $value = '30 Other Doctor';
+                    }
+                    elsif ($characters =~ /Jo Grant/)
+                    {
+                        $value = '03 Third Doctor';
+                    }
+                    elsif ($characters =~ /(Leela|Romana|Harry Sullivan)/)
+                    {
+                        $value = '04 Fourth Doctor';
+                    }
+                    elsif ($characters =~ /(Tegan|Turlough|Adric|Nyssa)/)
+                    {
+                        $value = '05 Fifth Doctor';
+                    }
+                    elsif ($characters =~ /(Peri|Mel|Evelyn)/)
+                    {
+                        $value = '06 Sixth Doctor';
+                    }
+                    elsif ($characters =~ /(Ace|Benny)/)
+                    {
+                        $value = '07 Seventh Doctor';
+                    }
+                    elsif ($characters =~ /(Charley|Sam)/)
+                    {
+                        $value = '08 Eighth Doctor';
+                    }
+                    elsif ($characters =~ /(Donna|Martha)/)
+                    {
+                        $value = '10 Tenth Doctor';
+                    }
+                    elsif ($characters =~ /(Amy|Amelia|Rory)/)
+                    {
+                        $value = '11 Eleventh Doctor';
+                    }
+                    else
+                    {
+                        $value = '99 Unknown Doctor';
+                    }
                 }
             }
         }
