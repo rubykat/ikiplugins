@@ -958,7 +958,6 @@ function formatResults(query,results) {
 		the_message = the_message + "<i>" + results + "</i>";
 		the_message = the_message + "<br />";
 	}
-	the_message = the_message + "<br/>\n<a href=\"#<TMPL_VAR FORMID>\">&raquo; Back to search form</a>\n";
     writeMessage(the_message);
 }
 
