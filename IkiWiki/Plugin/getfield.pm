@@ -106,7 +106,7 @@ sub get_other_page_field_value ($$$) {
     # add a dependency for the page from which we get the value
     add_depends($page, $use_page);
 
-    my $val = get_field_value($field, $use_page);
+    my $val = get_field_value("", $field, $use_page);
     if ($val eq $field)
     {
 	return "${other_page}#$field";
