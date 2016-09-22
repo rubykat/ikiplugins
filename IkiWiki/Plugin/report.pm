@@ -95,7 +95,7 @@ sub preprocess (@) {
     my $this_page = $params{page};
     my $dest_page = $params{destpage};
     my $pages = (defined $params{pages} ? $params{pages} : '*');
-    $pages =~ s/{{\$page}}/$this_page/g;
+    $pages =~ s/\{\{\$page\}\}/$this_page/g;
 
     if (!defined $params{first_page_is_index})
     {

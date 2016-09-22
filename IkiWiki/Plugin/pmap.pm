@@ -79,7 +79,7 @@ sub preprocess (@) {
     my $this_page = $params{page};
     my $destpage = $params{destpage};
     my $pages = (defined $params{pages} ? $params{pages} : '*');
-    $pages =~ s/{{\$page}}/$this_page/g;
+    $pages =~ s/\{\{\$page\}\}/$this_page/g;
     my $show = $params{show};
     delete $params{show};
     my $map_type = (defined $params{map_type} ? $params{map_type} : '');
