@@ -92,7 +92,7 @@ sub do_filter (@) {
 #---------------------------------------------------------------
 # Private functions
 # --------------------------------
-sub get_other_page_field_value ($$$) {
+sub get_other_page_field_value ($$$$) {
     my $escape = shift;
     my $field = shift;
     my $page = shift;
@@ -117,7 +117,7 @@ sub get_other_page_field_value ($$$) {
 
 } # get_other_page_field_value
 
-sub get_field_value ($$) {
+sub get_field_value ($$$) {
     my $escape = shift;
     my $field = shift;
     my $page = shift;
