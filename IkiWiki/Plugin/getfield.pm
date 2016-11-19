@@ -70,10 +70,10 @@ sub do_filter (@) {
     if (defined $page_type)
     {
 	# substitute {{$var}} variables (source-page)
-	$params{content} =~ s/(\\?){{\$([-\w]+)}}/get_field_value($1,$2,$page)/eg;
+	$params{content} =~ s/(\\?)\{\{\$([-\w]+)\}\}/get_field_value($1,$2,$page)/eg;
 
 	# substitute {{$page#var}} variables (source-page)
-	$params{content} =~ s/(\\?){{\$([-\w\/]+)#([-\w]+)}}/get_other_page_field_value($1, $3,$page,$2)/eg;
+	$params{content} =~ s/(\\?)\{\{\$([-\w\/]+)#([-\w]+)\}\}/get_other_page_field_value($1, $3,$page,$2)/eg;
     }
 
     $page_file=$pagesources{$destpage} || return $params{content};
@@ -81,9 +81,9 @@ sub do_filter (@) {
     if (defined $page_type)
     {
 	# substitute {{+$var+}} variables (dest-page)
-	$params{content} =~ s/(\\?){{\+\$([-\w]+)\+}}/get_field_value($1,$2,$destpage)/eg;
+	$params{content} =~ s/(\\?)\{\{\+\$([-\w]+)\+\}\}/get_field_value($1,$2,$destpage)/eg;
 	# substitute {{+$page#var+}} variables (source-page)
-	$params{content} =~ s/(\\?){{\+\$([-\w\/]+)#([-\w]+)\+}}/get_other_page_field_value($1, $3,$destpage,$2)/eg;
+	$params{content} =~ s/(\\?)\{\{\+\$([-\w\/]+)#([-\w]+)\+\}\}/get_other_page_field_value($1, $3,$destpage,$2)/eg;
     }
 
     return $params{content};
@@ -106,11 +106,13 @@ sub get_other_page_field_value ($$$) {
     # add a dependency for the page from which we get the value
     add_depends($page, $use_page);
 
-    my $val = get_field_value("", $field, $use_page);
-    if ($val eq $field)
+    my $val = IkiWiki::Plugin::field::field_get_value($field, $use_page);
+    if (!defined $val)
     {
-	return "${other_page}#$field";
+        # if there is no value, return nothing.
+	return '';
     }
+    $val = join(' ', @{$val}) if ref $val eq 'ARRAY';
     return $val;
 
 } # get_other_page_field_value
@@ -125,10 +127,14 @@ sub get_field_value ($$) {
 	return "{{\$${field}}}";
     }
     my $value = IkiWiki::Plugin::field::field_get_value($field,$page);
-    return $value if defined $value;
+    if (defined $value)
+    {
+	$value = join(' ', @{$value}) if ref $value eq 'ARRAY';
+	return $value;
+    }
 
-    # if there is no value, return the field name.
-    return $field;
+    # if there is no value, return nothing.
+    return '';
 } # get_field_value
 
 1;
