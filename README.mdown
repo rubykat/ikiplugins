@@ -11,3 +11,10 @@ This contains a collection of plugins for the IkiWiki wiki engine
 * getfield - query field values inside a page.
 * ftemplate - template using fields.
 * report - report using per-page record fields.
+
+* anypar - a versatile conditional header/footer/sidebar templater
+* belowme - a field variable which efficiently lists the pages 'below' (in subdirectories) the current page
+* concon - conditional configuration module
+* handytoc - a javascript-based table-of-contents module
+* jssearchfield - a javascript-based search of per-page record fields.
+* pmap - like "map", but pretty. Highly configurable list format based on HTML::LinkList
