@@ -7,11 +7,11 @@ IkiWiki::Plugin::getfield - query the values of fields
 
 =head1 VERSION
 
-This describes version B<1.20110906> of IkiWiki::Plugin::getfield
+This describes version B<1.20161119> of IkiWiki::Plugin::getfield
 
 =cut
 
-our $VERSION = '1.20110906';
+our $VERSION = '1.20161119';
 
 =head1 DESCRIPTION
 
