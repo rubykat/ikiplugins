@@ -257,7 +257,7 @@ sub do_one_vcard (@) {
                     $vline = $2;
                 }
                 my %data = ();
-                if ($vline =~ /^(\d\d*|\d\d*\/\d\d*)\s+(\w+)\s+(Rd|St|Ct|Street)\s+(\w+)\s+(\w+)\s*(\d+)?\s*(\w+)/is)
+                if ($vline =~ /^(\d\d*|\d\d*\/\d\d*)\s+(\w+)\s+(Rd|St|Ct|Crt|Street|Road|Court)\s+(\w+)\s+(\w+)\s*(\d+)?\s*(\w+)/is)
                 {
                     $data{pobox} = $1;
                     $data{street} = $2 . ' ' . $3;
@@ -265,6 +265,16 @@ sub do_one_vcard (@) {
                     $data{region} = $5;
                     $data{post_code} = $6;
                     $data{country} = $7;
+                    warn "FOUND $vline\n";
+                }
+                elsif ($vline =~ /^(PO Box\d\d*)\s+(\w+)\s+(\w+)\s*(\d+)?\s*(\w+)/is)
+                {
+                    $data{pobox} = $1;
+                    $data{street} = ''
+                    $data{city} = $2;
+                    $data{region} = $3;
+                    $data{post_code} = $4;
+                    $data{country} = $5;
                     warn "FOUND $vline\n";
                 }
                 if (%data)
