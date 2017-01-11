@@ -250,15 +250,22 @@ sub do_one_vcard (@) {
             if ($val)
             {
                 my $type = 'HOME';
-                my $v = $val;
+                my $vline = $val;
                 if ($val =~ /(work|home)\s*(.*)/i)
                 {
                     $type = uc($1);
-                    $v = $2;
+                    $vline = $2;
                 }
-                if ($v)
+                my %data = ();
+                if ($vline =~ /(\d\d*)\s*(\w+)\s*(Rd|St|Ct)\s*(\w+)/s)
                 {
-                    push @{$person{addresses}}, {type => [$type], address => $v};
+                    $data{pobox} = $1;
+                    $data{street} = $2 . ' ' . $3;
+                    $data{city} = $4;
+                }
+                if (%data)
+                {
+                    push @{$person{addresses}}, {type => [$type], %data};
                 }
             }
         }
