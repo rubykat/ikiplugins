@@ -219,6 +219,7 @@ sub do_one_vcard (@) {
     $person{family_names} = [$lastname];
     $person{full_name} = $title;
     $person{title} = $nickname;
+    $person{photo} = '';
     if (defined $phones and $phones)
     {
         $person{phones} = [];
