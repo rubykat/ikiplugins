@@ -219,57 +219,66 @@ sub do_one_vcard (@) {
     $person{family_names} = [$lastname];
     $person{full_name} = $title;
     $person{title} = $nickname;
-    $person{phones} = [];
-    if (defined $phones)
+    if (defined $phones and $phones)
     {
-        foreach my $ph ((ref $phones eq 'ARRAY' ? @{$phones} : ($phones)))
+        $person{phones} = [];
+        foreach my $val ((ref $phones eq 'ARRAY' ? @{$phones} : ($phones)))
         {
-            my $type = 'home';
-            my $val = $ph;
-            if ($ph =~ /(cell|work|home)\s*(.*)/i)
-            {
-                $type = uc($1);
-                $val = $2;
-            }
             if ($val)
             {
-                push @{$person{phones}}, {type => [$type], number => $val};
+                my $type = 'HOME';
+                my $v = $val;
+                if ($val =~ /(cell|work|home)\s*(.*)/i)
+                {
+                    $type = uc($1);
+                    $v = $2;
+                }
+                if ($v)
+                {
+                    push @{$person{phones}}, {type => [$type], number => $v};
+                }
             }
         }
     }
-    $person{addresses} = [];
-    if (defined $addresses)
+    if (defined $addresses and $addresses)
     {
-        foreach my $ph ((ref $addresses eq 'ARRAY' ? @{$addresses} : ($addresses)))
+        $person{addresses} = [];
+        foreach my $val ((ref $addresses eq 'ARRAY' ? @{$addresses} : ($addresses)))
         {
-            my $type = 'home';
-            my $val = $ph;
-            if ($ph =~ /(work|home)\s*(.*)/i)
-            {
-                $type = uc($1);
-                $val = $2;
-            }
             if ($val)
             {
-                push @{$person{addresses}}, {type => [$type], address => $val};
+                my $type = 'HOME';
+                my $v = $val;
+                if ($val =~ /(work|home)\s*(.*)/i)
+                {
+                    $type = uc($1);
+                    $v = $2;
+                }
+                if ($v)
+                {
+                    push @{$person{addresses}}, {type => [$type], address => $v};
+                }
             }
         }
     }
-    $person{email_addresses} = [];
-    if (defined $emails)
+    if (defined $emails and $emails)
     {
-        foreach my $ph ((ref $emails eq 'ARRAY' ? @{$emails} : ($emails)))
+        $person{email_addresses} = [];
+        foreach my $val ((ref $emails eq 'ARRAY' ? @{$emails} : ($emails)))
         {
-            my $type = 'home';
-            my $val = $ph;
-            if ($ph =~ /(work|home)\s*(.*)/i)
-            {
-                $type = uc($1);
-                $val = $2;
-            }
             if ($val)
             {
-                push @{$person{email_addresses}}, {type => [$type], address => $val};
+                my $type = 'HOME';
+                my $v = $val;
+                if ($val =~ /(work|home)\s*(.*)/i)
+                {
+                    $type = uc($1);
+                    $v = $2;
+                }
+                if ($v)
+                {
+                    push @{$person{email_addresses}}, {type => [$type], address => $v};
+                }
             }
         }
     }
