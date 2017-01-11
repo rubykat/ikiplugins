@@ -265,7 +265,6 @@ sub do_one_vcard (@) {
                     $data{region} = $5;
                     $data{post_code} = $6;
                     $data{country} = $7;
-                    warn "FOUND1 $vline\n";
                 }
                 elsif ($vline =~ /^(PO Box\s+\d\d*)\s+(\w+)\s+(\w+)\s*(\d+)?\s*(\w+)?/is)
                 {
@@ -275,7 +274,6 @@ sub do_one_vcard (@) {
                     $data{region} = $3;
                     $data{post_code} = $4;
                     $data{country} = $5;
-                    warn "FOUND2 $vline\n";
                 }
                 if (%data)
                 {
