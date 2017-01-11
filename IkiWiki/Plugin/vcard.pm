@@ -231,7 +231,7 @@ sub do_one_vcard (@) {
                 $type = lc($1);
                 $val = $2;
             }
-            push @{$person{phones}}, {type => $type, number => $val};
+            push @{$person{phones}}, {type => [$type], number => $val};
         }
     }
     $person{addresses} = [];
@@ -246,7 +246,7 @@ sub do_one_vcard (@) {
                 $type = lc($1);
                 $val = $2;
             }
-            push @{$person{addresses}}, {type => $type, address => $val};
+            push @{$person{addresses}}, {type => [$type], address => $val};
         }
     }
     $person{email_addresses} = [];
@@ -261,7 +261,7 @@ sub do_one_vcard (@) {
                 $type = lc($1);
                 $val = $2;
             }
-            push @{$person{email_addresses}}, {type => $type, address => $val};
+            push @{$person{email_addresses}}, {type => [$type], address => $val};
         }
     }
     $vcard->load_hashref(\%person);
