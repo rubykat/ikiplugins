@@ -257,12 +257,11 @@ sub do_one_vcard (@) {
                     $vline = $2;
                 }
                 my %data = ();
-                if ($vline =~ /(\d\d*)\s*(\w+)\s*(Rd|St|Ct|Street)\s*(\w+)/is)
+                if ($vline =~ /^((?:PO Box )?\d\d*)\s*(\w+)\s*(Rd|St|Ct|Street)\s*(\w+)/is)
                 {
                     $data{pobox} = $1;
                     $data{street} = $2 . ' ' . $3;
                     $data{city} = $4;
-                    print STDERR "found $vline\n";
                 }
                 if (%data)
                 {
