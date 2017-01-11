@@ -257,12 +257,15 @@ sub do_one_vcard (@) {
                     $vline = $2;
                 }
                 my %data = ();
-                if ($vline =~ /^((?:PO Box )?\d\d*)\s*(\w+)\s*(Rd|St|Ct|Street)\s*(\w+)/is)
+                if ($vline =~ /^((?:PO Box )?\d\d*)\s+(\w+)\s+(Rd|St|Ct|Street)\s+(\w+)\s+(\w+)\s*(\d+)?\s*(\w+)/is)
                 {
                     $data{pobox} = $1;
                     $data{street} = $2 . ' ' . $3;
                     $data{city} = $4;
-                    warn "FOUND $vline";
+                    $data{region} = $5;
+                    $data{post_code} = $6;
+                    $data{country} = $7;
+                    warn "FOUND $vline\n";
                 }
                 if (%data)
                 {
