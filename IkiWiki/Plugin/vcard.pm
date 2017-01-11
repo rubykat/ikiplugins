@@ -270,7 +270,7 @@ sub do_one_vcard (@) {
                 elsif ($vline =~ /^(PO Box\d\d*)\s+(\w+)\s+(\w+)\s*(\d+)?\s*(\w+)/is)
                 {
                     $data{pobox} = $1;
-                    $data{street} = ''
+                    $data{street} = '';
                     $data{city} = $2;
                     $data{region} = $3;
                     $data{post_code} = $4;
