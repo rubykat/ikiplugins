@@ -220,6 +220,7 @@ sub do_one_vcard (@) {
     $person{full_name} = $title;
     $person{title} = $nickname;
     $person{photo} = '';
+    $person{version} = '2.1';
     if (defined $phones and $phones)
     {
         $person{phones} = [];
