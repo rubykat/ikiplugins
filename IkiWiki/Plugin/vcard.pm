@@ -262,6 +262,7 @@ sub do_one_vcard (@) {
                     $data{pobox} = $1;
                     $data{street} = $2 . ' ' . $3;
                     $data{city} = $4;
+                    warn "FOUND $vline";
                 }
                 if (%data)
                 {
