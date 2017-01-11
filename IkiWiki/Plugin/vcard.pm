@@ -228,7 +228,7 @@ sub do_one_vcard (@) {
             my $val = $ph;
             if ($ph =~ /(cell|work|home)\s*(.*)/i)
             {
-                $type = lc($1);
+                $type = uc($1);
                 $val = $2;
             }
             if ($val)
@@ -246,7 +246,7 @@ sub do_one_vcard (@) {
             my $val = $ph;
             if ($ph =~ /(work|home)\s*(.*)/i)
             {
-                $type = lc($1);
+                $type = uc($1);
                 $val = $2;
             }
             if ($val)
@@ -264,7 +264,7 @@ sub do_one_vcard (@) {
             my $val = $ph;
             if ($ph =~ /(work|home)\s*(.*)/i)
             {
-                $type = lc($1);
+                $type = uc($1);
                 $val = $2;
             }
             if ($val)
