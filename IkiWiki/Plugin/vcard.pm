@@ -257,7 +257,7 @@ sub do_one_vcard (@) {
                     $vline = $2;
                 }
                 my %data = ();
-                if ($vline =~ /^((?:PO Box )?\d\d*)\s+(\w+)\s+(Rd|St|Ct|Street)\s+(\w+)\s+(\w+)\s*(\d+)?\s*(\w+)/is)
+                if ($vline =~ /^(PO Box \d\d*|\d\d*)\s+(\w+)\s+(Rd|St|Ct|Street)\s+(\w+)\s+(\w+)\s*(\d+)?\s*(\w+)/is)
                 {
                     $data{pobox} = $1;
                     $data{street} = $2 . ' ' . $3;
