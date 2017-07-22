@@ -1,0 +1,2 @@
+#!/bin/bash
+/home/kat/bin/gitsync --verbose --repo $PWD --notify post-update $*
