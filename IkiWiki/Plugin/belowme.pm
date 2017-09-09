@@ -184,7 +184,7 @@ sub below_me {
     }
     if (-d $page_dir) # there is a page directory
     {
-	my @files = <${page_dir}/*>;
+        my @files = glob("${page_dir}/*");
 	my %pagenames = ();
 	my %filenames = ();
 	my $pn_count = 0;
