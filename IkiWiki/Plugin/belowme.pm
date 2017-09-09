@@ -151,8 +151,8 @@ sub below_me {
     # the files in the directory associated with this page.
     my $srcdir = $config{srcdir};
     my $topdir = $srcdir;
-    my $page_dir = $srcdir . '/' . $page;
-    my $full_page_file = $srcdir . '/' . $pagefile;
+    my $page_dir = File::Spec->catdir($srcdir, $page);
+    my $full_page_file = File::Spec->catfile($srcdir, $pagefile);
     if ($page eq 'index')
     {
 	$page_dir = $srcdir;
@@ -161,10 +161,10 @@ sub below_me {
     {
         foreach my $dir (@{$config{underlaydirs}}, $config{underlaydir})
         {
-            my $newdir = $dir . '/' . $page;
+            my $newdir = File::Spec->catdir($dir, $page);
             if ($pagefile)
             {
-                $full_page_file = $dir . '/' . $pagefile;
+                $full_page_file = File::Spec->catfile($dir, $pagefile);
             }
             else
             {
