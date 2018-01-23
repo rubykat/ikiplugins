@@ -87,11 +87,17 @@ sub katplay_get_value ($$;@) {
 	my %vals = ();
 
 	my $timestamp = IkiWiki::Plugin::field::field_get_value('timestamp', $page);
+	my $fetch_timestamp = IkiWiki::Plugin::field::field_get_value('fetch_datetime', $page);
 	my $ctime = $IkiWiki::pagectime{$page};
 	if ($timestamp and $timestamp ne $ctime)
 	{
 	    $IkiWiki::pagectime{$page}=$timestamp;
 	    $ctime=$timestamp;
+	}
+	elsif ($fetch_timestamp and $fetch_timestamp ne $ctime)
+	{
+	    $IkiWiki::pagectime{$page}=$fetch_timestamp;
+	    $ctime=$fetch_timestamp;
 	}
 	my $longdate = IkiWiki::date_3339($ctime);
 	$vals{datelong} = $longdate;
