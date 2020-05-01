@@ -116,33 +116,38 @@ sub katplay_get_value ($$;@) {
 
 	$value = $vals{$field_name};
     }
-    elsif ($field_name =~ /^(major_characters|minor_characters)$/)
+    elsif ($field_name =~ /^major_characters$/)
     {
-	# Major characters are the first two characters
-	my $char_loop = IkiWiki::Plugin::field::field_get_value('characters_loop', $page);
-	if ($char_loop)
-	{
-	    my %vals = ();
-	    my @characters = @{$char_loop};
-	    $vals{major_characters} = [];
-	    for (my $i = 0; $i < @characters; $i++)
-	    {
-		my $ch_hash = $characters[$i];
-		if ($i < 2)
-		{
-		    push @{$vals{major_characters}}, $ch_hash->{characters};
-		}
-		else
-		{
-		    if (!exists $vals{minor_characters})
-		    {
-			$vals{minor_characters} = [];
-		    }
-		    push @{$vals{minor_characters}}, $ch_hash->{characters};
-		}
-	    }
-	    $value = $vals{$field_name};
-	}
+	# Major characters are usually the first two characters
+        # BUT the characters field MAY have been rearranged
+        # into alphabetical order, so we also need a way of explicitly
+        # defining major characters. But we can't just use a field
+        # called "major_characters" or we will have an endless
+        # lookup loop. So we will use "major_chars".
+	my $major_chars = IkiWiki::Plugin::field::field_get_value('major_chars', $page);
+        if ($major_chars)
+        {
+            $value = $major_chars;
+        }
+        else
+        {
+            my $char_loop = IkiWiki::Plugin::field::field_get_value('characters_loop', $page);
+            if ($char_loop)
+            {
+                my %vals = ();
+                my @characters = @{$char_loop};
+                $vals{major_characters} = [];
+                for (my $i = 0; $i < @characters; $i++)
+                {
+                    my $ch_hash = $characters[$i];
+                    if ($i < 2)
+                    {
+                        push @{$vals{major_characters}}, $ch_hash->{characters};
+                    }
+                }
+                $value = $vals{$field_name};
+            }
+        }
     }
     elsif ($field_name =~ /^era$/i)
     {
