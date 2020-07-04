@@ -83,7 +83,7 @@ sub scan (@) {
     if ($page_type =~ /x?html?/o)
     {
 	# scan for internal links
-	$params{content} =~ s/{{\$page}}/$page/sg; # we know what the page is
+	$params{content} =~ s/\{\{\$page\}\}/$page/sg; # we know what the page is
 	while ($params{content} =~ m/<a[^>]+href\s*=\s*['"]([^'"#]+)(#[^\s"']+)?['"][^>]*>[^<]+<\/a>/igso)
 	{
 	    my $link = $1;
