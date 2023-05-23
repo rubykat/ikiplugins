@@ -83,7 +83,7 @@ sub scan (@) {
     if ($page_type =~ /x?html?/o)
     {
 	# scan for internal links
-	$params{content} =~ s/{{\$page}}/$page/sg; # we know what the page is
+	$params{content} =~ s/\{\{\$page\}\}/$page/sg; # we know what the page is
 	while ($params{content} =~ m/<a[^>]+href\s*=\s*['"]([^'"#]+)(#[^\s"']+)?['"][^>]*>[^<]+<\/a>/igso)
 	{
 	    my $link = $1;
@@ -158,7 +158,7 @@ sub filter (@) {
 	    $params{content} = $body;
 	}
     }
-    $params{content} =~ s/{{\$page}}/$page/sg; # we know what the page is
+    $params{content} =~ s/\{\{\$page\}\}/$page/sg; # we know what the page is
     # convert internal links to ikiwiki links
     $params{content} =~ s/(<a[^>]+href\s*=\s*['"]([^'"]+)['"][^>]*>([^<]+)<\/a>)/convert_internal_link($page, $1, $2, $3)/eigso;
     return $params{content};
